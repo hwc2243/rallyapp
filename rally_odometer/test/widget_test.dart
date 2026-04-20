@@ -11,9 +11,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(prefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
         child: const RallyOdometerApp(),
       ),
     );
@@ -24,6 +22,6 @@ void main() {
     // Verify that the odometer screen is displayed
     expect(find.textContaining('TOTAL'), findsOneWidget);
     expect(find.textContaining('INTERVAL'), findsOneWidget);
-    expect(find.textContaining('SPD: 0.0 MPH'), findsOneWidget);
+    expect(find.textContaining('SPEED: 0.0 MPH'), findsOneWidget);
   });
 }
