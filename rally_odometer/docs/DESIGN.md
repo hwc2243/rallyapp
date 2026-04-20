@@ -24,6 +24,13 @@
 - **Visual Feedback:** - **Hold Active:** The "Hold" button must turn **Bright Red** and the Mileage text should dim slightly (e.g., 70% opacity) to indicate the feed is frozen.
   - **Release:** Revert to standard High-Viz colors.
 
+## Direct Mileage Entry
+- **Activation:** Tapping the numerical mileage display (Total or Interval).
+- **Interface:** A modal pop-up with a high-contrast numeric keypad (0-9 and decimal point).
+- **Behavior:** - The "SET" button should be large and green.
+  - The "CANCEL" button should be large and red.
+  - Input should automatically format to three decimal places (0.000).
+
 ## Direction Control (FPR) Layout
 - **Style:** A vertical Segmented Button or Toggle.
 - **Visual Feedback:**

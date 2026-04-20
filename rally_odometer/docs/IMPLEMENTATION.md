@@ -16,19 +16,15 @@
 
 ## Unified Distance Accumulation Pipeline
 All incoming GPS `Position` objects must pass through this sequence:
-
 1. **The Accuracy Gate:** - If `position.accuracy > 15m`, discard the sample.
    - If `DateTime.now().difference(last_timestamp) > 5s`, discard the first sample (Resync).
-
 2. **The Stationary Lock (Hysteresis):**
    - If `current_speed < 0.8 m/s` for 3 consecutive seconds: Set `isLocked = true`.
    - If `isLocked == true` AND `current_speed < 1.2 m/s`: Force `speed_multiplier = 0.0` and discard distance.
    - If `current_speed > 1.2 m/s`: Set `isLocked = false`.
-
 3. **The Speed-Sense Sieve:**
    - **TRANSITION (Speed 1.2 to 2.5 m/s):** Only accumulate distance if `delta_distance > 1.5 meters`.
    - **ACTIVE (Speed > 2.5 m/s):** Accumulate all `delta_distance`.
-
 4. **The final Calculation:**
    - `FinalDelta = DeltaDistance * calibration_factor * dir_mult`
    - `TotalOdometer += FinalDelta`
@@ -41,7 +37,13 @@ All incoming GPS `Position` objects must pass through this sequence:
 - `calibration_factor`: double (Default: 1.00000)
 - `official_mileage_input`: double (Temporary storage for calculation)
 
-### Calculation Logic
+## Persistence Layer
+- 'tool': shared_preferences package for lightweight key-value storage
+- 'isMetric': trigger save whenever it is changed from preferences, if null default to false
+- 'isDecimalMinutes: trigger a save whenever it is changed from preferences, if null default to false
+- 'calibrationFactor': trigger a save whenever is is changed from preferences, if null default to 1.000
+
+## Calculation Logic
 - `Calculated_Distance = Raw_GPS_Distance * calibration_factor`
 - The factor should be persisted locally (e.g., using `shared_preferences`).
 

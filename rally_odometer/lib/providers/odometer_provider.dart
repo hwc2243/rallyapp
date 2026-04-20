@@ -52,52 +52,55 @@ class OdometerState {
   }
 }
 
-class OdometerNotifier extends StateNotifier<OdometerState> {
-  final LocationService _locationService;
-  final Ref _ref;
+class OdometerNotifier extends Notifier<OdometerState> {
   StreamSubscription<Position>? _positionSubscription;
   Position? _lastPosition;
 
-  OdometerNotifier(this._locationService, this._ref)
-      : super(OdometerState(totalDistance: 0, intervalDistance: 0)) {
-    _loadDistances();
-    _init();
-  }
+  @override
+  OdometerState build() {
+    final prefs = ref.watch(sharedPreferencesProvider);
+    final locationService = ref.watch(locationServiceProvider);
 
-  void _loadDistances() {
-    final prefs = _ref.read(sharedPreferencesProvider);
-    state = OdometerState(
+    final initialState = OdometerState(
       totalDistance: prefs.getDouble('totalDistance') ?? 0,
       intervalDistance: prefs.getDouble('intervalDistance') ?? 0,
       direction: OdometerDirection.values[prefs.getInt('odometerDirection') ?? 0],
     );
-    _locationService.direction = state.direction;
+
+    locationService.direction = initialState.direction;
+    _init(locationService);
+
+    ref.onDispose(() {
+      _positionSubscription?.cancel();
+    });
+
+    return initialState;
+  }
+
+  void _init(LocationService locationService) async {
+    final hasPermission = await locationService.handlePermission();
+    if (hasPermission) {
+      _positionSubscription = locationService.positionStream.listen(_onPositionUpdate);
+    }
   }
 
   void _saveDistances() {
-    final prefs = _ref.read(sharedPreferencesProvider);
+    final prefs = ref.read(sharedPreferencesProvider);
     prefs.setDouble('totalDistance', state.totalDistance);
     prefs.setDouble('intervalDistance', state.intervalDistance);
     prefs.setInt('odometerDirection', state.direction.index);
   }
 
-  void _init() async {
-    final hasPermission = await _locationService.handlePermission();
-    if (hasPermission) {
-      _positionSubscription = _locationService.positionStream.listen(_onPositionUpdate);
-    }
-  }
-
   void setDirection(OdometerDirection direction) {
     state = state.copyWith(direction: direction);
-    _locationService.direction = direction;
+    ref.read(locationServiceProvider).direction = direction;
     _saveDistances();
   }
 
   void _onPositionUpdate(Position position) {
-    final factor = _ref.read(settingsProvider).calibrationFactor;
+    final factor = ref.read(settingsProvider).calibrationFactor;
     
-    final result = _locationService.processLocationUpdate(
+    final result = ref.read(locationServiceProvider).processLocationUpdate(
       lastPosition: _lastPosition,
       currentPosition: position,
       calibrationFactor: factor,
@@ -115,7 +118,6 @@ class OdometerNotifier extends StateNotifier<OdometerState> {
       _saveDistances();
     }
     
-    // Always update last position if accuracy is good, to allow continuous tracking
     if (position.accuracy <= LocationService.maxAccuracyThreshold) {
       _lastPosition = position;
     }
@@ -140,8 +142,15 @@ class OdometerNotifier extends StateNotifier<OdometerState> {
   void resetTotal() {
     state = state.copyWith(
       totalDistance: 0,
-      // If held, we should probably update the frozen mileage too if we reset
       frozenTotalDistance: state.isHeld ? 0 : null,
+    );
+    _saveDistances();
+  }
+
+  void setTotalDistance(double meters) {
+    state = state.copyWith(
+      totalDistance: meters,
+      frozenTotalDistance: state.isHeld ? meters : null,
     );
     _saveDistances();
   }
@@ -151,17 +160,15 @@ class OdometerNotifier extends StateNotifier<OdometerState> {
     _saveDistances();
   }
 
-  @override
-  void dispose() {
-    _positionSubscription?.cancel();
-    super.dispose();
+  void setIntervalDistance(double meters) {
+    state = state.copyWith(intervalDistance: meters);
+    _saveDistances();
   }
 }
 
 final locationServiceProvider = Provider((ref) => LocationService());
 
-final odometerProvider = StateNotifierProvider<OdometerNotifier, OdometerState>((ref) {
-  final locationService = ref.watch(locationServiceProvider);
-  return OdometerNotifier(locationService, ref);
+final odometerProvider = NotifierProvider<OdometerNotifier, OdometerState>(() {
+  return OdometerNotifier();
 });
 

@@ -24,6 +24,11 @@ A high-precision GPS-based odometer designed specifically for TSD (Time Speed Di
     - **Toggle State:**
         - While frozen, the button text changes to **"Release"**.
         - Tapping "Release" updates the display immediately to the current accumulated background mileage and master system clock and reverts the button text to **"Hold"**.
+- **Direct Mileage Entry Feature:**
+    - **Function:** Allows the user to manually override the current odometer value with a specific number.
+    - **Scope:** Must be available for both the Total and Interval odometers independently.
+    - **Input:** A numeric keypad pop-up (supporting 0.000 precision).
+    - **State preservation:** Manually entering a value does **not** reset the calibration factor; it simply offsets the current distance counter.
 
 ### Odometer Direction Control (FPR)
 - **Control Type:** A 3-state toggle or segmented control (Forward, Park, Reverse).
@@ -54,5 +59,9 @@ A high-precision GPS-based odometer designed specifically for TSD (Time Speed Di
 - The application must intelligently pause mileage accumulation when the vehicle is detected as stationary to prevent "GPS Wander."
 - **Visual Feedback (Optional):** When the Speed-Sense filter is actively suppressing noise, the mileage display could subtly change (e.g., a small "Pause" icon or the text turning slightly grey) so the navigator knows the odometer is "parked."
 
+## Data Persistence
+- **Calibration Factor:** must be saved anytime it is changed and should persist across app restarts, device reboots, and updates. On app launch the odometer should default to the last saved calibration
+
 - **Versioning:** - Free Version: "Rally Odometer" (Basic tracking).
   - Paid Version: "Rally Odometer Pro" (Additional rally-specific features).
+
