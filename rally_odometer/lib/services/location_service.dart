@@ -1,34 +1,104 @@
 import 'package:geolocator/geolocator.dart';
 
+enum OdometerDirection { forward, park, reverse }
+
+class LocationUpdateResult {
+  final double distance;
+  final double displaySpeed;
+  final bool isStationaryLock;
+
+  LocationUpdateResult({
+    required this.distance,
+    required this.displaySpeed,
+    required this.isStationaryLock,
+  });
+}
+
 class LocationService {
-  // Speed-Sense Filter Constants
-  static const double minSpeedThreshold = 0.8; // m/s
-  static const double activeSpeedThreshold = 2.5; // m/s
-  static const double minMovementThreshold = 1.5; // meters
+  // Constants from IMPLEMENTATION.md
   static const double maxAccuracyThreshold = 15.0; // meters
+  static const int backgroundGapThresholdSeconds = 5;
+  static const double stationaryLockMinSpeed = 0.8; // m/s
+  static const double stationaryLockUnlockSpeed = 1.2; // m/s
+  static const int stationaryLockDurationSeconds = 3;
+  static const double transitionSpeedThreshold = 2.5; // m/s
+  static const double minMovementThreshold = 1.5; // meters
+
+  OdometerDirection direction = OdometerDirection.forward;
+  bool _isLocked = false;
+  bool get isStationaryLock => _isLocked;
+  set isStationaryLock(bool value) => _isLocked = value;
+  DateTime? _lowSpeedStartTime;
+  DateTime? _lastTimestamp;
 
   Stream<Position> get positionStream => Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          distanceFilter: 0, // Receive updates for every move to apply custom filtering
+          distanceFilter: 0,
         ),
       );
 
-  /// Calculates the distance between two positions applying the Speed-Sense filter.
-  /// Returns the distance in meters, adjusted by the calibration factor.
-  /// If the movement is filtered out or accuracy is poor, returns 0.0.
-  double calculateFilteredDistance({
+  LocationUpdateResult processLocationUpdate({
     required Position? lastPosition,
     required Position currentPosition,
     required double calibrationFactor,
   }) {
-    // Accuracy Guard: Regardless of speed, ignore any GPS fix with horizontal accuracy > 15m
+    final DateTime now = DateTime.now();
+    double deltaDistance = 0.0;
+    double currentSpeed = currentPosition.speed;
+
+    // 1. The Accuracy Gate
     if (currentPosition.accuracy > maxAccuracyThreshold) {
-      return 0.0;
+      return LocationUpdateResult(
+        distance: 0.0,
+        displaySpeed: _isLocked ? 0.0 : currentSpeed,
+        isStationaryLock: _isLocked,
+      );
     }
 
-    if (lastPosition == null) {
-      return 0.0;
+    if (_lastTimestamp != null) {
+      if (now.difference(_lastTimestamp!).inSeconds > backgroundGapThresholdSeconds) {
+        // Discard first sample after gap (Resync)
+        _lastTimestamp = now;
+        return LocationUpdateResult(
+          distance: 0.0,
+          displaySpeed: _isLocked ? 0.0 : currentSpeed,
+          isStationaryLock: _isLocked,
+        );
+      }
+    }
+    _lastTimestamp = now;
+
+    // 2. The Stationary Lock (Hysteresis)
+    if (currentSpeed < stationaryLockMinSpeed) {
+      _lowSpeedStartTime ??= now;
+      if (now.difference(_lowSpeedStartTime!).inSeconds >= stationaryLockDurationSeconds) {
+        _isLocked = true;
+      }
+    } else {
+      _lowSpeedStartTime = null;
+    }
+
+    if (_isLocked) {
+      if (currentSpeed > stationaryLockUnlockSpeed) {
+        _isLocked = false;
+      } else {
+        // Force speed_multiplier = 0.0 and discard distance
+        return LocationUpdateResult(
+          distance: 0.0,
+          displaySpeed: 0.0,
+          isStationaryLock: true,
+        );
+      }
+    }
+
+    // 3. The Speed-Sense Sieve
+    if (direction == OdometerDirection.park || lastPosition == null) {
+      return LocationUpdateResult(
+        distance: 0.0,
+        displaySpeed: currentSpeed,
+        isStationaryLock: _isLocked,
+      );
     }
 
     final double rawDistance = Geolocator.distanceBetween(
@@ -38,47 +108,50 @@ class LocationService {
       currentPosition.longitude,
     );
 
-    final double speed = currentPosition.speed;
     bool shouldAccumulate = false;
-
-    // Speed-Sense Noise Filtering Logic
-    if (speed < minSpeedThreshold) {
+    if (currentSpeed < stationaryLockMinSpeed) {
       // STATIONARY (Speed < 0.8 m/s): Strictly ignore all GPS coordinate changes.
       shouldAccumulate = false;
-    } else if (speed <= activeSpeedThreshold) {
-      // TRANSITION (Speed 0.8 m/s to 2.5 m/s): Apply a "Minimum Movement" threshold
+    } else if (currentSpeed <= transitionSpeedThreshold) {
+      // TRANSITION (Speed 0.8 to 2.5 m/s): Only accumulate if delta_distance > 1.5 meters
       if (rawDistance > minMovementThreshold) {
         shouldAccumulate = true;
       }
     } else {
-      // ACTIVE (Speed > 2.5 m/s): Zero filtering.
+      // ACTIVE (Speed > 2.5 m/s): Accumulate all delta_distance
       shouldAccumulate = true;
     }
 
-    return shouldAccumulate ? (rawDistance * calibrationFactor) : 0.0;
+    if (shouldAccumulate) {
+      // 4. The final Calculation
+      double dirMult = 1.0;
+      if (direction == OdometerDirection.reverse) {
+        dirMult = -1.0;
+      }
+      
+      deltaDistance = rawDistance * calibrationFactor * dirMult;
+    }
+
+    return LocationUpdateResult(
+      distance: deltaDistance,
+      displaySpeed: currentSpeed,
+      isStationaryLock: _isLocked,
+    );
   }
 
   Future<bool> handlePermission() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return false;
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return false;
-    }
-
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return false;
-      }
+      if (permission == LocationPermission.denied) return false;
     }
 
-    if (permission == LocationPermission.deniedForever) {
-      return false;
-    }
+    if (permission == LocationPermission.deniedForever) return false;
 
     return true;
   }
 }
+

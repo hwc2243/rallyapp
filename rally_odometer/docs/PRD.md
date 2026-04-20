@@ -25,12 +25,23 @@ A high-precision GPS-based odometer designed specifically for TSD (Time Speed Di
         - While frozen, the button text changes to **"Release"**.
         - Tapping "Release" updates the display immediately to the current accumulated background mileage and master system clock and reverts the button text to **"Hold"**.
 
+### Odometer Direction Control (FPR)
+- **Control Type:** A 3-state toggle or segmented control (Forward, Park, Reverse).
+- **Default State:** Forward.
+- **States & Logic:**
+  1. **Forward (F):** Mileage accumulates normally (Added to totals).
+  2. **Park (P):** Mileage accumulation is strictly disabled, regardless of GPS movement.
+  3. **Reverse (R):** Distance traveled is **subtracted** from both the Total and Interval odometers.
+- **UI Placement:** Located to the immediate left of the control buttons (Reset/Hold) on the right side of the screen.
+
 ## Feature Specifications
 - **Main UI:** Two primary rows. Top row = Total Odometer. Bottom row = Interval Odometer.
 - **Clock:** Both rows must display the current system time (HH:mm:ss).
 - **Settings:**
   - Unit Toggle: Miles vs. Kilometers.
   - Time Format: Seconds vs. Hundredths of a minute (Decimal minutes).
+- ** GPS Accuracy:**
+  - Display a GPS signal indicator. Green = <10m, Yellow = 10-15m, Red = >15m (Filtering Active).
 
 ### Calibration & Factor
 - **Calibration Factor:** A multiplier applied to the raw GPS distance to align with official rally mileage.

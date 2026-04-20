@@ -17,12 +17,21 @@ class StubLocationService extends LocationService {
   Future<bool> handlePermission() async => true;
 
   @override
-  double calculateFilteredDistance({
+  LocationUpdateResult processLocationUpdate({
     required Position? lastPosition,
     required Position currentPosition,
     required double calibrationFactor,
   }) {
-    return 0.0; // Isolate speed update
+    if (direction == OdometerDirection.park) {
+      return LocationUpdateResult(distance: 0.0, displaySpeed: 0.0, isStationaryLock: false);
+    }
+    const dist = 10.0;
+    final distance = direction == OdometerDirection.reverse ? -dist : dist;
+    return LocationUpdateResult(
+      distance: distance,
+      displaySpeed: currentPosition.speed,
+      isStationaryLock: false,
+    );
   }
 
   void emit(Position position) => _controller.add(position);
@@ -38,7 +47,7 @@ void main() {
     prefs = await SharedPreferences.getInstance();
   });
 
-  test('OdometerState initial speed is 0.0', () {
+  test('OdometerState initial state is forward', () {
     final container = ProviderContainer(
       overrides: [
         locationServiceProvider.overrideWithValue(stubLocationService),
@@ -48,9 +57,11 @@ void main() {
 
     final state = container.read(odometerProvider);
     expect(state.currentSpeed, 0.0);
+    expect(state.direction, OdometerDirection.forward);
+    expect(state.isStationaryLock, false);
   });
 
-  test('OdometerNotifier updates speed on position update', () async {
+  test('OdometerNotifier updates direction and persists it', () async {
     final container = ProviderContainer(
       overrides: [
         locationServiceProvider.overrideWithValue(stubLocationService),
@@ -58,30 +69,41 @@ void main() {
       ],
     );
 
-    // Trigger lazy provider initialization
-    container.read(odometerProvider);
-    // Wait for _init() to finish its async permission check and subscribe
-    await Future.delayed(const Duration(milliseconds: 100));
+    final notifier = container.read(odometerProvider.notifier);
+    notifier.setDirection(OdometerDirection.reverse);
 
-    final position = Position(
-      latitude: 0,
-      longitude: 0,
-      timestamp: DateTime.now(),
-      accuracy: 5.0,
-      altitude: 0,
-      heading: 0,
-      speed: 10.5, // 10.5 m/s
-      speedAccuracy: 0,
-      altitudeAccuracy: 0,
-      headingAccuracy: 0,
+    expect(container.read(odometerProvider).direction, OdometerDirection.reverse);
+    expect(stubLocationService.direction, OdometerDirection.reverse);
+    expect(prefs.getInt('odometerDirection'), OdometerDirection.reverse.index);
+  });
+
+  test('OdometerNotifier updates distance based on direction', () async {
+    final container = ProviderContainer(
+      overrides: [
+        locationServiceProvider.overrideWithValue(stubLocationService),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
     );
 
-    stubLocationService.emit(position);
-    
-    // Wait for stream event to be processed
+    container.read(odometerProvider);
     await Future.delayed(const Duration(milliseconds: 100));
-    
-    final state = container.read(odometerProvider);
-    expect(state.currentSpeed, 10.5);
+
+    final pos = Position(
+      latitude: 0, longitude: 0, timestamp: DateTime.now(),
+      accuracy: 5.0, altitude: 0, heading: 0, speed: 10.0,
+      speedAccuracy: 0, altitudeAccuracy: 0, headingAccuracy: 0,
+    );
+
+    // Initial 10m forward (Stub returns 10m)
+    stubLocationService.emit(pos);
+    await Future.delayed(const Duration(milliseconds: 100));
+    expect(container.read(odometerProvider).totalDistance, 10.0);
+
+    // Change to Reverse
+    container.read(odometerProvider.notifier).setDirection(OdometerDirection.reverse);
+    stubLocationService.emit(pos);
+    await Future.delayed(const Duration(milliseconds: 100));
+    // Stub returns -10m in reverse
+    expect(container.read(odometerProvider).totalDistance, 0.0);
   });
 }

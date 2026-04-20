@@ -24,6 +24,21 @@
 - **Visual Feedback:** - **Hold Active:** The "Hold" button must turn **Bright Red** and the Mileage text should dim slightly (e.g., 70% opacity) to indicate the feed is frozen.
   - **Release:** Revert to standard High-Viz colors.
 
+## Direction Control (FPR) Layout
+- **Style:** A vertical Segmented Button or Toggle.
+- **Visual Feedback:**
+  - **Forward:** Standard Green text.  Labeled Forward
+  - **Park:** White/Grey text; Mileage display should "dim" to show it is inactive. Labeled Park
+  - **Reverse:** **Bold Red text** or Red background. The mileage numbers should turn Red to indicate they are "counting down." Labeled Reverse
+- **Touch Target:** Large vertical area for easy toggling with a thumb while driving.
+
+## GPS status
+- **Visual:** a Satellite dish icon
+- **Placement:** displayed at top centered between TOTAL label and time
+
+## Wakelook
+-- The screen must utilize a Wakelock to stay at 100% brightness indefinitely while the odometer is active.
+
 ## Themes
 - **Default (Night):** Pure Black background (#000000).
 - **Primary Text:** High-viz Green (#00FF00) for Total, High-viz Yellow (#FFFF00) for Interval.

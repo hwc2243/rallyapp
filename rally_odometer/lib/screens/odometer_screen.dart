@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../providers/odometer_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/location_service.dart';
 
 class OdometerScreen extends ConsumerStatefulWidget {
   const OdometerScreen({super.key});
@@ -19,9 +21,10 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
   @override
   void initState() {
     super.initState();
+    WakelockPlus.enable();
     _refreshDisplay();
-    // Update display every 50ms to support decimal minutes precision
-    _timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
+    // Global refresh timer set to 100ms as per specifications
+    _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       _refreshDisplay();
     });
   }
@@ -37,24 +40,15 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
   String _formatTime(DateTime time, bool isDecimalMinutes) {
     if (isDecimalMinutes) {
       // HH:mm.[hundredths]
-      double totalSeconds = time.hour * 3600.0 + 
-                           time.minute * 60.0 + 
-                           time.second + 
-                           time.millisecond / 1000.0;
-      double totalDecimalMinutes = totalSeconds / 60.0;
+      // Formula for Hundredths: (Seconds / 60) * 100 or simply (Seconds * 5) / 3
+      double totalSecondsInMinute = time.second + time.millisecond / 1000.0;
+      double hundredths = (totalSecondsInMinute / 60.0) * 100.0;
       
-      int hours = (totalDecimalMinutes / 60.0).floor() % 24;
-      double minutesWithFraction = totalDecimalMinutes % 60.0;
+      String hh = time.hour.toString().padLeft(2, '0');
+      String mm = time.minute.toString().padLeft(2, '0');
+      String ss = hundredths.toInt().toString().padLeft(2, '0');
       
-      String mmhh = minutesWithFraction.toStringAsFixed(2).padLeft(5, '0');
-      
-      if (mmhh == "60.00") {
-        mmhh = "00.00";
-        hours = (hours + 1) % 24;
-      }
-      
-      String hh = hours.toString().padLeft(2, '0');
-      return "$hh:$mmhh";
+      return "$hh:$mm.$ss";
     } else {
       return DateFormat('HH:mm:ss').format(time);
     }
@@ -63,6 +57,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
   @override
   void dispose() {
     _timer.cancel();
+    WakelockPlus.disable();
     super.dispose();
   }
 
@@ -74,10 +69,24 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
     }
   }
 
-  Widget _buildSpeedIndicator(double speedMs, bool isMetric) {
+  Widget _buildGpsIndicator(double accuracy) {
+    Color iconColor;
+    if (accuracy == 0) {
+      iconColor = Colors.grey;
+    } else if (accuracy < 10) {
+      iconColor = Colors.green;
+    } else if (accuracy <= 15) {
+      iconColor = Colors.yellow;
+    } else {
+      iconColor = Colors.red;
+    }
+
+    return Icon(Icons.satellite_alt, color: iconColor, size: 24);
+  }
+
+  Widget _buildSpeedIndicator(double speedMs, bool isMetric, bool isStationary) {
     final double displaySpeed = isMetric ? speedMs * 3.6 : speedMs * 2.23694;
     final String unit = isMetric ? "KPH" : "MPH";
-    final bool isActive = speedMs >= 0.8; // LocationService.minSpeedThreshold
 
     return Container(
       width: double.infinity,
@@ -95,7 +104,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
           child: Text(
             "SPD: ${displaySpeed.toStringAsFixed(1)} $unit",
             style: TextStyle(
-              color: isActive ? const Color(0xFF00FF00) : Colors.grey[700],
+              color: isStationary ? Colors.grey[700] : const Color(0xFF00FF00),
               fontSize: 24,
               fontFamily: 'Courier',
               fontWeight: FontWeight.bold,
@@ -119,8 +128,11 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
         ? _formatTime(odometer.frozenTime!, settings.isDecimalMinutes)
         : _currentTimeDisplay;
 
-    const totalColor = Color(0xFF00FF00); // High-viz Green
-    const intervalColor = Color(0xFFFFFF00); // High-viz Yellow
+    final isReverse = odometer.direction == OdometerDirection.reverse;
+    final isParked = odometer.direction == OdometerDirection.park;
+    
+    final totalColor = isReverse ? Colors.red : const Color(0xFF00FF00); 
+    final intervalColor = isReverse ? Colors.red : const Color(0xFFFFFF00);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -134,64 +146,106 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                   // Top Row: Total Mileage
                   Expanded(
                     child: _buildOdometerDisplay(
-                      label: "TOTAL (${settings.isMetric ? 'KM' : 'MI'})",
+                      label: "TOTAL",
+                      unit: settings.isMetric ? "km" : "mi",
                       value: _convertDistance(totalDisplayDistance, settings.isMetric),
                       time: totalDisplayTime,
                       color: totalColor,
-                      isDimmed: odometer.isHeld,
+                      isDimmed: odometer.isHeld || isParked,
+                      accuracy: odometer.lastAccuracy,
+                      showGps: true,
                     ),
                   ),
-                  _buildSpeedIndicator(odometer.currentSpeed, settings.isMetric),
+                  _buildSpeedIndicator(odometer.currentSpeed, settings.isMetric, odometer.isStationaryLock),
                   // Bottom Row: Interval Mileage
                   Expanded(
                     child: _buildOdometerDisplay(
-                      label: "INTERVAL (${settings.isMetric ? 'KM' : 'MI'})",
+                      label: "INTERVAL",
+                      unit: settings.isMetric ? "km" : "mi",
                       value: _convertDistance(odometer.intervalDistance, settings.isMetric),
                       time: _currentTimeDisplay,
                       color: intervalColor,
+                      isDimmed: isParked,
                     ),
                   ),
                 ],
               ),
             ),
-            // Control Column (Right side, 15% width)
+            // Control Column (Right side)
             Container(
-              width: MediaQuery.of(context).size.width * 0.15,
+              width: MediaQuery.of(context).size.width * 0.20,
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: const BoxDecoration(
-                color: Colors.black, // Pure black background
+                color: Colors.black,
                 border: Border(left: BorderSide(color: Colors.white24, width: 1)),
               ),
-              child: Column(
+              child: Row(
                 children: [
-                  // Top Row Controls
+                  // Direction Segmented Control (FPR)
                   Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildControlButton(
-                          label: odometer.isHeld ? "RELEASE" : "HOLD",
-                          color: odometer.isHeld ? Colors.red : Colors.green,
-                          onPressed: () => ref.read(odometerProvider.notifier).toggleHold(),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildControlButton(
-                          label: "RESET",
-                          color: Colors.grey[800]!,
-                          onPressed: () => ref.read(odometerProvider.notifier).resetTotal(),
-                        ),
-                      ],
+                    flex: 3,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildDirectionButton(
+                            label: "FORWARD",
+                            isActive: odometer.direction == OdometerDirection.forward,
+                            activeColor: Colors.green,
+                            onPressed: () => ref.read(odometerProvider.notifier).setDirection(OdometerDirection.forward),
+                          ),
+                          _buildDirectionButton(
+                            label: "PARK",
+                            isActive: odometer.direction == OdometerDirection.park,
+                            activeColor: Colors.white,
+                            onPressed: () => ref.read(odometerProvider.notifier).setDirection(OdometerDirection.park),
+                          ),
+                          _buildDirectionButton(
+                            label: "REVERSE",
+                            isActive: odometer.direction == OdometerDirection.reverse,
+                            activeColor: Colors.red,
+                            onPressed: () => ref.read(odometerProvider.notifier).setDirection(OdometerDirection.reverse),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const Divider(color: Colors.white24, height: 1),
-                  // Bottom Row Controls
+                  const VerticalDivider(color: Colors.white24, width: 1),
+                  // Action Buttons
                   Expanded(
-                    child: Center(
-                      child: _buildControlButton(
-                        label: "RESET",
-                        color: Colors.grey[800]!,
-                        onPressed: () => ref.read(odometerProvider.notifier).resetInterval(),
-                      ),
+                    flex: 2,
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _buildControlButton(
+                                label: odometer.isHeld ? "RELEASE" : "HOLD",
+                                color: odometer.isHeld ? Colors.red : Colors.green,
+                                onPressed: () => ref.read(odometerProvider.notifier).toggleHold(),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildControlButton(
+                                label: "RESET",
+                                color: Colors.grey[800]!,
+                                onPressed: () => ref.read(odometerProvider.notifier).resetTotal(),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(color: Colors.white24, height: 1),
+                        Expanded(
+                          child: Center(
+                            child: _buildControlButton(
+                              label: "RESET",
+                              color: Colors.grey[800]!,
+                              onPressed: () => ref.read(odometerProvider.notifier).resetInterval(),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -209,28 +263,80 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
     );
   }
 
+  Widget _buildDirectionButton({
+    required String label,
+    required bool isActive,
+    required VoidCallback onPressed,
+    required Color activeColor,
+  }) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              backgroundColor: isActive ? activeColor : Colors.transparent,
+              side: BorderSide(color: isActive ? activeColor : Colors.white24),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+            ),
+            onPressed: onPressed,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: isActive ? (activeColor == Colors.white ? Colors.black : Colors.white) : Colors.grey,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildOdometerDisplay({
     required String label,
+    required String unit,
     required double value,
     required String time,
     required Color color,
     bool isDimmed = false,
+    double accuracy = 0,
+    bool showGps = false,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Stack(
             children: [
-              Text(label, style: TextStyle(color: color, fontSize: 16)),
-              Text(
-                time,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 20,
-                  fontFamily: 'Courier',
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "$label ($unit)", 
+                  style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold)
+                ),
+              ),
+              if (showGps)
+                Align(
+                  alignment: Alignment.center,
+                  child: _buildGpsIndicator(accuracy),
+                ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  time,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 24,
+                    fontFamily: 'Courier',
+                  ),
                 ),
               ),
             ],
@@ -245,7 +351,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                     value.toStringAsFixed(3),
                     style: TextStyle(
                       color: color,
-                      fontSize: 120, // Max size, will scale down to fit
+                      fontSize: 140, 
                       fontFamily: 'Courier',
                       fontWeight: FontWeight.bold,
                     ),
@@ -264,35 +370,29 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
     required Color color,
     required VoidCallback onPressed,
   }) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double size = constraints.maxWidth * 0.9;
-        final double clampedSize = size.clamp(60.0, 88.0);
-        
-        return SizedBox(
-          width: clampedSize,
-          height: clampedSize,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: color,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.all(4),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            onPressed: onPressed,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-            ),
+    return SizedBox(
+      width: 70,
+      height: 70,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.all(4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
-        );
-      },
+        ),
+        onPressed: onPressed,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+        ),
+      ),
     );
   }
 }
+

@@ -5,37 +5,49 @@ import '../services/location_service.dart';
 import 'settings_provider.dart';
 
 class OdometerState {
-  final double totalDistance; // in meters (raw GPS * factor)
-  final double intervalDistance; // in meters (raw GPS * factor)
-  final double currentSpeed; // in m/s
+  final double totalDistance;
+  final double intervalDistance;
+  final double currentSpeed;
+  final double lastAccuracy;
   final bool isHeld;
   final double? frozenTotalDistance;
   final DateTime? frozenTime;
+  final OdometerDirection direction;
+  final bool isStationaryLock;
 
   OdometerState({
     required this.totalDistance,
     required this.intervalDistance,
     this.currentSpeed = 0.0,
+    this.lastAccuracy = 0.0,
     this.isHeld = false,
     this.frozenTotalDistance,
     this.frozenTime,
+    this.direction = OdometerDirection.forward,
+    this.isStationaryLock = false,
   });
 
   OdometerState copyWith({
     double? totalDistance,
     double? intervalDistance,
     double? currentSpeed,
+    double? lastAccuracy,
     bool? isHeld,
     double? frozenTotalDistance,
     DateTime? frozenTime,
+    OdometerDirection? direction,
+    bool? isStationaryLock,
   }) {
     return OdometerState(
       totalDistance: totalDistance ?? this.totalDistance,
       intervalDistance: intervalDistance ?? this.intervalDistance,
       currentSpeed: currentSpeed ?? this.currentSpeed,
+      lastAccuracy: lastAccuracy ?? this.lastAccuracy,
       isHeld: isHeld ?? this.isHeld,
       frozenTotalDistance: frozenTotalDistance ?? this.frozenTotalDistance,
       frozenTime: frozenTime ?? this.frozenTime,
+      direction: direction ?? this.direction,
+      isStationaryLock: isStationaryLock ?? this.isStationaryLock,
     );
   }
 }
@@ -57,13 +69,16 @@ class OdometerNotifier extends StateNotifier<OdometerState> {
     state = OdometerState(
       totalDistance: prefs.getDouble('totalDistance') ?? 0,
       intervalDistance: prefs.getDouble('intervalDistance') ?? 0,
+      direction: OdometerDirection.values[prefs.getInt('odometerDirection') ?? 0],
     );
+    _locationService.direction = state.direction;
   }
 
   void _saveDistances() {
     final prefs = _ref.read(sharedPreferencesProvider);
     prefs.setDouble('totalDistance', state.totalDistance);
     prefs.setDouble('intervalDistance', state.intervalDistance);
+    prefs.setInt('odometerDirection', state.direction.index);
   }
 
   void _init() async {
@@ -73,26 +88,35 @@ class OdometerNotifier extends StateNotifier<OdometerState> {
     }
   }
 
+  void setDirection(OdometerDirection direction) {
+    state = state.copyWith(direction: direction);
+    _locationService.direction = direction;
+    _saveDistances();
+  }
+
   void _onPositionUpdate(Position position) {
     final factor = _ref.read(settingsProvider).calibrationFactor;
     
-    final adjustedDistance = _locationService.calculateFilteredDistance(
+    final result = _locationService.processLocationUpdate(
       lastPosition: _lastPosition,
       currentPosition: position,
       calibrationFactor: factor,
     );
 
     state = state.copyWith(
-      totalDistance: state.totalDistance + adjustedDistance,
-      intervalDistance: state.intervalDistance + adjustedDistance,
-      currentSpeed: position.speed,
+      totalDistance: state.totalDistance + result.distance,
+      intervalDistance: state.intervalDistance + result.distance,
+      currentSpeed: result.displaySpeed,
+      isStationaryLock: result.isStationaryLock,
+      lastAccuracy: position.accuracy,
     );
 
-    if (adjustedDistance > 0) {
+    if (result.distance != 0) {
       _saveDistances();
-      _lastPosition = position;
-    } else if (_lastPosition == null && position.accuracy <= LocationService.maxAccuracyThreshold) {
-      // Initialize last position with the first accurate fix
+    }
+    
+    // Always update last position if accuracy is good, to allow continuous tracking
+    if (position.accuracy <= LocationService.maxAccuracyThreshold) {
       _lastPosition = position;
     }
   }
@@ -116,6 +140,7 @@ class OdometerNotifier extends StateNotifier<OdometerState> {
   void resetTotal() {
     state = state.copyWith(
       totalDistance: 0,
+      // If held, we should probably update the frozen mileage too if we reset
       frozenTotalDistance: state.isHeld ? 0 : null,
     );
     _saveDistances();
@@ -139,3 +164,4 @@ final odometerProvider = StateNotifierProvider<OdometerNotifier, OdometerState>(
   final locationService = ref.watch(locationServiceProvider);
   return OdometerNotifier(locationService, ref);
 });
+

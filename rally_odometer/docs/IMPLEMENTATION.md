@@ -14,12 +14,24 @@
     * Formula for Hundredths: `(Seconds / 60) * 100` or simply `(Seconds * 5) / 3`, rounded to the nearest whole number.
 - **Synchronization:** The display logic must pull from the system clock (`DateTime.now()`) on every tick rather than incrementing a local counter to prevent drift.
 
-## Speed-Sense Noise Filtering
-- **Operational States:**
-  1. **STATIONARY (Speed < 0.8 m/s):** Strictly ignore all GPS coordinate changes. Do not accumulate mileage.
-  2. **TRANSITION (Speed 0.8 m/s to 2.5 m/s):** Apply a "Minimum Movement" threshold of 1.5 meters per update to filter out signal drift.
-  3. **ACTIVE (Speed > 2.5 m/s):** Zero filtering. Accumulate all reported distance changes to ensure maximum precision during rally segments.
-- **Accuracy Guard:** Regardless of speed, ignore any GPS fix with a horizontal accuracy > 15 meters.
+## Unified Distance Accumulation Pipeline
+All incoming GPS `Position` objects must pass through this sequence:
+
+1. **The Accuracy Gate:** - If `position.accuracy > 15m`, discard the sample.
+   - If `DateTime.now().difference(last_timestamp) > 5s`, discard the first sample (Resync).
+
+2. **The Stationary Lock (Hysteresis):**
+   - If `current_speed < 0.8 m/s` for 3 consecutive seconds: Set `isLocked = true`.
+   - If `isLocked == true` AND `current_speed < 1.2 m/s`: Force `speed_multiplier = 0.0` and discard distance.
+   - If `current_speed > 1.2 m/s`: Set `isLocked = false`.
+
+3. **The Speed-Sense Sieve:**
+   - **TRANSITION (Speed 1.2 to 2.5 m/s):** Only accumulate distance if `delta_distance > 1.5 meters`.
+   - **ACTIVE (Speed > 2.5 m/s):** Accumulate all `delta_distance`.
+
+4. **The final Calculation:**
+   - `FinalDelta = DeltaDistance * calibration_factor * dir_mult`
+   - `TotalOdometer += FinalDelta`
 
 ## Data Schema
 - `total_distance`: double (meters)
@@ -32,6 +44,13 @@
 ### Calculation Logic
 - `Calculated_Distance = Raw_GPS_Distance * calibration_factor`
 - The factor should be persisted locally (e.g., using `shared_preferences`).
+
+## Directional Math Logic
+- **Multiplier variable (`dir_mult`):**
+  - If State == Forward: `dir_mult = 1.0`
+  - If State == Park: `dir_mult = 0.0`
+  - If State == Reverse: `dir_mult = -1.0`
+- **Formula:** `new_distance = current_distance + (delta_gps * calibration_factor * dir_mult)`
 
 ### Hold State Logic
 - **State Variables:** - `isHeld`: boolean
