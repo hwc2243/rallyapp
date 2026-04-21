@@ -61,6 +61,56 @@ void main() {
     expect(state.isStationaryLock, false);
   });
 
+  test('SettingsNotifier persists bump amount and converts it on unit toggle', () {
+    final container = ProviderContainer(
+      overrides: [
+        locationServiceProvider.overrideWithValue(stubLocationService),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
+    );
+
+    final notifier = container.read(settingsProvider.notifier);
+    notifier.setBumpAmount(0.010);
+    expect(container.read(settingsProvider).bumpAmount, 0.010);
+    expect(prefs.getDouble('bumpAmount'), 0.010);
+
+    notifier.toggleMetric();
+
+    final metricBump = container.read(settingsProvider).bumpAmount;
+    expect(container.read(settingsProvider).isMetric, true);
+    expect(metricBump, closeTo(0.01609344, 1e-9));
+    expect(prefs.getDouble('bumpAmount'), closeTo(0.01609344, 1e-9));
+
+    notifier.toggleMetric();
+
+    expect(container.read(settingsProvider).isMetric, false);
+    expect(container.read(settingsProvider).bumpAmount, closeTo(0.010, 1e-9));
+  });
+
+  test('SettingsNotifier toggles persisted bump double-tap requirement', () {
+    final container = ProviderContainer(
+      overrides: [
+        locationServiceProvider.overrideWithValue(stubLocationService),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
+    );
+
+    final notifier = container.read(settingsProvider.notifier);
+
+    expect(container.read(settingsProvider).bumpRequireDoubleTap, false);
+    expect(prefs.getBool('bumpRequireDoubleTap'), isNull);
+
+    notifier.toggleBumpRequireDoubleTap();
+
+    expect(container.read(settingsProvider).bumpRequireDoubleTap, true);
+    expect(prefs.getBool('bumpRequireDoubleTap'), true);
+
+    notifier.toggleBumpRequireDoubleTap();
+
+    expect(container.read(settingsProvider).bumpRequireDoubleTap, false);
+    expect(prefs.getBool('bumpRequireDoubleTap'), false);
+  });
+
   test('OdometerNotifier updates direction and persists it', () async {
     final container = ProviderContainer(
       overrides: [
@@ -105,5 +155,56 @@ void main() {
     await Future.delayed(const Duration(milliseconds: 100));
     // Stub returns -10m in reverse
     expect(container.read(odometerProvider).totalDistance, 0.0);
+  });
+
+  test('OdometerNotifier applyBump uses imperial display units', () {
+    final container = ProviderContainer(
+      overrides: [
+        locationServiceProvider.overrideWithValue(stubLocationService),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
+    );
+
+    container.read(settingsProvider.notifier).setBumpAmount(0.010);
+    container.read(odometerProvider.notifier).applyBump(true);
+
+    expect(
+      container.read(odometerProvider).totalDistance,
+      closeTo(16.09344, 1e-9),
+    );
+    expect(
+      container.read(odometerProvider).intervalDistance,
+      closeTo(16.09344, 1e-9),
+    );
+    expect(prefs.getDouble('totalDistance'), closeTo(16.09344, 1e-9));
+    expect(prefs.getDouble('intervalDistance'), closeTo(16.09344, 1e-9));
+  });
+
+  test('OdometerNotifier applyBump uses metric display units after toggle', () {
+    final container = ProviderContainer(
+      overrides: [
+        locationServiceProvider.overrideWithValue(stubLocationService),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
+    );
+
+    final settingsNotifier = container.read(settingsProvider.notifier);
+    settingsNotifier.setBumpAmount(0.010);
+    settingsNotifier.toggleMetric();
+
+    container.read(odometerProvider.notifier).applyBump(true);
+
+    expect(
+      container.read(odometerProvider).totalDistance,
+      closeTo(16.09344, 1e-9),
+    );
+    expect(
+      container.read(odometerProvider).intervalDistance,
+      closeTo(16.09344, 1e-9),
+    );
+
+    container.read(odometerProvider.notifier).applyBump(false);
+    expect(container.read(odometerProvider).totalDistance, closeTo(0.0, 1e-9));
+    expect(container.read(odometerProvider).intervalDistance, closeTo(0.0, 1e-9));
   });
 }

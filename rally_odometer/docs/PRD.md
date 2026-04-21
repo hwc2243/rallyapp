@@ -29,6 +29,15 @@ A high-precision GPS-based odometer designed specifically for TSD (Time Speed Di
     - **Scope:** Must be available for both the Total and Interval odometers independently.
     - **Input:** A numeric keypad pop-up (supporting 0.000 precision).
     - **State preservation:** Manually entering a value does **not** reset the calibration factor; it simply offsets the current distance counter.
+- **Mileage Bump Feature:**
+    - **Function:** Provides two quick-action buttons ("Bump+" and "Bump-") to the Total Odometer.
+    - **Logic:** Tapping "Bump+" adds the preset amount to the Total mileage; "Bump-" subtracts it.
+    - **Configuration:** The increment value (e.g., 0.010 or 0.005) must be user-configurable in the Settings.
+    - **Persistence:** The chosen bump amount must be saved to local storage.
+    - **Bump Interaction Safety:**
+      - **Feature:** A configuration setting to toggle between "Single-Tap" and "Double-Tap" for Bump buttons.
+      - **Default:** Single-Tap.
+      - **Logic:** If "Double-Tap to Bump" is enabled, the odometer will only increment/decrement if two taps are detected within 300ms.
 
 ### Odometer Direction Control (FPR)
 - **Control Type:** A 3-state toggle or segmented control (Forward, Park, Reverse).
@@ -58,6 +67,11 @@ A high-precision GPS-based odometer designed specifically for TSD (Time Speed Di
 ### Odometer Precision Logic
 - The application must intelligently pause mileage accumulation when the vehicle is detected as stationary to prevent "GPS Wander."
 - **Visual Feedback (Optional):** When the Speed-Sense filter is actively suppressing noise, the mileage display could subtly change (e.g., a small "Pause" icon or the text turning slightly grey) so the navigator knows the odometer is "parked."
+
+### Precision & Park Logic
+- **Park Integrity:** When the state is "PARK," the app must strictly ignore all distance deltas. Upon switching back to "Forward" or "Reverse," the system must not "catch up" on any distance covered while in Park.
+- **Update Frequency:** The numerical display must provide the illusion of constant movement (mimicking a physical gear-driven pulser).
+- **Odometer "Tick" Resolution:** Mileage must increment in real-time between GPS pulses to provide a smooth, high-resolution display.
 
 ## Data Persistence
 - **Calibration Factor:** must be saved anytime it is changed and should persist across app restarts, device reboots, and updates. On app launch the odometer should default to the last saved calibration

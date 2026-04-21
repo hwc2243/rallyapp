@@ -53,6 +53,9 @@ class OdometerState {
 }
 
 class OdometerNotifier extends Notifier<OdometerState> {
+  static const double _metersPerKilometer = 1000.0;
+  static const double _metersPerMile = 1609.344;
+
   StreamSubscription<Position>? _positionSubscription;
   Position? _lastPosition;
 
@@ -164,6 +167,23 @@ class OdometerNotifier extends Notifier<OdometerState> {
     state = state.copyWith(intervalDistance: meters);
     _saveDistances();
   }
+
+  void applyBump(bool isPositive) {
+    final settings = ref.read(settingsProvider);
+    final bumpMeters = settings.isMetric
+        ? settings.bumpAmount * _metersPerKilometer
+        : settings.bumpAmount * _metersPerMile;
+    final signedBump = isPositive ? bumpMeters : -bumpMeters;
+    final newTotalDistance = state.totalDistance + signedBump;
+    final newIntervalDistance = state.intervalDistance + signedBump;
+
+    state = state.copyWith(
+      totalDistance: newTotalDistance,
+      intervalDistance: newIntervalDistance,
+      frozenTotalDistance: state.isHeld ? newTotalDistance : null,
+    );
+    _saveDistances();
+  }
 }
 
 final locationServiceProvider = Provider((ref) => LocationService());
@@ -171,4 +191,3 @@ final locationServiceProvider = Provider((ref) => LocationService());
 final odometerProvider = NotifierProvider<OdometerNotifier, OdometerState>(() {
   return OdometerNotifier();
 });
-

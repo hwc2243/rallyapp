@@ -24,6 +24,14 @@
 - **Visual Feedback:** - **Hold Active:** The "Hold" button must turn **Bright Red** and the Mileage text should dim slightly (e.g., 70% opacity) to indicate the feed is frozen.
   - **Release:** Revert to standard High-Viz colors.
 
+## Bump Controls
+- **Placement:** Two smaller, square buttons positioned horizontally within the Total Odometer row (Top Row), likely between the mileage display and the control column.
+- **Labels:** "+" and "-" or "Bump+" and "Bump-".
+- **Visuals:** High-contrast text. To prevent accidental triggers, these should be visually distinct from the [RESET] and [HOLD] buttons.
+- **Settings UI:** Add a numeric input field in the Settings page labeled "Bump Increment Amount."
+  - **Bump Safety Toggle:** A standard Material switch labeled "Require Double-Tap for Bumps."
+  - **Visual Hint:** If Double-Tap is enabled, the Bump buttons could have a subtle "x2" badge or icon to remind the user of the required interaction.
+
 ## Direct Mileage Entry
 - **Activation:** Tapping the numerical mileage display (Total or Interval).
 - **Interface:** A modal pop-up with a high-contrast numeric keypad (0-9 and decimal point).
@@ -43,6 +51,10 @@
 - **Visual:** a Satellite dish icon
 - **Placement:** displayed at top centered between TOTAL label and time
 
+## Numerical Performance
+- **Frame Rate:** Mileage numbers should update at 20fps to ensure the "thousandths" digit appears as a smooth roll rather than a jumpy flicker.
+- **Monospace Enforcement:** (Crucial for high-speed updates) Ensure no horizontal layout shifting occurs as digits change.
+
 ## Wakelook
 -- The screen must utilize a Wakelock to stay at 100% brightness indefinitely while the odometer is active.
 
@@ -50,3 +62,4 @@
 - **Default (Night):** Pure Black background (#000000).
 - **Primary Text:** High-viz Green (#00FF00) for Total, High-viz Yellow (#FFFF00) for Interval.
 - **Animations:** Strictly **Disabled**. All numerical updates must be instantaneous.
+

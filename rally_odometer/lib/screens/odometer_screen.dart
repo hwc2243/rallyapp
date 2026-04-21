@@ -16,6 +16,8 @@ class OdometerScreen extends ConsumerStatefulWidget {
 }
 
 class _OdometerScreenState extends ConsumerState<OdometerScreen> {
+  static const double _bumpControlColumnWidth = 92;
+
   String _currentTimeDisplay = "";
   late Timer _timer;
 
@@ -165,6 +167,8 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                       isDimmed: odometer.isHeld || isParked,
                       accuracy: odometer.lastAccuracy,
                       showGps: true,
+                      trailingControlWidth: _bumpControlColumnWidth,
+                      trailingControls: _buildBumpControls(),
                     ),
                   ),
                   _buildSpeedIndicator(
@@ -184,6 +188,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                       time: _currentTimeDisplay,
                       color: intervalColor,
                       isDimmed: isParked,
+                      trailingControlWidth: _bumpControlColumnWidth,
                     ),
                   ),
                 ],
@@ -313,8 +318,8 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
       barrierDismissible: false,
       builder: (context) => MileageEntryDialog(
         initialValue: currentValue.toStringAsFixed(3),
-        unit: settings.isMetric ? "km" : "mi",
-        label: isTotal ? "TOTAL" : "INTERVAL",
+        title:
+            "SET ${isTotal ? "TOTAL" : "INTERVAL"} (${settings.isMetric ? "km" : "mi"})",
       ),
     );
 
@@ -383,6 +388,8 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
     bool isDimmed = false,
     double accuracy = 0,
     bool showGps = false,
+    double trailingControlWidth = 0,
+    Widget? trailingControls,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
@@ -423,26 +430,144 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
           Expanded(
             child: Opacity(
               opacity: isDimmed ? 0.7 : 1.0,
-              child: Center(
-                child: GestureDetector(
-                  onTap: () => _showMileageEntryDialog(label == "TOTAL"),
-                  behavior: HitTestBehavior.opaque,
-                  child: FittedBox(
-                    fit: BoxFit.contain,
-                    child: Text(
-                      value.toStringAsFixed(3),
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 140,
-                        fontFamily: 'Courier',
-                        fontWeight: FontWeight.bold,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () => _showMileageEntryDialog(label == "TOTAL"),
+                        behavior: HitTestBehavior.opaque,
+                        child: FittedBox(
+                          fit: BoxFit.contain,
+                          child: Text(
+                            value.toStringAsFixed(3),
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 140,
+                              fontFamily: 'Courier',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: trailingControlWidth,
+                    child: trailingControls ?? const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBumpControls() {
+    final settings = ref.read(settingsProvider);
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildBumpButton(
+          label: 'BUMP+',
+          isPositive: true,
+        ),
+        const SizedBox(height: 8),
+        _buildBumpButton(
+          label: 'BUMP-',
+          isPositive: false,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBumpButton({
+    required String label,
+    required bool isPositive,
+  }) {
+    final settings = ref.read(settingsProvider);
+    final notifier = ref.read(odometerProvider.notifier);
+    final callback = () => notifier.applyBump(isPositive);
+    final bumpUnit = settings.isMetric ? 'KM' : 'MI';
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: settings.bumpRequireDoubleTap ? null : callback,
+      onDoubleTap: settings.bumpRequireDoubleTap ? callback : null,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          SizedBox(
+            width: 84,
+            height: 48,
+            child: AbsorbPointer(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueGrey[900],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: const BorderSide(color: Colors.white24),
+                  ),
+                ),
+                onPressed: () {},
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${settings.bumpAmount.toStringAsFixed(3)} $bumpUnit',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontFamily: 'Courier',
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
             ),
           ),
+          if (settings.bumpRequireDoubleTap)
+            Positioned(
+              top: -8,
+              right: -16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Colors.orange[700],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: const Text(
+                  'x2',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

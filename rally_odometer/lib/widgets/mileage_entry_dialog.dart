@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 
 class MileageEntryDialog extends StatefulWidget {
   final String initialValue;
-  final String unit;
-  final String label;
+  final String title;
+  final int decimalPlaces;
+  final int maxDigitsBeforeDecimal;
 
   const MileageEntryDialog({
     super.key,
     required this.initialValue,
-    required this.unit,
-    required this.label,
+    required this.title,
+    this.decimalPlaces = 3,
+    this.maxDigitsBeforeDecimal = 8,
   });
 
   @override
@@ -48,11 +50,11 @@ class _MileageEntryDialogState extends State<MileageEntryDialog> {
       } else {
         if (_currentValue.contains(".")) {
           final parts = _currentValue.split(".");
-          if (parts[1].length < 3) {
+          if (parts[1].length < widget.decimalPlaces) {
             _currentValue += key;
           }
         } else {
-          if (_currentValue.length < 8) {
+          if (_currentValue.length < widget.maxDigitsBeforeDecimal) {
             _currentValue += key;
           }
         }
@@ -139,7 +141,7 @@ class _MileageEntryDialogState extends State<MileageEntryDialog> {
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Text(
-                        "SET ${widget.label} (${widget.unit})",
+                        widget.title,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: titleFontSize,

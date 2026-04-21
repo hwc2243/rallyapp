@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,5 +24,12 @@ void main() {
     expect(find.textContaining('TOTAL'), findsOneWidget);
     expect(find.textContaining('INTERVAL'), findsOneWidget);
     expect(find.textContaining('SPEED: 0.0 MPH'), findsOneWidget);
+    expect(find.text('BUMP+'), findsOneWidget);
+    expect(find.text('BUMP-'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.settings));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Require Double-Tap for Bumps'), findsOneWidget);
   });
 }

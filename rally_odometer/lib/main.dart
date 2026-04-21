@@ -5,11 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/settings_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/odometer_screen.dart';
-import 'screens/factor_settings_page.dart';
+import 'screens/settings_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   final prefs = await SharedPreferences.getInstance();
 
   // Lock to landscape as per PRD
@@ -19,9 +19,7 @@ void main() async {
   ]);
   runApp(
     ProviderScope(
-      overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
-      ],
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
       child: const RallyOdometerApp(),
     ),
   );
@@ -40,7 +38,7 @@ class RallyOdometerApp extends StatelessWidget {
       routes: {
         '/': (context) => const SplashScreen(),
         '/odometer': (context) => const OdometerScreen(),
-        '/settings': (context) => const FactorSettingsPage(),
+        '/settings': (context) => const SettingsScreen(),
       },
     );
   }
