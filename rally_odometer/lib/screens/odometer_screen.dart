@@ -471,23 +471,14 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _buildBumpButton(
-          label: 'BUMP+',
-          isPositive: true,
-        ),
+        _buildBumpButton(label: 'BUMP+', isPositive: true),
         const SizedBox(height: 8),
-        _buildBumpButton(
-          label: 'BUMP-',
-          isPositive: false,
-        ),
+        _buildBumpButton(label: 'BUMP-', isPositive: false),
       ],
     );
   }
 
-  Widget _buildBumpButton({
-    required String label,
-    required bool isPositive,
-  }) {
+  Widget _buildBumpButton({required String label, required bool isPositive}) {
     final settings = ref.read(settingsProvider);
     final notifier = ref.read(odometerProvider.notifier);
     final callback = () => notifier.applyBump(isPositive);
@@ -508,7 +499,10 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueGrey[900],
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                     side: const BorderSide(color: Colors.white24),

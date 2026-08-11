@@ -1,6 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../services/location_service.dart';
 import 'settings_provider.dart';
 
@@ -55,9 +58,18 @@ class OdometerState {
 class OdometerNotifier extends Notifier<OdometerState> {
   static const double _metersPerKilometer = 1000.0;
   static const double _metersPerMile = 1609.344;
+  static const Duration _interpolationPeriod = Duration(milliseconds: 50);
+  static const Duration _persistencePeriod = Duration(seconds: 5);
+  static const double _interpolationSeconds = 0.05;
+  static const double _softSyncThresholdMeters = 2.0;
 
   StreamSubscription<Position>? _positionSubscription;
+  Timer? _interpolationTimer;
+  Timer? _persistenceTimer;
   Position? _lastPosition;
+  DateTime? _lastGpsFixAt;
+  double _gpsAnchoredTotalDistance = 0.0;
+  double _gpsAnchoredIntervalDistance = 0.0;
 
   @override
   OdometerState build() {
@@ -65,16 +77,24 @@ class OdometerNotifier extends Notifier<OdometerState> {
     final locationService = ref.watch(locationServiceProvider);
 
     final initialState = OdometerState(
-      totalDistance: prefs.getDouble('totalDistance') ?? 0,
-      intervalDistance: prefs.getDouble('intervalDistance') ?? 0,
-      direction: OdometerDirection.values[prefs.getInt('odometerDirection') ?? 0],
+      totalDistance: prefs.getDouble('totalDistance') ?? 0.0,
+      intervalDistance: prefs.getDouble('intervalDistance') ?? 0.0,
+      direction:
+          OdometerDirection.values[prefs.getInt('odometerDirection') ?? 0],
     );
 
+    _gpsAnchoredTotalDistance = initialState.totalDistance;
+    _gpsAnchoredIntervalDistance = initialState.intervalDistance;
+
     locationService.direction = initialState.direction;
+    _startInterpolationLoop();
+    _startPersistenceLoop();
     _init(locationService);
 
     ref.onDispose(() {
       _positionSubscription?.cancel();
+      _interpolationTimer?.cancel();
+      _persistenceTimer?.cancel();
     });
 
     return initialState;
@@ -82,48 +102,114 @@ class OdometerNotifier extends Notifier<OdometerState> {
 
   void _init(LocationService locationService) async {
     final hasPermission = await locationService.handlePermission();
-    if (hasPermission) {
-      _positionSubscription = locationService.positionStream.listen(_onPositionUpdate);
+    if (!hasPermission) {
+      return;
     }
+
+    _positionSubscription = locationService.positionStream.listen(
+      _onPositionUpdate,
+    );
   }
 
-  void _saveDistances() {
+  void _startInterpolationLoop() {
+    _interpolationTimer?.cancel();
+    _interpolationTimer = Timer.periodic(_interpolationPeriod, (_) {
+      final locationService = ref.read(locationServiceProvider);
+      final settings = ref.read(settingsProvider);
+      final now = DateTime.now();
+      final hasFreshGps =
+          _lastGpsFixAt != null &&
+          now.difference(_lastGpsFixAt!).inSeconds <=
+              LocationService.backgroundGapThresholdSeconds;
+      final displaySpeed = hasFreshGps ? state.currentSpeed : 0.0;
+      final delta = hasFreshGps
+          ? displaySpeed *
+                _interpolationSeconds *
+                locationService.directionMultiplier *
+                settings.calibrationFactor
+          : 0.0;
+
+      state = state.copyWith(
+        totalDistance: state.totalDistance + delta,
+        intervalDistance: state.intervalDistance + delta,
+        currentSpeed: displaySpeed,
+      );
+    });
+  }
+
+  void _startPersistenceLoop() {
+    _persistenceTimer?.cancel();
+    _persistenceTimer = Timer.periodic(_persistencePeriod, (_) {
+      _persistState();
+    });
+  }
+
+  void _persistState() {
     final prefs = ref.read(sharedPreferencesProvider);
+    _persistDistances(prefs);
+    final settings = ref.read(settingsProvider);
+    prefs.setDouble('calibrationFactor', settings.calibrationFactor);
+  }
+
+  void _persistDistances(SharedPreferences prefs) {
     prefs.setDouble('totalDistance', state.totalDistance);
     prefs.setDouble('intervalDistance', state.intervalDistance);
     prefs.setInt('odometerDirection', state.direction.index);
   }
 
-  void setDirection(OdometerDirection direction) {
-    state = state.copyWith(direction: direction);
-    ref.read(locationServiceProvider).direction = direction;
-    _saveDistances();
+  void _syncGpsAnchors({double? totalDistance, double? intervalDistance}) {
+    if (totalDistance != null) {
+      _gpsAnchoredTotalDistance = totalDistance;
+    }
+    if (intervalDistance != null) {
+      _gpsAnchoredIntervalDistance = intervalDistance;
+    }
   }
 
   void _onPositionUpdate(Position position) {
-    final factor = ref.read(settingsProvider).calibrationFactor;
-    
-    final result = ref.read(locationServiceProvider).processLocationUpdate(
-      lastPosition: _lastPosition,
-      currentPosition: position,
-      calibrationFactor: factor,
-    );
+    final settings = ref.read(settingsProvider);
+    final result = ref
+        .read(locationServiceProvider)
+        .processGpsUpdate(
+          lastPosition: _lastPosition,
+          currentPosition: position,
+          calibrationFactor: settings.calibrationFactor,
+        );
 
     state = state.copyWith(
-      totalDistance: state.totalDistance + result.distance,
-      intervalDistance: state.intervalDistance + result.distance,
-      currentSpeed: result.displaySpeed,
+      currentSpeed: result.smoothedSpeed,
       isStationaryLock: result.isStationaryLock,
       lastAccuracy: position.accuracy,
     );
 
-    if (result.distance != 0) {
-      _saveDistances();
+    if (!result.acceptedFix) {
+      return;
     }
-    
-    if (position.accuracy <= LocationService.maxAccuracyThreshold) {
-      _lastPosition = position;
+
+    _lastGpsFixAt = DateTime.now();
+    _lastPosition = result.anchorPosition;
+    _gpsAnchoredTotalDistance += result.gpsDelta;
+    _gpsAnchoredIntervalDistance += result.gpsDelta;
+
+    final totalDrift = (state.totalDistance - _gpsAnchoredTotalDistance).abs();
+    final intervalDrift =
+        (state.intervalDistance - _gpsAnchoredIntervalDistance).abs();
+
+    if (result.hardResetAnchor ||
+        totalDrift > _softSyncThresholdMeters ||
+        intervalDrift > _softSyncThresholdMeters) {
+      state = state.copyWith(
+        totalDistance: _gpsAnchoredTotalDistance,
+        intervalDistance: _gpsAnchoredIntervalDistance,
+      );
+      _persistState();
     }
+  }
+
+  void setDirection(OdometerDirection direction) {
+    state = state.copyWith(direction: direction);
+    ref.read(locationServiceProvider).direction = direction;
+    _persistState();
   }
 
   void toggleHold() {
@@ -133,21 +219,23 @@ class OdometerNotifier extends Notifier<OdometerState> {
         frozenTotalDistance: null,
         frozenTime: null,
       );
-    } else {
-      state = state.copyWith(
-        isHeld: true,
-        frozenTotalDistance: state.totalDistance,
-        frozenTime: DateTime.now(),
-      );
+      return;
     }
+
+    state = state.copyWith(
+      isHeld: true,
+      frozenTotalDistance: state.totalDistance,
+      frozenTime: DateTime.now(),
+    );
   }
 
   void resetTotal() {
     state = state.copyWith(
-      totalDistance: 0,
-      frozenTotalDistance: state.isHeld ? 0 : null,
+      totalDistance: 0.0,
+      frozenTotalDistance: state.isHeld ? 0.0 : null,
     );
-    _saveDistances();
+    _syncGpsAnchors(totalDistance: 0.0);
+    _persistState();
   }
 
   void setTotalDistance(double meters) {
@@ -155,17 +243,20 @@ class OdometerNotifier extends Notifier<OdometerState> {
       totalDistance: meters,
       frozenTotalDistance: state.isHeld ? meters : null,
     );
-    _saveDistances();
+    _syncGpsAnchors(totalDistance: meters);
+    _persistState();
   }
 
   void resetInterval() {
-    state = state.copyWith(intervalDistance: 0);
-    _saveDistances();
+    state = state.copyWith(intervalDistance: 0.0);
+    _syncGpsAnchors(intervalDistance: 0.0);
+    _persistState();
   }
 
   void setIntervalDistance(double meters) {
     state = state.copyWith(intervalDistance: meters);
-    _saveDistances();
+    _syncGpsAnchors(intervalDistance: meters);
+    _persistState();
   }
 
   void applyBump(bool isPositive) {
@@ -182,7 +273,11 @@ class OdometerNotifier extends Notifier<OdometerState> {
       intervalDistance: newIntervalDistance,
       frozenTotalDistance: state.isHeld ? newTotalDistance : null,
     );
-    _saveDistances();
+    _syncGpsAnchors(
+      totalDistance: newTotalDistance,
+      intervalDistance: newIntervalDistance,
+    );
+    _persistState();
   }
 }
 

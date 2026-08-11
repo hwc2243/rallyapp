@@ -2,64 +2,46 @@
 
 ## Visual Hierarchy & Typography
 - **Orientation:** Locked to Landscape Mode.
-- **Typography:** - Use a **True Monospace** font (e.g., 'Courier' or 'Roboto Mono') for all mileage and time displays to prevent character-width "jitter."
-  - **Mileage Size:** Maximum available height within the row (e.g., 80-100pt).
-  - **Contrast:** High-contrast only. No gradients or shadows.
-- **Layout:**
-  - Split screen horizontally (50/50).
-  - **Top Row:** Total Odometer (Left/Center), Current Time (Top-Right of row).
-  - **Bottom Row:** Interval Odometer (Left/Center), Current Time (Top-Right of row).
+- **Typography:** True Monospace font ('Courier' or 'Roboto Mono') for all numerical, mileage, heading, and time displays to prevent character-width jitter.
+- **Contrast:** High-contrast only. No gradients or shadows.
+- **Layout:** Split screen horizontally (50/50).
+  - **Top Row:** Total Odometer (Left/Center), Current Time (Top-Right).
+  - **Bottom Row:** Interval Odometer (Left/Center), Current Time (Top-Right).
+
+## Header & Navigation Menu
+- **Top Bar Controls:** Located in the top header area.
+- **Menu Button:** A high-contrast overflow button (`⋮` or `MENU`) replacing the single settings gear.
+- **Menu Items (Modal Popover):**
+  1. **Settings:** Navigates to Settings modal/page.
+  2. **Details:** Opens the Live GPS Details diagnostic dialog.
+
+## Live Details Diagnostic Modal
+- **Style:** High-contrast pop-up window over the main UI.
+- **Content Display:**
+  - **Latitude / Longitude:** e.g., `LAT: 37.7749° N` | `LON: -122.4194° W`
+  - **Speed:** e.g., `SPD: 45.2 MPH`
+  - **Bearing / Heading:** e.g., `HDG: 184° (S)`
+  - **GPS Accuracy Indicator:** Badge display showing accuracy in meters (e.g., `ACC: ± 4.2m`).
+    - **Color Coding:** 
+      - **Green:** < 10m (High Precision)
+      - **Yellow:** 10m – 15m (Moderate)
+      - **Red:** > 15m (Low Precision / Filtering Active)
 
 ## Speedometer Integration
-- **Placement:** A slim, horizontal bar situated exactly between the Top (Total) and Bottom (Interval) rows.
-- **Visuals:** - Centered text displaying "SPD: [Value] [Units]".
-  - Font size should be significantly smaller than mileage (e.g., 24pt) but larger than the clock.
-  - **Status Indicator:** The speed text should glow **Green** when the Speed-Sense filter is "ACTIVE" and turn **Dim Grey** when "STATIONARY" (paused).
+- **Placement:** Slim horizontal bar centered between Top and Bottom rows.
+- **Visuals:** Centered text `SPD: [Value] [Units]`.
+- **Status Indicator:** Speed text glows **Green** when Speed-Sense filter is "ACTIVE" and **Dim Grey** when "STATIONARY".
 
 ## Button Layout & Interaction
-- **Placement:** A vertical "Control Column" on the far right of the screen, occupying ~15% of the width.
-- **Top Row Buttons:** [HOLD/RELEASE] stacked above [RESET].
-- **Bottom Row Buttons:** [RESET] button only (centered vertically in row).
-- **Sizing:** Minimum touch target of **88x88 pixels**.
-- **Visual Feedback:** - **Hold Active:** The "Hold" button must turn **Bright Red** and the Mileage text should dim slightly (e.g., 70% opacity) to indicate the feed is frozen.
-  - **Release:** Revert to standard High-Viz colors.
+- **Control Column:** Far right column (~15% screen width).
+  - Top Row: [HOLD/RELEASE] stacked above [RESET].
+  - Bottom Row: [RESET].
+- **Bump Controls:** Two square buttons (`+` / `-`) on Top Row between mileage and control column. Optional `x2` badge if Double-Tap safety is enabled.
+- **FPR Control:** Vertical segmented toggle (Forward = Green, Park = Dim White/Grey, Reverse = Bold Red).
 
-## Bump Controls
-- **Placement:** Two smaller, square buttons positioned horizontally within the Total Odometer row (Top Row), likely between the mileage display and the control column.
-- **Labels:** "+" and "-" or "Bump+" and "Bump-".
-- **Visuals:** High-contrast text. To prevent accidental triggers, these should be visually distinct from the [RESET] and [HOLD] buttons.
-- **Settings UI:** Add a numeric input field in the Settings page labeled "Bump Increment Amount."
-  - **Bump Safety Toggle:** A standard Material switch labeled "Require Double-Tap for Bumps."
-  - **Visual Hint:** If Double-Tap is enabled, the Bump buttons could have a subtle "x2" badge or icon to remind the user of the required interaction.
+## GPS Status Icon
+- **Visual:** Satellite dish icon displayed in top header. Color-coded based on GPS accuracy gate (Green <10m, Yellow 10-15m, Red >15m).
 
-## Direct Mileage Entry
-- **Activation:** Tapping the numerical mileage display (Total or Interval).
-- **Interface:** A modal pop-up with a high-contrast numeric keypad (0-9 and decimal point).
-- **Behavior:** - The "SET" button should be large and green.
-  - The "CANCEL" button should be large and red.
-  - Input should automatically format to three decimal places (0.000).
-
-## Direction Control (FPR) Layout
-- **Style:** A vertical Segmented Button or Toggle.
-- **Visual Feedback:**
-  - **Forward:** Standard Green text.  Labeled Forward
-  - **Park:** White/Grey text; Mileage display should "dim" to show it is inactive. Labeled Park
-  - **Reverse:** **Bold Red text** or Red background. The mileage numbers should turn Red to indicate they are "counting down." Labeled Reverse
-- **Touch Target:** Large vertical area for easy toggling with a thumb while driving.
-
-## GPS status
-- **Visual:** a Satellite dish icon
-- **Placement:** displayed at top centered between TOTAL label and time
-
-## Numerical Performance
-- **Frame Rate:** Mileage numbers should update at 20fps to ensure the "thousandths" digit appears as a smooth roll rather than a jumpy flicker.
-- **Monospace Enforcement:** (Crucial for high-speed updates) Ensure no horizontal layout shifting occurs as digits change.
-
-## Wakelook
--- The screen must utilize a Wakelock to stay at 100% brightness indefinitely while the odometer is active.
-
-## Themes
-- **Default (Night):** Pure Black background (#000000).
-- **Primary Text:** High-viz Green (#00FF00) for Total, High-viz Yellow (#FFFF00) for Interval.
-- **Animations:** Strictly **Disabled**. All numerical updates must be instantaneous.
-
+## Wakelock & Performance
+- **Wakelock:** Screen stays at 100% brightness indefinitely while active.
+- **Frame Rate:** Mileage and telemetry update at 20fps for smooth numerical rolling.
