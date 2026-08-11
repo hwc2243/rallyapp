@@ -209,108 +209,113 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: ListView(
-            children: [
-              const Text(
-                'Display Settings',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              SwitchListTile(
-                title: const Text('Use Metric (KM)'),
-                subtitle: Text(settings.isMetric ? 'Kilometers' : 'Miles'),
-                value: settings.isMetric,
-                onChanged: (_) =>
-                    ref.read(settingsProvider.notifier).toggleMetric(),
-              ),
-              SwitchListTile(
-                title: const Text('Decimal Minutes'),
-                subtitle: Text(
-                  settings.isDecimalMinutes ? 'HH:mm.mm' : 'HH:mm:ss',
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Display Settings',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
-                value: settings.isDecimalMinutes,
-                onChanged: (_) =>
-                    ref.read(settingsProvider.notifier).toggleDecimalMinutes(),
-              ),
-              const SizedBox(height: 20),
-              const Divider(),
-              const SizedBox(height: 10),
-              const Text(
-                'Bump Increment',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-              _buildDialogField(
-                controller: _bumpController,
-                label: 'Bump Amount (${settings.isMetric ? 'KM' : 'MI'})',
-                onTap: _openBumpAmountDialog,
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Require Double-Tap for Bumps'),
-                subtitle: Text(
-                  settings.bumpRequireDoubleTap
-                      ? 'Bump buttons trigger on double-tap'
-                      : 'Bump buttons trigger on single-tap',
+                SwitchListTile(
+                  title: const Text('Use Metric (KM)'),
+                  subtitle: Text(settings.isMetric ? 'Kilometers' : 'Miles'),
+                  value: settings.isMetric,
+                  onChanged: (_) =>
+                      ref.read(settingsProvider.notifier).toggleMetric(),
                 ),
-                value: settings.bumpRequireDoubleTap,
-                onChanged: (_) => ref
-                    .read(settingsProvider.notifier)
-                    .toggleBumpRequireDoubleTap(),
-              ),
-              const SizedBox(height: 20),
-              const Divider(),
-              const SizedBox(height: 10),
-              const Text(
-                'Calibration Factor',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Current app mileage: ${currentAppDistance.toStringAsFixed(3)} ${settings.isMetric ? 'KM' : 'MI'}',
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _buildModeToggle(CalibrationEntryMode.direct),
-                  const SizedBox(width: 8),
-                  const SizedBox(width: 150, child: Text('Direct Entry')),
-                  Expanded(
-                    child: _buildDialogField(
-                      controller: _factorController,
-                      label: 'Calibration Factor',
-                      onTap: _openDirectFactorDialog,
-                    ),
+                SwitchListTile(
+                  title: const Text('Decimal Minutes'),
+                  subtitle: Text(
+                    settings.isDecimalMinutes ? 'HH:mm.mm' : 'HH:mm:ss',
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  _buildModeToggle(CalibrationEntryMode.measured),
-                  const SizedBox(width: 8),
-                  const SizedBox(
-                    width: 150,
-                    child: Text('Measure Mileage Entry'),
+                  value: settings.isDecimalMinutes,
+                  onChanged: (_) => ref
+                      .read(settingsProvider.notifier)
+                      .toggleDecimalMinutes(),
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 10),
+                const Text(
+                  'Bump Increment',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                const SizedBox(height: 8),
+                _buildDialogField(
+                  controller: _bumpController,
+                  label: 'Bump Amount (${settings.isMetric ? 'KM' : 'MI'})',
+                  onTap: _openBumpAmountDialog,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Require Double-Tap for Bumps'),
+                  subtitle: Text(
+                    settings.bumpRequireDoubleTap
+                        ? 'Bump buttons trigger on double-tap'
+                        : 'Bump buttons trigger on single-tap',
                   ),
-                  Expanded(
-                    child: _buildDialogField(
-                      controller: _measuredController,
-                      label:
-                          'Measured Mileage (${settings.isMetric ? 'KM' : 'MI'})',
-                      onTap: _openMeasuredMileageDialog,
-                      trailing: ElevatedButton(
-                        onPressed: _entryMode == CalibrationEntryMode.measured
-                            ? _calculateFactor
-                            : null,
-                        child: const Text('Calculate'),
+                  value: settings.bumpRequireDoubleTap,
+                  onChanged: (_) => ref
+                      .read(settingsProvider.notifier)
+                      .toggleBumpRequireDoubleTap(),
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 10),
+                const Text(
+                  'Calibration Factor',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Current app mileage: ${currentAppDistance.toStringAsFixed(3)} ${settings.isMetric ? 'KM' : 'MI'}',
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _buildModeToggle(CalibrationEntryMode.direct),
+                    const SizedBox(width: 8),
+                    const SizedBox(width: 150, child: Text('Direct Entry')),
+                    Expanded(
+                      child: _buildDialogField(
+                        controller: _factorController,
+                        label: 'Calibration Factor',
+                        onTap: _openDirectFactorDialog,
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _buildModeToggle(CalibrationEntryMode.measured),
+                    const SizedBox(width: 8),
+                    const SizedBox(
+                      width: 150,
+                      child: Text('Measure Mileage Entry'),
+                    ),
+                    Expanded(
+                      child: _buildDialogField(
+                        controller: _measuredController,
+                        label:
+                            'Measured Mileage (${settings.isMetric ? 'KM' : 'MI'})',
+                        onTap: _openMeasuredMileageDialog,
+                        trailing: ElevatedButton(
+                          onPressed: _entryMode == CalibrationEntryMode.measured
+                              ? _calculateFactor
+                              : null,
+                          child: const Text('Calculate'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

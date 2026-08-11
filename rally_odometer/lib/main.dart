@@ -6,6 +6,7 @@ import 'providers/settings_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/odometer_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/details_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +40,7 @@ class RallyOdometerApp extends StatelessWidget {
         '/': (context) => const SplashScreen(),
         '/odometer': (context) => const OdometerScreen(),
         '/settings': (context) => const SettingsScreen(),
+        '/details': (context) => const DetailsScreen(),
       },
     );
   }

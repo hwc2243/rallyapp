@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../providers/odometer_provider.dart';
+import '../providers/live_telemetry_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/location_service.dart';
 import '../widgets/mileage_entry_dialog.dart';
@@ -128,6 +129,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
   @override
   Widget build(BuildContext context) {
     final odometer = ref.watch(odometerProvider);
+    final telemetry = ref.watch(liveTelemetryProvider);
     final settings = ref.watch(settingsProvider);
 
     final totalDisplayDistance = odometer.isHeld
@@ -147,161 +149,224 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Row(
+        child: Stack(
           children: [
-            // Main Display Area
-            Expanded(
-              child: Column(
-                children: [
-                  // Top Row: Total Mileage
-                  Expanded(
-                    child: _buildOdometerDisplay(
-                      label: "TOTAL",
-                      unit: settings.isMetric ? "km" : "mi",
-                      value: _convertDistance(
-                        totalDisplayDistance,
-                        settings.isMetric,
+            Row(
+              children: [
+                // Main Display Area
+                Expanded(
+                  child: Column(
+                    children: [
+                      // Top Row: Total Mileage
+                      Expanded(
+                        child: _buildOdometerDisplay(
+                          label: "TOTAL",
+                          unit: settings.isMetric ? "km" : "mi",
+                          value: _convertDistance(
+                            totalDisplayDistance,
+                            settings.isMetric,
+                          ),
+                          time: totalDisplayTime,
+                          color: totalColor,
+                          isDimmed: odometer.isHeld || isParked,
+                          accuracy: telemetry.gpsAccuracy,
+                          showGps: true,
+                          trailingControlWidth: _bumpControlColumnWidth,
+                          trailingControls: _buildBumpControls(),
+                        ),
                       ),
-                      time: totalDisplayTime,
-                      color: totalColor,
-                      isDimmed: odometer.isHeld || isParked,
-                      accuracy: odometer.lastAccuracy,
-                      showGps: true,
-                      trailingControlWidth: _bumpControlColumnWidth,
-                      trailingControls: _buildBumpControls(),
-                    ),
-                  ),
-                  _buildSpeedIndicator(
-                    odometer.currentSpeed,
-                    settings.isMetric,
-                    odometer.isStationaryLock,
-                  ),
-                  // Bottom Row: Interval Mileage
-                  Expanded(
-                    child: _buildOdometerDisplay(
-                      label: "INTERVAL",
-                      unit: settings.isMetric ? "km" : "mi",
-                      value: _convertDistance(
-                        odometer.intervalDistance,
+                      _buildSpeedIndicator(
+                        telemetry.speed,
                         settings.isMetric,
+                        odometer.isStationaryLock,
                       ),
-                      time: _currentTimeDisplay,
-                      color: intervalColor,
-                      isDimmed: isParked,
-                      trailingControlWidth: _bumpControlColumnWidth,
-                    ),
+                      // Bottom Row: Interval Mileage
+                      Expanded(
+                        child: _buildOdometerDisplay(
+                          label: "INTERVAL",
+                          unit: settings.isMetric ? "km" : "mi",
+                          value: _convertDistance(
+                            odometer.intervalDistance,
+                            settings.isMetric,
+                          ),
+                          time: _currentTimeDisplay,
+                          color: intervalColor,
+                          isDimmed: isParked,
+                          trailingControlWidth: _bumpControlColumnWidth,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            // Control Column (Right side)
-            Container(
-              width: MediaQuery.of(context).size.width * 0.20,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: const BoxDecoration(
-                color: Colors.black,
-                border: Border(
-                  left: BorderSide(color: Colors.white24, width: 1),
                 ),
-              ),
-              child: Row(
-                children: [
-                  // Direction Segmented Control (FPR)
-                  Expanded(
-                    flex: 3,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildDirectionButton(
-                            label: "FORWARD",
-                            isActive:
-                                odometer.direction == OdometerDirection.forward,
-                            activeColor: Colors.green,
-                            onPressed: () => ref
-                                .read(odometerProvider.notifier)
-                                .setDirection(OdometerDirection.forward),
-                          ),
-                          _buildDirectionButton(
-                            label: "PARK",
-                            isActive:
-                                odometer.direction == OdometerDirection.park,
-                            activeColor: Colors.white,
-                            onPressed: () => ref
-                                .read(odometerProvider.notifier)
-                                .setDirection(OdometerDirection.park),
-                          ),
-                          _buildDirectionButton(
-                            label: "REVERSE",
-                            isActive:
-                                odometer.direction == OdometerDirection.reverse,
-                            activeColor: Colors.red,
-                            onPressed: () => ref
-                                .read(odometerProvider.notifier)
-                                .setDirection(OdometerDirection.reverse),
-                          ),
-                        ],
-                      ),
+                // Control Column (Right side)
+                Container(
+                  width: MediaQuery.of(context).size.width * 0.20,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: const BoxDecoration(
+                    color: Colors.black,
+                    border: Border(
+                      left: BorderSide(color: Colors.white24, width: 1),
                     ),
                   ),
-                  const VerticalDivider(color: Colors.white24, width: 1),
-                  // Action Buttons
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      children: [
-                        Expanded(
+                  child: Row(
+                    children: [
+                      // Direction Segmented Control (FPR)
+                      Expanded(
+                        flex: 3,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              _buildControlButton(
-                                label: odometer.isHeld ? "RELEASE" : "HOLD",
-                                color: odometer.isHeld
-                                    ? Colors.red
-                                    : Colors.green,
+                              _buildDirectionButton(
+                                label: "FORWARD",
+                                isActive:
+                                    odometer.direction ==
+                                    OdometerDirection.forward,
+                                activeColor: Colors.green,
                                 onPressed: () => ref
                                     .read(odometerProvider.notifier)
-                                    .toggleHold(),
+                                    .setDirection(OdometerDirection.forward),
                               ),
-                              const SizedBox(height: 16),
-                              _buildControlButton(
-                                label: "RESET",
-                                color: Colors.grey[800]!,
+                              _buildDirectionButton(
+                                label: "PARK",
+                                isActive:
+                                    odometer.direction ==
+                                    OdometerDirection.park,
+                                activeColor: Colors.white,
                                 onPressed: () => ref
                                     .read(odometerProvider.notifier)
-                                    .resetTotal(),
+                                    .setDirection(OdometerDirection.park),
+                              ),
+                              _buildDirectionButton(
+                                label: "REVERSE",
+                                isActive:
+                                    odometer.direction ==
+                                    OdometerDirection.reverse,
+                                activeColor: Colors.red,
+                                onPressed: () => ref
+                                    .read(odometerProvider.notifier)
+                                    .setDirection(OdometerDirection.reverse),
                               ),
                             ],
                           ),
                         ),
-                        const Divider(color: Colors.white24, height: 1),
-                        Expanded(
-                          child: Center(
-                            child: _buildControlButton(
-                              label: "RESET",
-                              color: Colors.grey[800]!,
-                              onPressed: () => ref
-                                  .read(odometerProvider.notifier)
-                                  .resetInterval(),
+                      ),
+                      const VerticalDivider(color: Colors.white24, width: 1),
+                      // Action Buttons
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _buildControlButton(
+                                    label: odometer.isHeld ? "RELEASE" : "HOLD",
+                                    color: odometer.isHeld
+                                        ? Colors.red
+                                        : Colors.green,
+                                    onPressed: () => ref
+                                        .read(odometerProvider.notifier)
+                                        .toggleHold(),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildControlButton(
+                                    label: "RESET",
+                                    color: Colors.grey[800]!,
+                                    onPressed: () => ref
+                                        .read(odometerProvider.notifier)
+                                        .resetTotal(),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+                            const Divider(color: Colors.white24, height: 1),
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Expanded(
+                                    child: Center(
+                                      child: _buildControlButton(
+                                        label: "RESET",
+                                        color: Colors.grey[800]!,
+                                        onPressed: () => ref
+                                            .read(odometerProvider.notifier)
+                                            .resetInterval(),
+                                      ),
+                                    ),
+                                  ),
+                                  Align(
+                                    alignment: Alignment.bottomRight,
+                                    child: _buildMenu(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            Positioned(
+              top: 12,
+              left: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: Center(
+                  child: AnimatedOpacity(
+                    opacity: odometer.isCalibrating ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 250),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.82),
+                        border: Border.all(color: Colors.amber),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Calibrating...',
+                        style: TextStyle(
+                          color: Colors.amber,
+                          fontFamily: 'Courier',
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        mini: true,
-        backgroundColor: Colors.grey[900],
-        child: const Icon(Icons.settings, color: Colors.white70),
-        onPressed: () => Navigator.pushNamed(context, '/settings'),
-      ),
+    );
+  }
+
+  Widget _buildMenu() {
+    return PopupMenuButton<_MenuAction>(
+      tooltip: 'Menu',
+      color: Colors.grey[900],
+      icon: const Icon(Icons.menu, color: Colors.white70),
+      onSelected: (action) {
+        switch (action) {
+          case _MenuAction.settings:
+            Navigator.pushNamed(context, '/settings');
+          case _MenuAction.details:
+            Navigator.pushNamed(context, '/details');
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: _MenuAction.settings, child: Text('Settings')),
+        PopupMenuItem(value: _MenuAction.details, child: Text('Details')),
+      ],
     );
   }
 
@@ -416,13 +481,18 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                 ),
               Align(
                 alignment: Alignment.centerRight,
-                child: Text(
-                  time,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 24,
-                    fontFamily: 'Courier',
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      time,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 24,
+                        fontFamily: 'Courier',
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -466,8 +536,6 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
   }
 
   Widget _buildBumpControls() {
-    final settings = ref.read(settingsProvider);
-
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -481,7 +549,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
   Widget _buildBumpButton({required String label, required bool isPositive}) {
     final settings = ref.read(settingsProvider);
     final notifier = ref.read(odometerProvider.notifier);
-    final callback = () => notifier.applyBump(isPositive);
+    void callback() => notifier.applyBump(isPositive);
     final bumpUnit = settings.isMetric ? 'KM' : 'MI';
 
     return GestureDetector(
@@ -595,3 +663,5 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
     );
   }
 }
+
+enum _MenuAction { settings, details }

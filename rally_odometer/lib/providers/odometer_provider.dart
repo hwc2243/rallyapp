@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -12,22 +13,30 @@ class OdometerState {
   final double intervalDistance;
   final double currentSpeed;
   final double lastAccuracy;
+  final double? lastValidBearing;
+  final double latitude;
+  final double longitude;
   final bool isHeld;
   final double? frozenTotalDistance;
   final DateTime? frozenTime;
   final OdometerDirection direction;
   final bool isStationaryLock;
+  final bool isCalibrating;
 
   OdometerState({
     required this.totalDistance,
     required this.intervalDistance,
     this.currentSpeed = 0.0,
     this.lastAccuracy = 0.0,
+    this.lastValidBearing,
+    this.latitude = 0.0,
+    this.longitude = 0.0,
     this.isHeld = false,
     this.frozenTotalDistance,
     this.frozenTime,
     this.direction = OdometerDirection.forward,
     this.isStationaryLock = false,
+    this.isCalibrating = true,
   });
 
   OdometerState copyWith({
@@ -35,22 +44,30 @@ class OdometerState {
     double? intervalDistance,
     double? currentSpeed,
     double? lastAccuracy,
+    double? lastValidBearing,
+    double? latitude,
+    double? longitude,
     bool? isHeld,
     double? frozenTotalDistance,
     DateTime? frozenTime,
     OdometerDirection? direction,
     bool? isStationaryLock,
+    bool? isCalibrating,
   }) {
     return OdometerState(
       totalDistance: totalDistance ?? this.totalDistance,
       intervalDistance: intervalDistance ?? this.intervalDistance,
       currentSpeed: currentSpeed ?? this.currentSpeed,
       lastAccuracy: lastAccuracy ?? this.lastAccuracy,
+      lastValidBearing: lastValidBearing ?? this.lastValidBearing,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       isHeld: isHeld ?? this.isHeld,
       frozenTotalDistance: frozenTotalDistance ?? this.frozenTotalDistance,
       frozenTime: frozenTime ?? this.frozenTime,
       direction: direction ?? this.direction,
       isStationaryLock: isStationaryLock ?? this.isStationaryLock,
+      isCalibrating: isCalibrating ?? this.isCalibrating,
     );
   }
 }
@@ -70,6 +87,7 @@ class OdometerNotifier extends Notifier<OdometerState> {
   DateTime? _lastGpsFixAt;
   double _gpsAnchoredTotalDistance = 0.0;
   double _gpsAnchoredIntervalDistance = 0.0;
+  bool _isSoftSyncCatchUp = false;
 
   @override
   OdometerState build() {
@@ -122,12 +140,20 @@ class OdometerNotifier extends Notifier<OdometerState> {
           now.difference(_lastGpsFixAt!).inSeconds <=
               LocationService.backgroundGapThresholdSeconds;
       final displaySpeed = hasFreshGps ? state.currentSpeed : 0.0;
-      final delta = hasFreshGps
+      final canInterpolate =
+          hasFreshGps &&
+          !state.isCalibrating &&
+          !state.isStationaryLock &&
+          !(state.direction == OdometerDirection.forward && _isSoftSyncCatchUp);
+      final rawDelta = canInterpolate
           ? displaySpeed *
                 _interpolationSeconds *
                 locationService.directionMultiplier *
                 settings.calibrationFactor
           : 0.0;
+      final delta = state.direction == OdometerDirection.forward
+          ? math.max(0.0, rawDelta)
+          : rawDelta;
 
       state = state.copyWith(
         totalDistance: state.totalDistance + delta,
@@ -177,10 +203,24 @@ class OdometerNotifier extends Notifier<OdometerState> {
         );
 
     state = state.copyWith(
-      currentSpeed: result.smoothedSpeed,
+      currentSpeed: result.acceptedFix
+          ? result.smoothedSpeed
+          : state.currentSpeed,
       isStationaryLock: result.isStationaryLock,
       lastAccuracy: position.accuracy,
+      lastValidBearing: _normaliseBearing(position) ?? state.lastValidBearing,
+      latitude: position.latitude,
+      longitude: position.longitude,
     );
+
+    if (state.isCalibrating) {
+      if (ref.read(locationServiceProvider).isPositionStable(position)) {
+        state = state.copyWith(isCalibrating: false);
+        _lastPosition = position;
+        _lastGpsFixAt = DateTime.now();
+      }
+      return;
+    }
 
     if (!result.acceptedFix) {
       return;
@@ -188,16 +228,44 @@ class OdometerNotifier extends Notifier<OdometerState> {
 
     _lastGpsFixAt = DateTime.now();
     _lastPosition = result.anchorPosition;
-    _gpsAnchoredTotalDistance += result.gpsDelta;
-    _gpsAnchoredIntervalDistance += result.gpsDelta;
+    final gpsDelta = state.direction == OdometerDirection.forward
+        ? math.max(0.0, result.gpsDelta)
+        : result.gpsDelta;
+    _gpsAnchoredTotalDistance += gpsDelta;
+    _gpsAnchoredIntervalDistance += gpsDelta;
 
     final totalDrift = (state.totalDistance - _gpsAnchoredTotalDistance).abs();
     final intervalDrift =
         (state.intervalDistance - _gpsAnchoredIntervalDistance).abs();
 
-    if (result.hardResetAnchor ||
+    final shouldSync =
+        result.hardResetAnchor ||
         totalDrift > _softSyncThresholdMeters ||
-        intervalDrift > _softSyncThresholdMeters) {
+        intervalDrift > _softSyncThresholdMeters;
+
+    if (state.direction == OdometerDirection.forward) {
+      _isSoftSyncCatchUp =
+          _gpsAnchoredTotalDistance < state.totalDistance ||
+          _gpsAnchoredIntervalDistance < state.intervalDistance;
+
+      if (shouldSync && !_isSoftSyncCatchUp) {
+        state = state.copyWith(
+          totalDistance: math.max(
+            state.totalDistance,
+            _gpsAnchoredTotalDistance,
+          ),
+          intervalDistance: math.max(
+            state.intervalDistance,
+            _gpsAnchoredIntervalDistance,
+          ),
+        );
+        _persistState();
+      }
+      return;
+    }
+
+    _isSoftSyncCatchUp = false;
+    if (shouldSync) {
       state = state.copyWith(
         totalDistance: _gpsAnchoredTotalDistance,
         intervalDistance: _gpsAnchoredIntervalDistance,
@@ -206,8 +274,19 @@ class OdometerNotifier extends Notifier<OdometerState> {
     }
   }
 
+  double? _normaliseBearing(Position position) {
+    if (position.speed < LocationService.lowSpeedMinimum ||
+        position.heading.isNegative) {
+      return null;
+    }
+    return position.heading % 360.0;
+  }
+
   void setDirection(OdometerDirection direction) {
     state = state.copyWith(direction: direction);
+    if (direction != OdometerDirection.forward) {
+      _isSoftSyncCatchUp = false;
+    }
     ref.read(locationServiceProvider).direction = direction;
     _persistState();
   }

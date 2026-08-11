@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:math' as math;
 
 import 'package:geolocator/geolocator.dart';
 
@@ -29,21 +30,32 @@ class LocationService {
   static const double stationaryLockUnlockSpeed = 1.2;
   static const int stationaryLockDurationSeconds = 3;
   static const int speedSmoothingWindow = 3;
+  static const int calibrationReadingCount = 3;
+  static const double calibrationStabilityThresholdMeters = 10.0;
+  static const double lowSpeedMinimum = 0.3;
+  static const double lowSpeedMaximum = 1.2;
+  static const int lowSpeedWindowSize = 3;
+  static const double lowSpeedMovementThresholdMeters = 0.2;
 
   OdometerDirection direction = OdometerDirection.forward;
 
   final ListQueue<double> _recentSpeeds = ListQueue<double>();
+  final ListQueue<Position> _calibrationPositions = ListQueue<Position>();
+  final ListQueue<Position> _lowSpeedPositions = ListQueue<Position>();
   bool _isLocked = false;
   DateTime? _lowSpeedStartTime;
   DateTime? _lastAcceptedTimestamp;
-
-  bool get isStationaryLock => _isLocked;
-  set isStationaryLock(bool value) => _isLocked = value;
+  int _consecutiveLowSpeedMovementWindows = 0;
 
   Stream<Position> get positionStream => Geolocator.getPositionStream(
-    locationSettings: const LocationSettings(
+    locationSettings: AndroidSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 0,
+      foregroundNotificationConfig: const ForegroundNotificationConfig(
+        notificationTitle: 'Rally Odometer is tracking',
+        notificationText: 'Background GPS tracking is active.',
+        enableWakeLock: true,
+      ),
     ),
   );
 
@@ -58,6 +70,35 @@ class LocationService {
     }
   }
 
+  /// Returns true once three accurate readings occupy a stable position
+  /// cluster. This is used to discard startup GPS drift before accumulation.
+  bool isPositionStable(Position position) {
+    if (position.accuracy >= maxAccuracyThreshold) {
+      _calibrationPositions.clear();
+      return false;
+    }
+
+    _calibrationPositions.add(position);
+    while (_calibrationPositions.length > calibrationReadingCount) {
+      _calibrationPositions.removeFirst();
+    }
+    if (_calibrationPositions.length < calibrationReadingCount) {
+      return false;
+    }
+
+    final first = _calibrationPositions.first;
+    return _calibrationPositions.every(
+      (sample) =>
+          Geolocator.distanceBetween(
+            first.latitude,
+            first.longitude,
+            sample.latitude,
+            sample.longitude,
+          ) <=
+          calibrationStabilityThresholdMeters,
+    );
+  }
+
   GpsSyncResult processGpsUpdate({
     required Position? lastPosition,
     required Position currentPosition,
@@ -67,26 +108,35 @@ class LocationService {
     final currentTime = now ?? DateTime.now();
 
     if (currentPosition.accuracy > maxAccuracyThreshold) {
+      _pushSpeedSample(currentPosition.speed);
+      _updateStationaryLock(currentPosition.speed, currentTime);
       return GpsSyncResult(
         acceptedFix: false,
         hardResetAnchor: false,
         anchorPosition: lastPosition,
         gpsDelta: 0.0,
-        smoothedSpeed: _smoothedSpeed(),
+        smoothedSpeed: _isLocked ? 0.0 : _smoothedSpeed(),
         isStationaryLock: _isLocked,
       );
     }
+
+    _pushSpeedSample(currentPosition.speed);
+    final lowSpeedDelta = _lowSpeedDisplacement(currentPosition);
+    final hasLowSpeedMovement =
+        lowSpeedDelta != null &&
+        lowSpeedDelta >= lowSpeedMovementThresholdMeters;
+    _updateStationaryLock(
+      currentPosition.speed,
+      currentTime,
+      hasLowSpeedMovement: hasLowSpeedMovement,
+    );
+    final smoothedSpeed = _isLocked ? 0.0 : _smoothedSpeed();
 
     final bool hasGap =
         _lastAcceptedTimestamp != null &&
         currentTime.difference(_lastAcceptedTimestamp!).inSeconds >
             backgroundGapThresholdSeconds;
     _lastAcceptedTimestamp = currentTime;
-
-    _pushSpeedSample(currentPosition.speed);
-    _updateStationaryLock(currentPosition.speed, currentTime);
-
-    final smoothedSpeed = _isLocked ? 0.0 : _smoothedSpeed();
 
     if (hasGap || lastPosition == null) {
       return GpsSyncResult(
@@ -117,11 +167,19 @@ class LocationService {
       currentPosition.longitude,
     );
 
+    final distance = lowSpeedDelta ?? rawDistance;
+    final calibratedDistance = distance * calibrationFactor;
+    final gpsDelta = switch (direction) {
+      OdometerDirection.forward => math.max(0.0, calibratedDistance),
+      OdometerDirection.park => 0.0,
+      OdometerDirection.reverse => -math.max(0.0, calibratedDistance),
+    };
+
     return GpsSyncResult(
       acceptedFix: true,
       hardResetAnchor: false,
       anchorPosition: currentPosition,
-      gpsDelta: rawDistance * calibrationFactor * directionMultiplier,
+      gpsDelta: gpsDelta,
       smoothedSpeed: smoothedSpeed,
       isStationaryLock: _isLocked,
     );
@@ -143,7 +201,56 @@ class LocationService {
     return total / _recentSpeeds.length;
   }
 
-  void _updateStationaryLock(double speed, DateTime now) {
+  double? _lowSpeedDisplacement(Position position) {
+    if (position.speed < lowSpeedMinimum || position.speed > lowSpeedMaximum) {
+      _lowSpeedPositions.clear();
+      _consecutiveLowSpeedMovementWindows = 0;
+      return null;
+    }
+
+    _lowSpeedPositions.add(position);
+    while (_lowSpeedPositions.length > lowSpeedWindowSize) {
+      _lowSpeedPositions.removeFirst();
+    }
+    if (_lowSpeedPositions.length < lowSpeedWindowSize) {
+      return null;
+    }
+
+    final first = _lowSpeedPositions.first;
+    final displacement = Geolocator.distanceBetween(
+      first.latitude,
+      first.longitude,
+      position.latitude,
+      position.longitude,
+    );
+    // Averaging the net displacement over the window suppresses coordinate
+    // jitter while retaining a smooth forward-only walking-speed increment.
+    final averagedDisplacement = displacement / (_lowSpeedPositions.length - 1);
+    if (averagedDisplacement >= lowSpeedMovementThresholdMeters) {
+      _consecutiveLowSpeedMovementWindows++;
+    } else {
+      _consecutiveLowSpeedMovementWindows = 0;
+    }
+    return averagedDisplacement;
+  }
+
+  void _updateStationaryLock(
+    double speed,
+    DateTime now, {
+    bool hasLowSpeedMovement = false,
+  }) {
+    if (_isLocked &&
+        (speed > stationaryLockUnlockSpeed ||
+            _consecutiveLowSpeedMovementWindows >= 2)) {
+      _isLocked = false;
+      _lowSpeedStartTime = null;
+    }
+
+    if (hasLowSpeedMovement && _consecutiveLowSpeedMovementWindows >= 2) {
+      _lowSpeedStartTime = null;
+      return;
+    }
+
     if (speed < stationaryLockMinSpeed) {
       _lowSpeedStartTime ??= now;
       if (now.difference(_lowSpeedStartTime!).inSeconds >=
@@ -154,10 +261,6 @@ class LocationService {
     }
 
     _lowSpeedStartTime = null;
-
-    if (_isLocked && speed > stationaryLockUnlockSpeed) {
-      _isLocked = false;
-    }
   }
 
   Future<bool> handlePermission() async {

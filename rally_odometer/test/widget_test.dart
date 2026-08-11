@@ -27,7 +27,24 @@ void main() {
     expect(find.text('BUMP+'), findsOneWidget);
     expect(find.text('BUMP-'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.settings));
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Details'), findsOneWidget);
+
+    await tester.tap(find.text('Details'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('LIVE DETAILS'), findsOneWidget);
+    expect(find.byType(BackButton), findsOneWidget);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
 
     expect(find.text('Require Double-Tap for Bumps'), findsOneWidget);

@@ -29,3 +29,74 @@ class LiveTelemetry {
     required this.gpsAccuracy,
   });
 }
+
+## Startup Calibration State
+- **State Variable:** `isCalibrating` (bool, default: `true`).
+- **Pipeline Guard:**
+  ```dart
+  if (isCalibrating) {
+    if (position.accuracy <= 15.0 && isPositionStable(position)) {
+      isCalibrating = false; // Calibration complete
+    } else {
+      return; // Suppress distance calculation
+    }
+  }
+
+## Distance Accumulation Safety & Interpolation Pipeline
+
+### 1. The Monotonicity Guard (Distance Loss Prevention)
+To prevent the odometer from losing distance during GPS noise or Soft Sync drift corrections:
+- **Forward Mode (`dir_mult == 1.0`):** Enforce `AppliedDelta = max(0.0, AppliedDelta)`. 
+- **Soft Sync Catch-Up Logic:** If cumulative GPS distance is *less* than cumulative Interpolated distance:
+  - Do **NOT** subtract distance or snap the odometer backward.
+  - Set `current_speed_multiplier = 0.0` (pause interpolation) until actual GPS movement catches up to the displayed total.
+- **Reverse Mode (`dir_mult == -1.0`):** Distance reduction is explicitly permitted only in Reverse.
+
+### 2. Stationary Noise Lock (Preventing GPS Wander)
+- **Hysteresis Threshold:**
+  - If `speed < 0.8 m/s` for 3s: Set `isStationaryLocked = true`.
+  - While `isStationaryLocked == true`: Force `incremental_distance = 0.0`.
+  - Unlock when `speed > 1.2 m/s`.
+
+### 3. Bottom-Right Hamburger Menu
+- Implement `PopupMenuButton` using `Icon(Icons.menu)` positioned in the bottom-right corner of the layout (within the control stack).
+
+## UI Navigation & Routes
+
+### Details Screen (`DetailsScreen`)
+- **Route Architecture:** Replaces the modal `DetailsDialog` with a full page route (`DetailsScreen`) pushed onto the Navigator stack, matching `SettingsScreen`.
+- **Live State Subscription:** `DetailsScreen` consumes the `LiveTelemetry` Riverpod provider to update coordinates, speed, bearing, and accuracy dynamically at runtime.
+- **Color Formatting Helper:**
+  ```dart
+  Color getAccuracyColor(double accuracy) {
+    if (accuracy < 10.0) return Colors.green;
+    if (accuracy <= 15.0) return Colors.yellow;
+    return Colors.red;
+  }
+
+## UI Layout Rules & RenderFlex Overflow Prevention
+
+To strictly prevent `RenderFlex` overflow exceptions across varying phone screen aspect ratios:
+
+1. **Full-Screen Route Boilerplate Rule:**
+   All secondary screens (`DetailsScreen`, `SettingsScreen`) must adopt this layout structure:
+   ```dart
+   Widget build(BuildContext context) {
+     return Scaffold(
+       appBar: AppBar(...),
+       body: SafeArea(
+         child: SingleChildScrollView(
+           physics: const BouncingScrollPhysics(),
+           child: Padding(
+             padding: const EdgeInsets.all(16.0),
+             child: Column(
+               mainAxisSize: MainAxisSize.min,
+               children: [
+                 // Screen content components
+               ],
+             ),
+           ),
+         ),
+       ),
+     );
+   }

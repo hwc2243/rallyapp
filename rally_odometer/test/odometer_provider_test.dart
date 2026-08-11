@@ -76,6 +76,18 @@ void main() {
     prefs = await SharedPreferences.getInstance();
   });
 
+  Future<void> completeStartupCalibration(ProviderContainer container) async {
+    container.read(odometerProvider);
+    await Future<void>.delayed(const Duration(milliseconds: 25));
+    for (var index = 0; index < 3; index++) {
+      stubLocationService.emit(
+        createPosition(latitude: 42.0, longitude: -71.0),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(container.read(odometerProvider).isCalibrating, false);
+  }
+
   test('OdometerState initial state is forward', () {
     final container = ProviderContainer(
       overrides: [
@@ -88,6 +100,7 @@ void main() {
     expect(state.currentSpeed, 0.0);
     expect(state.direction, OdometerDirection.forward);
     expect(state.isStationaryLock, false);
+    expect(state.isCalibrating, true);
   });
 
   test(
@@ -173,8 +186,7 @@ void main() {
     stubLocationService.nextGpsDelta = 10.0;
     stubLocationService.nextSmoothedSpeed = 0.0;
 
-    container.read(odometerProvider);
-    await Future<void>.delayed(const Duration(milliseconds: 25));
+    await completeStartupCalibration(container);
 
     stubLocationService.emit(createPosition(speed: 10.0));
     await Future<void>.delayed(const Duration(milliseconds: 75));
@@ -199,8 +211,7 @@ void main() {
       stubLocationService.nextGpsDelta = 0.0;
       stubLocationService.nextSmoothedSpeed = 10.0;
 
-      container.read(odometerProvider);
-      await Future<void>.delayed(const Duration(milliseconds: 25));
+      await completeStartupCalibration(container);
 
       stubLocationService.emit(createPosition(speed: 10.0));
       await Future<void>.delayed(const Duration(milliseconds: 120));
@@ -233,8 +244,7 @@ void main() {
       stubLocationService.nextGpsDelta = 0.0;
       stubLocationService.nextSmoothedSpeed = 12.0;
 
-      container.read(odometerProvider);
-      await Future<void>.delayed(const Duration(milliseconds: 25));
+      await completeStartupCalibration(container);
 
       stubLocationService.emit(createPosition(speed: 12.0));
       await Future<void>.delayed(const Duration(milliseconds: 120));
@@ -253,6 +263,55 @@ void main() {
       );
     },
   );
+
+  test('forward mode ignores negative GPS corrections', () async {
+    final container = ProviderContainer(
+      overrides: [
+        locationServiceProvider.overrideWithValue(stubLocationService),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final notifier = container.read(odometerProvider.notifier);
+    notifier.setTotalDistance(20.0);
+    notifier.setIntervalDistance(20.0);
+    stubLocationService.nextGpsDelta = -10.0;
+
+    await Future<void>.delayed(const Duration(milliseconds: 25));
+    stubLocationService.emit(createPosition(speed: 5.0));
+    await Future<void>.delayed(const Duration(milliseconds: 75));
+
+    expect(
+      container.read(odometerProvider).totalDistance,
+      greaterThanOrEqualTo(20.0),
+    );
+    expect(
+      container.read(odometerProvider).intervalDistance,
+      greaterThanOrEqualTo(20.0),
+    );
+  });
+
+  test('stationary lock prevents interpolation accrual', () async {
+    final container = ProviderContainer(
+      overrides: [
+        locationServiceProvider.overrideWithValue(stubLocationService),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    stubLocationService.nextSmoothedSpeed = 10.0;
+    stubLocationService.nextStationaryLock = true;
+    container.read(odometerProvider);
+    await Future<void>.delayed(const Duration(milliseconds: 25));
+    stubLocationService.emit(createPosition(speed: 0.5));
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+
+    expect(container.read(odometerProvider).isStationaryLock, true);
+    expect(container.read(odometerProvider).totalDistance, 0.0);
+    expect(container.read(odometerProvider).intervalDistance, 0.0);
+  });
 
   test('OdometerNotifier applyBump uses imperial display units', () {
     final container = ProviderContainer(

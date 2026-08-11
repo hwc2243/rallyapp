@@ -90,6 +90,83 @@ void main() {
       expect(result.smoothedSpeed, closeTo(6.0, 1e-9));
     });
 
+    test('requires three accurate clustered readings for calibration', () {
+      final service = LocationService();
+      final base = DateTime(2026, 4, 21, 12, 0, 0);
+
+      expect(
+        service.isPositionStable(
+          createPosition(latitude: 42, longitude: -71, timestamp: base),
+        ),
+        false,
+      );
+      expect(
+        service.isPositionStable(
+          createPosition(
+            latitude: 42.00001,
+            longitude: -71,
+            timestamp: base.add(const Duration(seconds: 1)),
+          ),
+        ),
+        false,
+      );
+      expect(
+        service.isPositionStable(
+          createPosition(
+            latitude: 42.00002,
+            longitude: -71,
+            timestamp: base.add(const Duration(seconds: 2)),
+          ),
+        ),
+        true,
+      );
+    });
+
+    test('uses windowed displacement for low-speed movement', () {
+      final service = LocationService();
+      final base = DateTime(2026, 4, 21, 12, 0, 0);
+      final first = createPosition(
+        latitude: 0,
+        longitude: 0,
+        timestamp: base,
+        speed: 0.5,
+      );
+      final second = createPosition(
+        latitude: 0.000003,
+        longitude: 0,
+        timestamp: base.add(const Duration(seconds: 1)),
+        speed: 0.5,
+      );
+      final third = createPosition(
+        latitude: 0.000006,
+        longitude: 0,
+        timestamp: base.add(const Duration(seconds: 2)),
+        speed: 0.5,
+      );
+
+      service.processGpsUpdate(
+        lastPosition: null,
+        currentPosition: first,
+        calibrationFactor: 1.0,
+        now: base,
+      );
+      service.processGpsUpdate(
+        lastPosition: first,
+        currentPosition: second,
+        calibrationFactor: 1.0,
+        now: base.add(const Duration(seconds: 1)),
+      );
+      final result = service.processGpsUpdate(
+        lastPosition: second,
+        currentPosition: third,
+        calibrationFactor: 1.0,
+        now: base.add(const Duration(seconds: 2)),
+      );
+
+      expect(result.gpsDelta, greaterThan(0.0));
+      expect(result.isStationaryLock, false);
+    });
+
     test('park mode updates anchor and forces zero delta', () {
       final service = LocationService()..direction = OdometerDirection.park;
       final now = DateTime(2026, 4, 21, 12, 0, 0);
@@ -154,6 +231,38 @@ void main() {
       );
 
       expect(result.gpsDelta, lessThan(0.0));
+    });
+
+    test('forward mode never returns a negative GPS delta', () {
+      final service = LocationService();
+      final now = DateTime(2026, 4, 21, 12, 0, 0);
+      final first = createPosition(
+        latitude: 0,
+        longitude: 0,
+        timestamp: now,
+        speed: 5.0,
+      );
+      final second = createPosition(
+        latitude: 0.0001,
+        longitude: 0,
+        timestamp: now.add(const Duration(seconds: 1)),
+        speed: 5.0,
+      );
+
+      service.processGpsUpdate(
+        lastPosition: null,
+        currentPosition: first,
+        calibrationFactor: -1.0,
+        now: now,
+      );
+      final result = service.processGpsUpdate(
+        lastPosition: first,
+        currentPosition: second,
+        calibrationFactor: -1.0,
+        now: now.add(const Duration(seconds: 1)),
+      );
+
+      expect(result.gpsDelta, 0.0);
     });
 
     test('stationary lock engages after 3 seconds below threshold', () {
