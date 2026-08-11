@@ -19,46 +19,64 @@ class MileageEntryDialog extends StatefulWidget {
 }
 
 class _MileageEntryDialogState extends State<MileageEntryDialog> {
-  late String _currentValue;
+  late final TextEditingController _controller;
   bool _hasStartedTyping = false;
 
   @override
   void initState() {
     super.initState();
-    _currentValue = widget.initialValue;
+    _controller = TextEditingController(text: widget.initialValue);
   }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String get _currentValue => _controller.text;
 
   void _onKeyPress(String key) {
     setState(() {
       if (!_hasStartedTyping) {
-        _currentValue = "";
+        _controller.clear();
         _hasStartedTyping = true;
       }
 
       if (key == "⌫") {
         if (_currentValue.isNotEmpty) {
-          _currentValue = _currentValue.substring(0, _currentValue.length - 1);
+          _controller.text = _currentValue.substring(
+            0,
+            _currentValue.length - 1,
+          );
         }
       } else if (key == ".") {
         if (!_currentValue.contains(".")) {
           if (_currentValue.isEmpty) {
-            _currentValue = "0.";
+            _controller.text = "0.";
           } else {
-            _currentValue += ".";
+            _controller.text = "$_currentValue.";
           }
         }
       } else {
         if (_currentValue.contains(".")) {
           final parts = _currentValue.split(".");
           if (parts[1].length < widget.decimalPlaces) {
-            _currentValue += key;
+            _controller.text = "$_currentValue$key";
           }
         } else {
           if (_currentValue.length < widget.maxDigitsBeforeDecimal) {
-            _currentValue += key;
+            _controller.text = "$_currentValue$key";
           }
         }
       }
+    });
+  }
+
+  void _clearInput() {
+    setState(() {
+      _controller.clear();
+      _hasStartedTyping = true;
     });
   }
 
@@ -121,7 +139,7 @@ class _MileageEntryDialogState extends State<MileageEntryDialog> {
             final keypadFontSize = (tileHeight * 0.44)
                 .clamp(22.0, 32.0)
                 .toDouble();
-            final actionButtonHeight = ((bodyHeight - actionSpacing) / 2)
+            final actionButtonHeight = ((bodyHeight - (actionSpacing * 2)) / 3)
                 .clamp(72.0, 160.0)
                 .toDouble();
             final actionFontSize = (actionButtonHeight * 0.18)
@@ -290,6 +308,35 @@ class _MileageEntryDialogState extends State<MileageEntryDialog> {
                                     onPressed: () => Navigator.pop(context),
                                     child: Text(
                                       "CANCEL",
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: actionFontSize,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: actionSpacing),
+                              Expanded(
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  height: actionButtonHeight,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.amber[800],
+                                      foregroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 12,
+                                      ),
+                                    ),
+                                    onPressed: _clearInput,
+                                    child: Text(
+                                      "CLEAR",
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                         fontSize: actionFontSize,

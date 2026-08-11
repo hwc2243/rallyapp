@@ -299,6 +299,54 @@ void main() {
       expect(result.gpsDelta, 0.0);
     });
 
+    test('stationary lock refreshes its anchor for every GPS ping', () {
+      final service = LocationService();
+      final base = DateTime(2026, 4, 21, 12, 0, 0);
+      final first = createPosition(
+        latitude: 0,
+        longitude: 0,
+        timestamp: base,
+        speed: 0.5,
+      );
+      final lockFix = createPosition(
+        latitude: 0.0001,
+        longitude: 0,
+        timestamp: base.add(const Duration(seconds: 4)),
+        speed: 0.5,
+      );
+      final driftFix = createPosition(
+        latitude: 0.0002,
+        longitude: 0,
+        timestamp: base.add(const Duration(seconds: 5)),
+        speed: 0.5,
+        accuracy: 20.0,
+      );
+
+      service.processGpsUpdate(
+        lastPosition: null,
+        currentPosition: first,
+        calibrationFactor: 1.0,
+        now: base,
+      );
+      final locked = service.processGpsUpdate(
+        lastPosition: first,
+        currentPosition: lockFix,
+        calibrationFactor: 1.0,
+        now: base.add(const Duration(seconds: 4)),
+      );
+      final drift = service.processGpsUpdate(
+        lastPosition: locked.anchorPosition,
+        currentPosition: driftFix,
+        calibrationFactor: 1.0,
+        now: base.add(const Duration(seconds: 5)),
+      );
+
+      expect(locked.isStationaryLock, true);
+      expect(drift.isStationaryLock, true);
+      expect(drift.anchorPosition, driftFix);
+      expect(drift.gpsDelta, 0.0);
+    });
+
     test('hard reset anchor discards distance after a long GPS gap', () {
       final service = LocationService();
       final base = DateTime(2026, 4, 21, 12, 0, 0);

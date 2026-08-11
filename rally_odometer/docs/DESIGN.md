@@ -62,8 +62,11 @@
 - **Wakelock:** Screen stays at 100% brightness indefinitely while active.
 - **Frame Rate:** Mileage and telemetry update at 20fps for smooth numerical rolling.
 
-## Visual Performance & Safety Guards
+## Visual Performance, Display Continuity, & Safety Guards
 - **Monotonic Display Rule:** In Forward mode, odometer numbers must strictly increment or remain frozen. They must never flicker downward or jump backward during GPS soft-syncing.
+- **20Hz UI Ticker Isolation:** The numerical display refresh (20fps) must run on an isolated UI ticker loop. 
+- **Anti-Stutter Rule:** The display must never pause or "batch update" (freeze and jump ahead). Even if GPS updates arrive intermittently, the UI ticker must smoothly interpolate the display using the last known speed vector until new ground-truth data arrives.
+- **Zero-Movement Pinning:** When Stationary Lock is active, the thousandths digit must remain completely static (no flickering or micro-increments).
 
 ## Navigation & Screen Routes
 - **Details Screen:** Designed as a dedicated full-screen view sharing the same visual frame, header layout, and back-button navigation behavior as the Settings screen.
@@ -76,6 +79,25 @@
       - **Green:** `< 10m`
       - **Yellow:** `10m – 15m`
       - **Red:** `> 15m`
+
+## Direct Mileage & Calibration Entry Dialogs
+- **Activation:** Tapping numerical displays or calibration input fields.
+- **Interface:** High-contrast modal pop-up with a numeric keypad (0–9 and decimal point).
+- **Button Layout & Styling:**
+  - **SET:** Large, high-visibility Green button.
+  - **CANCEL:** Large, high-visibility Red button.
+  - **CLEAR (CLR):** Distinct Amber/Yellow or high-contrast button positioned adjacent to the keypad input field to allow immediate single-tap clearing.
+
+## Calibration Factor Confirmation Modal
+- **Activation:** Triggered immediately after submitting a value in the "Official Distance" calculation input.
+- **Visual Layout:**
+  - **Header:** High-contrast title "Confirm New Calibration Factor".
+  - **Comparison Display:** Prominently displays the values side-by-side or stacked:
+    - `Current Factor:` e.g., `1.0000`
+    - `New Factor:` e.g., `1.0048` (Large, high-contrast text).
+  - **Action Buttons:**
+    - **CONFIRM / APPLY:** Large, high-visibility Green button to commit the new factor.
+    - **CANCEL:** Large, high-visibility Red button to discard the calculation and retain the current factor.
 
 ## Responsive Layout & Safety Standards
 - **SafeArea Integration:** All full-screen routes (`DetailsScreen`, `SettingsScreen`) must be wrapped in a `SafeArea` to prevent system notches or gestures from obscuring content or crowding layout boundaries.

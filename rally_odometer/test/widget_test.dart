@@ -49,4 +49,59 @@ void main() {
 
     expect(find.text('Require Double-Tap for Bumps'), findsOneWidget);
   });
+
+  testWidgets(
+    'calculated calibration factor requires confirmation before it is saved',
+    (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({'totalDistance': 1609.344});
+      final prefs = await SharedPreferences.getInstance();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+          child: const RallyOdometerApp(),
+        ),
+      );
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+
+      final measuredModeToggle = find.byTooltip('Use measured mileage');
+      final measuredMileageField = find.byType(TextField).last;
+      await tester.ensureVisible(measuredModeToggle);
+      await tester.pumpAndSettle();
+      await tester.tap(measuredModeToggle);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(measuredMileageField);
+      await tester.pumpAndSettle();
+      await tester.tap(measuredMileageField);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('CLEAR'));
+      await tester.tap(find.text('2').last);
+      await tester.tap(find.text('.').last);
+      await tester.tap(find.text('0').last);
+      await tester.tap(find.text('0').last);
+      await tester.tap(find.text('0').last);
+      await tester.tap(find.text('SET'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Calculate'));
+      await tester.pumpAndSettle();
+      expect(find.text('CURRENT FACTOR: 1.00000'), findsOneWidget);
+      expect(find.text('CALCULATED NEW FACTOR: 2.00000'), findsOneWidget);
+
+      await tester.tap(find.text('CANCEL'));
+      await tester.pumpAndSettle();
+      expect(prefs.getDouble('calibrationFactor'), isNull);
+
+      await tester.tap(find.text('Calculate'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('CONFIRM'));
+      await tester.pumpAndSettle();
+      expect(prefs.getDouble('calibrationFactor'), closeTo(2.0, 1e-9));
+    },
+  );
 }

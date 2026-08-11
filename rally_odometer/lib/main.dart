@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/settings_provider.dart';
+import 'providers/odometer_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/odometer_screen.dart';
 import 'screens/settings_screen.dart';
@@ -26,8 +27,35 @@ void main() async {
   );
 }
 
-class RallyOdometerApp extends StatelessWidget {
+class RallyOdometerApp extends ConsumerStatefulWidget {
   const RallyOdometerApp({super.key});
+
+  @override
+  ConsumerState<RallyOdometerApp> createState() => _RallyOdometerAppState();
+}
+
+class _RallyOdometerAppState extends ConsumerState<RallyOdometerApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState appLifecycleState) {
+    if (appLifecycleState == AppLifecycleState.paused ||
+        appLifecycleState == AppLifecycleState.inactive ||
+        appLifecycleState == AppLifecycleState.detached) {
+      ref.read(odometerProvider.notifier).persistNow();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

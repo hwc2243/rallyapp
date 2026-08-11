@@ -113,7 +113,9 @@ class LocationService {
       return GpsSyncResult(
         acceptedFix: false,
         hardResetAnchor: false,
-        anchorPosition: lastPosition,
+        // A locked vehicle needs every GPS pulse to become the next anchor,
+        // including a temporarily inaccurate one, so jitter is absorbed.
+        anchorPosition: _isLocked ? currentPosition : lastPosition,
         gpsDelta: 0.0,
         smoothedSpeed: _isLocked ? 0.0 : _smoothedSpeed(),
         isStationaryLock: _isLocked,

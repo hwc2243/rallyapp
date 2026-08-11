@@ -173,8 +173,6 @@ class OdometerNotifier extends Notifier<OdometerState> {
   void _persistState() {
     final prefs = ref.read(sharedPreferencesProvider);
     _persistDistances(prefs);
-    final settings = ref.read(settingsProvider);
-    prefs.setDouble('calibrationFactor', settings.calibrationFactor);
   }
 
   void _persistDistances(SharedPreferences prefs) {
@@ -222,6 +220,13 @@ class OdometerNotifier extends Notifier<OdometerState> {
       return;
     }
 
+    // A stationary lock is also a moving GPS reference anchor.  Refresh it
+    // even for a rejected fix so post-calibration coordinate wander cannot be
+    // applied as a distance spike when the lock eventually releases.
+    if (result.isStationaryLock) {
+      _lastPosition = position;
+    }
+
     if (!result.acceptedFix) {
       return;
     }
@@ -259,7 +264,6 @@ class OdometerNotifier extends Notifier<OdometerState> {
             _gpsAnchoredIntervalDistance,
           ),
         );
-        _persistState();
       }
       return;
     }
@@ -270,7 +274,6 @@ class OdometerNotifier extends Notifier<OdometerState> {
         totalDistance: _gpsAnchoredTotalDistance,
         intervalDistance: _gpsAnchoredIntervalDistance,
       );
-      _persistState();
     }
   }
 
@@ -288,7 +291,6 @@ class OdometerNotifier extends Notifier<OdometerState> {
       _isSoftSyncCatchUp = false;
     }
     ref.read(locationServiceProvider).direction = direction;
-    _persistState();
   }
 
   void toggleHold() {
@@ -314,7 +316,6 @@ class OdometerNotifier extends Notifier<OdometerState> {
       frozenTotalDistance: state.isHeld ? 0.0 : null,
     );
     _syncGpsAnchors(totalDistance: 0.0);
-    _persistState();
   }
 
   void setTotalDistance(double meters) {
@@ -323,19 +324,16 @@ class OdometerNotifier extends Notifier<OdometerState> {
       frozenTotalDistance: state.isHeld ? meters : null,
     );
     _syncGpsAnchors(totalDistance: meters);
-    _persistState();
   }
 
   void resetInterval() {
     state = state.copyWith(intervalDistance: 0.0);
     _syncGpsAnchors(intervalDistance: 0.0);
-    _persistState();
   }
 
   void setIntervalDistance(double meters) {
     state = state.copyWith(intervalDistance: meters);
     _syncGpsAnchors(intervalDistance: meters);
-    _persistState();
   }
 
   void applyBump(bool isPositive) {
@@ -356,8 +354,10 @@ class OdometerNotifier extends Notifier<OdometerState> {
       totalDistance: newTotalDistance,
       intervalDistance: newIntervalDistance,
     );
-    _persistState();
   }
+
+  /// Flushes the throttled odometer state when the application is paused.
+  void persistNow() => _persistState();
 }
 
 final locationServiceProvider = Provider((ref) => LocationService());

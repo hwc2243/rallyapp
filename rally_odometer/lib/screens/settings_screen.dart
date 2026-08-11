@@ -120,7 +120,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
   }
 
-  void _calculateFactor() {
+  Future<void> _calculateFactor() async {
     final measured = double.tryParse(_measuredController.text);
     final odometer = ref.read(odometerProvider);
     final settings = ref.read(settingsProvider);
@@ -137,8 +137,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
 
+    // The displayed odometer is already scaled by the current factor, so the
+    // official-distance correction must scale that active factor in turn.
     final newFactor =
-        (measured / currentAppDistance) * settings.calibrationFactor;
+        settings.calibrationFactor * (measured / currentAppDistance);
+
+    final confirmed = await _confirmCalculatedFactor(
+      currentFactor: settings.calibrationFactor,
+      newFactor: newFactor,
+    );
+    if (confirmed != true || !mounted) return;
+
     ref.read(settingsProvider.notifier).setCalibrationFactor(newFactor);
     setState(() {
       _entryMode = CalibrationEntryMode.measured;
@@ -148,6 +157,75 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Factor updated to ${newFactor.toStringAsFixed(5)}'),
+      ),
+    );
+  }
+
+  Future<bool?> _confirmCalculatedFactor({
+    required double currentFactor,
+    required double newFactor,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.black,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          side: BorderSide(color: Colors.white, width: 2),
+          borderRadius: BorderRadius.all(Radius.circular(8)),
+        ),
+        title: const Text(
+          'CONFIRM CALIBRATION FACTOR',
+          style: TextStyle(
+            color: Colors.white,
+            fontFamily: 'Courier',
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'CURRENT FACTOR: ${currentFactor.toStringAsFixed(5)}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontFamily: 'Courier',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'CALCULATED NEW FACTOR: ${newFactor.toStringAsFixed(5)}',
+              style: const TextStyle(
+                color: Color(0xFF00FF00),
+                fontFamily: 'Courier',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(120, 48),
+            ),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.black,
+              minimumSize: const Size(120, 48),
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('CONFIRM'),
+          ),
+        ],
       ),
     );
   }

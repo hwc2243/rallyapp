@@ -42,6 +42,23 @@ class LiveTelemetry {
     }
   }
 
+## Calibration Factor Math
+When the user submits an "Official Distance" override to calculate a new factor:
+```dart
+double calculateNewFactor({
+  required double currentFactor,
+  required double currentDisplayedDistance,
+  required double officialDistance,
+}) {
+  if (currentDisplayedDistance <= 0.0) return currentFactor;
+  return currentFactor * (officialDistance / currentDisplayedDistance);
+}
+
+## Calibration Factor Confirmation Workflow
+1. **Calculation Stage:** Compute candidate factor:
+   ```dart
+   double proposedFactor = currentFactor * (officialDistance / currentDisplayedDistance);
+
 ## Distance Accumulation Safety & Interpolation Pipeline
 
 ### 1. The Monotonicity Guard (Distance Loss Prevention)
@@ -74,10 +91,13 @@ To prevent the odometer from losing distance during GPS noise or Soft Sync drift
     return Colors.red;
   }
 
+## Numerical Entry Dialog State Handling
+- **TextEditingController Handling:**
+  - All factor and mileage entry dialogs maintain a `TextEditingController`.
+  - **Clear Callback:** Tapping the "CLEAR" button invokes `controller.clear()`, resetting the field state to `""` and preserving active keyboard focus on the input field.
+
 ## UI Layout Rules & RenderFlex Overflow Prevention
-
 To strictly prevent `RenderFlex` overflow exceptions across varying phone screen aspect ratios:
-
 1. **Full-Screen Route Boilerplate Rule:**
    All secondary screens (`DetailsScreen`, `SettingsScreen`) must adopt this layout structure:
    ```dart

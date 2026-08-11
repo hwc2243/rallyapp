@@ -41,6 +41,11 @@ The app must maintain a continuous, real-time data structure containing:
 - **UI Overlay:** A small, high-contrast overlay pop-up displaying **"Calibrating..."** must be shown.
 - **Exit Condition:** Calibration Mode automatically completes once the GPS receiver achieves an accuracy of `< 15m` and positional readings remain within a stable cluster across 3 consecutive readings.
 
+### Post-Calibration Stationary Lock (Zero-Drift Anchor)
+- **Anchor Lock:** Once calibrated and running, whenever vehicle speed drops below `0.8 m/s` for 3 seconds, the app enters **Stationary Lock**.
+- **Jitter Absorption:** While locked, the system must continuously reset its reference coordinate anchor (`lastPosition = currentPosition`) on every incoming GPS pulse **without** accumulating distance deltas. This absorbs GPS positional wander while parked or stopped at intersections.
+- **Unlock Condition:** The stationary lock unlocks only when vehicle speed exceeds `1.2 m/s` for at least 2 consecutive GPS updates.
+
 ### Low-Speed Precision & Windowed Tracking
 - **Low-Speed Accrual:** Distance must accurately accumulate at slow speeds (e.g., walking/crawling speeds between 0.3 m/s and 1.2 m/s). Slow movement must not be entirely discarded as stationary noise.
 - **Multi-Sample Windowing:** At low speeds, distance calculation must use multi-sample time-window averaging across sequential coordinates to filter out GPS jitter while accurately capturing net displacement.
@@ -85,11 +90,23 @@ The app must maintain a continuous, real-time data structure containing:
   2. **Park (P):** Mileage accumulation is strictly disabled. Movement during Park is ignored upon returning to F/R.
   3. **Reverse (R):** Mileage is subtracted from totals.
 
-### Calibration & Factor
-- **Input Methods:** Direct numeric entry or Calculated entry (`Factor = Official Mileage / App Odometer Mileage`).
+### Factor
+- **Input Methods:** Direct numeric entry or Calculated entry (`Factor = Current Factor * (Official Mileage / App Odometer Mileage)`).
+- **Calculated Factor Preview & Confirmation:** Upon entering an "Official Measured Distance", the system must calculate the proposed new factor using the formula:
+  $$\text{New Factor} = \text{Current Factor} \times \left( \frac{\text{Official Distance}}{\text{Current Displayed Odometer Distance}} \right)$$
+- **Rationale:** Because the displayed odometer distance is already scaled by `Current Factor`, adjusting the factor requires scaling the existing factor rather than assuming raw, uncalibrated distance.
+- **Explicit User Confirmation:** The calculated new factor must be displayed in a confirmation prompt alongside the current active factor. The new factor must **not** be applied or saved until the user explicitly taps "CONFIRM" or "APPLY".
+
+### Persistence
 - **Data Persistence:** Calibration factor, bump amount, unit preferences, and odometer states must persist across app restarts and reboots.
 
+### Calibration & Numerical Entry Dialogs
+- **Clear Action Requirement:** Any dialog used for manual numerical input—including Direct Mileage Entry, Official Measured Distance Entry, or Direct Calibration Factor Entry—must feature a prominent, dedicated **"CLEAR"** button.
+- **Behavior:** Tapping "CLEAR" instantly clears the active input field (resets to empty/zero), allowing the user to quickly re-enter a value without backspacing character-by-character.
 
 ### Device Layout & Viewport Safety
 - **Overflow Immunity:** All UI screens (including main dashboard, Settings, and Details) must dynamically adapt to constrained landscape viewports (e.g., iPhones with notches and home indicator bars) without layout overflows or `RenderFlex` errors.
 - **Scroll Grace Period:** Any full-screen view whose content exceeds the physical vertical screen height must automatically enable smooth vertical scrolling.
+
+### Display Smoothness & Frame Continuity
+- **Non-Blocking UI Rendering:** The 20Hz numerical display updates must never freeze or jump due to heavy background processes or I/O operations. Display rendering must remain continuous and smooth regardless of background location parsing or state persistence calls.

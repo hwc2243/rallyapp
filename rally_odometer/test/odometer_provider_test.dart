@@ -156,24 +156,32 @@ void main() {
     expect(prefs.getBool('bumpRequireDoubleTap'), false);
   });
 
-  test('OdometerNotifier updates direction and persists it', () async {
-    final container = ProviderContainer(
-      overrides: [
-        locationServiceProvider.overrideWithValue(stubLocationService),
-        sharedPreferencesProvider.overrideWithValue(prefs),
-      ],
-    );
+  test(
+    'OdometerNotifier persists direction when its throttled state flushes',
+    () async {
+      final container = ProviderContainer(
+        overrides: [
+          locationServiceProvider.overrideWithValue(stubLocationService),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+        ],
+      );
 
-    final notifier = container.read(odometerProvider.notifier);
-    notifier.setDirection(OdometerDirection.reverse);
+      final notifier = container.read(odometerProvider.notifier);
+      notifier.setDirection(OdometerDirection.reverse);
 
-    expect(
-      container.read(odometerProvider).direction,
-      OdometerDirection.reverse,
-    );
-    expect(stubLocationService.direction, OdometerDirection.reverse);
-    expect(prefs.getInt('odometerDirection'), OdometerDirection.reverse.index);
-  });
+      expect(
+        container.read(odometerProvider).direction,
+        OdometerDirection.reverse,
+      );
+      expect(stubLocationService.direction, OdometerDirection.reverse);
+      expect(prefs.getInt('odometerDirection'), isNull);
+      notifier.persistNow();
+      expect(
+        prefs.getInt('odometerDirection'),
+        OdometerDirection.reverse.index,
+      );
+    },
+  );
 
   test('GPS soft sync aligns distances to ground truth', () async {
     final container = ProviderContainer(
@@ -322,7 +330,8 @@ void main() {
     );
 
     container.read(settingsProvider.notifier).setBumpAmount(0.010);
-    container.read(odometerProvider.notifier).applyBump(true);
+    final notifier = container.read(odometerProvider.notifier);
+    notifier.applyBump(true);
 
     expect(
       container.read(odometerProvider).totalDistance,
@@ -332,6 +341,8 @@ void main() {
       container.read(odometerProvider).intervalDistance,
       closeTo(16.09344, 1e-9),
     );
+    expect(prefs.getDouble('totalDistance'), isNull);
+    notifier.persistNow();
     expect(prefs.getDouble('totalDistance'), closeTo(16.09344, 1e-9));
     expect(prefs.getDouble('intervalDistance'), closeTo(16.09344, 1e-9));
   });
@@ -376,11 +387,14 @@ void main() {
     );
 
     container.read(settingsProvider.notifier).setCalibrationFactor(1.2345);
-    container.read(odometerProvider.notifier).setTotalDistance(42.0);
-    container.read(odometerProvider.notifier).setIntervalDistance(21.0);
+    final notifier = container.read(odometerProvider.notifier);
+    notifier.setTotalDistance(42.0);
+    notifier.setIntervalDistance(21.0);
 
     await Future<void>.delayed(const Duration(milliseconds: 10));
 
+    expect(prefs.getDouble('totalDistance'), isNull);
+    notifier.persistNow();
     expect(prefs.getDouble('totalDistance'), closeTo(42.0, 1e-9));
     expect(prefs.getDouble('intervalDistance'), closeTo(21.0, 1e-9));
     expect(prefs.getDouble('calibrationFactor'), closeTo(1.2345, 1e-9));
