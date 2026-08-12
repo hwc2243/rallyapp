@@ -2,11 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:rally_lib/rally_lib.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
-import '../providers/odometer_provider.dart';
-import '../providers/live_telemetry_provider.dart';
-import '../providers/settings_provider.dart';
-import '../services/location_service.dart';
 import '../widgets/mileage_entry_dialog.dart';
 
 class OdometerScreen extends ConsumerStatefulWidget {

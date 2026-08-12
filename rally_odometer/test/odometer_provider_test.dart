@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:rally_odometer/providers/odometer_provider.dart';
-import 'package:rally_odometer/providers/settings_provider.dart';
-import 'package:rally_odometer/services/location_service.dart';
+import 'package:rally_lib/rally_lib.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StubLocationService extends LocationService {

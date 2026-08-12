@@ -1,19 +1,12 @@
-# Project Instructions
+# Instructions for rally_odometer Agent
 
 ## Source of Truth
-- Product requirements: ./docs/PRD.md
-- System design: ./docs/DESIGN.md
-- Implementation details: ./docs/IMPLEMENTATION.md
+- Product Requirements: ./docs/PRD.md
+- Design Specification: ./docs/DESIGN.md
+- Implementation Details: ./docs/IMPLEMENTATION.md
 
 ## Rules
-- Always read the relevant docs in ./docs before making changes
-- Always follow the architecture in DESIGN.md
-- Do not invent features not in PRD.md
-- Keep odometer logic precise (float handling matters)
-
-## Style
-- Keep UI minimal and rally-focused
-
-## Start Here
-- ./docs/PRD.md
-- ./docs/DESIGN.md
+- All calculations, GPS parsing, and telemetry logic MUST come from `package:rally_lib/rally_lib.dart`.
+- Do not duplicate calculation logic inside UI widgets or dialogs.
+- Always follow layout, typography, and contrast standards in `DESIGN.md`.
+- Ensure all full-screen routes use `SafeArea` + `SingleChildScrollView` to prevent RenderFlex overflow errors.

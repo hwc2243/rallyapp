@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/odometer_provider.dart';
-import '../providers/settings_provider.dart';
+import 'package:rally_lib/rally_lib.dart';
 import '../widgets/mileage_entry_dialog.dart';
 
 enum CalibrationEntryMode { direct, measured }
@@ -139,8 +138,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     // The displayed odometer is already scaled by the current factor, so the
     // official-distance correction must scale that active factor in turn.
-    final newFactor =
-        settings.calibrationFactor * (measured / currentAppDistance);
+    final newFactor = calculateNewFactor(
+      currentFactor: settings.calibrationFactor,
+      measuredDistance: measured,
+      currentAppDistance: currentAppDistance,
+    );
 
     final confirmed = await _confirmCalculatedFactor(
       currentFactor: settings.calibrationFactor,

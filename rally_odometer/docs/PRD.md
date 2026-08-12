@@ -1,112 +1,53 @@
-# Product Requirement Document: Rally Odometer
+# Product Requirement Document: Rally Odometer (`rally_odometer`)
 
-## Project Overview
-A high-precision GPS-based odometer designed specifically for TSD (Time Speed Distance) Rallying.
+## Application Overview
+A high-precision, user-facing Flutter application for TSD Rallying powered by `rally_lib`[cite: 12, 13].
 
-## Core Requirements
-1. **Platform:** iOS and Android (Flutter).
-2. **Display:** Forced landscape mode.
-3. **Accuracy:** Distance must be tracked to the **thousandths** (0.000).
-4. **Background Operation:** The app must continuously track GPS position, calculate mileage, and update internal state in the background when minimized or when the screen is locked.
-5. **Dual Odometer Logic:**
-   - **Total Odometer:** Cumulative distance since start/reset.
-   - **Trip/Interval Odometer:** Distance since last manual split/instruction.
-6. **GPS & Telemetry:** 
-   - Use internal mobile GPS by default; support external NMEA GPS sources if connected via Bluetooth/Serial.
-   - Capture real-time vehicle **Bearing/Heading** (0°–360°).
+## UI Core Specifications
+1. **Target Platforms:** iOS and Android[cite: 12, 13].
+2. **Viewport:** Forced landscape orientation[cite: 12, 13].
+3. **Display Resolution:** Numerical mileage displays rendered to thousandths precision (0.000)[cite: 12, 13].
+4. **Primary Dashboard Layout:**
+   - **Top Row:** Total Odometer mileage, system clock (HH:mm:ss)[cite: 12, 13].
+   - **Bottom Row:** Trip/Interval Odometer mileage, system clock (HH:mm:ss)[cite: 12, 13].
 
-### Live Telemetry Data Structure
-The app must maintain a continuous, real-time data structure containing:
-- `total_odometer` (double)
-- `interval_odometer` (double)
-- `timestamp` (DateTime)
-- `speed` (double)
-- `bearing` (double, degrees 0-360)
-- `latitude` (double)
-- `longitude` (double)
-- `gps_accuracy` (double, meters)
+## Navigation & Menu System
+- **Placement & Icon:** Hamburger menu icon (`≡`) situated in the **bottom-right** corner of the screen[cite: 12, 13].
+- **Menu Items:**
+  1. **Settings:** Opens application configuration screen[cite: 12, 13].
+  2. **Details:** Opens full-screen diagnostic view[cite: 12, 13].
+- **Full-Screen Details Screen Requirements:**
+  - Full-page route with dedicated return/back navigation[cite: 12, 13].
+  - Displays real-time streaming telemetry from `rally_lib`: Latitude, Longitude, Speed, Bearing (Degrees + Cardinal direction), and Color-Coded GPS Accuracy (Green <10m, Yellow 10–15m, Red >15m)[cite: 12, 13].
+  - Viewing the Details screen must not pause background tracking or telemetry updates[cite: 12, 13].
 
-**Continuous Update Rule:** Telemetry parameters (`timestamp`, `speed`, `bearing`, `latitude`, `longitude`, `gps_accuracy`) must update continuously at the master refresh rate, **even if the odometer accumulation is paused or set to PARK.**
+## Odometer Controls & Interactivity
+- **Reset Buttons:** Dedicated "Reset" buttons located to the right of Total and Interval displays[cite: 12, 13].
+- **Hold / Release Feature:**
+  - Top row "Hold" button freezes the displayed Total mileage and time[cite: 12, 13].
+  - Background tracking continues uninterrupted via `rally_lib`[cite: 12, 13].
+  - Tapping "Release" jumps display values to current live background values immediately[cite: 12, 13].
+- **Direct Mileage Entry:** Tapping mileage displays opens a numeric keypad modal (0.000 precision) for manual value override[cite: 12, 13].
+- **Mileage Bump Controls:**
+  - "Bump+" and "Bump-" buttons to quickly adjust Total mileage[cite: 12, 13].
+  - Configurable "Single-Tap" vs "Double-Tap" safety mode setting[cite: 12, 13].
+- **FPR Direction Toggle:** 3-state vertical segmented control (Forward, Park, Reverse)[cite: 12, 13].
 
-### Odometer Precision & Noise Filtering
-- **Stationary Suppression:** When vehicle speed drops below 0.8 m/s (~1.8 mph) for 3 consecutive seconds, the app must enter a locked stationary state and force all distance deltas to `0.0`.
-- **Monotonicity Guard (Prevent Distance Loss):** 
-  - While in **Forward** mode, total and interval mileage must be **strictly non-decreasing** (`delta >= 0.0`).
-  - GPS resynchronization or drift corrections must **never** reduce the accumulated distance counter. If a soft sync detects that raw GPS distance is behind interpolated distance, forward accumulation pauses until physical position catches up, but the display never jumps backward.
-  - Decrements to distance are strictly forbidden unless the FPR state is explicitly set to **Reverse**.
+## Calibration & Numerical Entry Dialogs
+- **Clear Button Requirement:** Every manual input dialog (Direct Mileage Entry, Official Distance Entry, Calibration Factor Entry) must include a dedicated **"CLEAR"** button[cite: 12, 13].
+- **Behavior:** Tapping "CLEAR" immediately clears active text fields to allow quick re-entry[cite: 12, 13].
 
-### Startup Calibration Mode
-- **Initial Stabilization:** Upon app launch or GPS service re-initialization, the system must enter an automatic **Calibration Mode**.
-- **Distance Suppression:** While in Calibration Mode, all distance accumulation is strictly locked (`delta = 0.0`) to prevent startup positional drift from falsifying mileage.
-- **UI Overlay:** A small, high-contrast overlay pop-up displaying **"Calibrating..."** must be shown.
-- **Exit Condition:** Calibration Mode automatically completes once the GPS receiver achieves an accuracy of `< 15m` and positional readings remain within a stable cluster across 3 consecutive readings.
+## Factor Calculation & Confirmation UX
+- **Calculated Factor Preview Modal:** When calculating factor via "Official Distance", the UI must present a preview modal showing `Current Factor` alongside `New Factor`[cite: 12, 13].
+- **User Confirmation:** The new factor must not be applied to `rally_lib` until the user explicitly taps "CONFIRM" or "APPLY"[cite: 12, 13].
 
-### Post-Calibration Stationary Lock (Zero-Drift Anchor)
-- **Anchor Lock:** Once calibrated and running, whenever vehicle speed drops below `0.8 m/s` for 3 seconds, the app enters **Stationary Lock**.
-- **Jitter Absorption:** While locked, the system must continuously reset its reference coordinate anchor (`lastPosition = currentPosition`) on every incoming GPS pulse **without** accumulating distance deltas. This absorbs GPS positional wander while parked or stopped at intersections.
-- **Unlock Condition:** The stationary lock unlocks only when vehicle speed exceeds `1.2 m/s` for at least 2 consecutive GPS updates.
+## Visual Guidance & Status Overlays
+- **Startup Calibration Overlay:** Displays a "Calibrating..." pop-up overlay while `rally_lib` is in Calibration Mode[cite: 12, 13].
+- **Bearing Guidance UI:**
+  - Displays "N/A" when bearing is uninitialized[cite: 12, 13].
+  - Displays helper message: *"Data will be available when motion is detected."* when bearing is unavailable[cite: 12, 13].
 
-### Low-Speed Precision & Windowed Tracking
-- **Low-Speed Accrual:** Distance must accurately accumulate at slow speeds (e.g., walking/crawling speeds between 0.3 m/s and 1.2 m/s). Slow movement must not be entirely discarded as stationary noise.
-- **Multi-Sample Windowing:** At low speeds, distance calculation must use multi-sample time-window averaging across sequential coordinates to filter out GPS jitter while accurately capturing net displacement.
-- **Monotonic Smoothing:** Low-speed accumulation must strictly satisfy non-decreasing constraints (`delta >= 0.0` in Forward mode) and must never jump backward or fluctuate erratically.
-
-### Bearing Persistence & State
-- **Bearing Retention:** Once a valid bearing/heading is calculated, it must be **retained continuously** until a new valid bearing is established. It must never drop to `0°` when stopping or crawling.
-- **Empty State Display:** If no bearing has been determined yet (e.g., cold start before motion), the bearing value must explicitly display as **"N/A"** (never `0°`).
-- **User Motion Guidance:** When bearing is unavailable ("N/A"), the UI must present an explanatory message stating: *"Data will be available when motion is detected."*
-
-### Menu & Navigation Controls
-- **Overflow Menu:** The main interface replaces a standalone settings button with a primary **Menu** button (overflow icon).
-- **Placement & Icon:** The main navigation menu must be located in the **bottom-right** corner of the interface and represented by a standard **hamburger icon** (`≡`).
-- **Menu Options:**
-  1. **Operation:** Tapping the hamburger icon opens a popover menu containing **Settings** and **Details**.
-  2. **Settings:** Opens configuration options (Unit toggle, Decimal minutes toggle, Bump settings, Double-tap safety, Calibration Factor).
-  3. **Details:** Navigates to the full **Details Screen** (utilizes the same full-screen page navigation paradigm as Settings).
-- **Details Screen Requirements:**
-  - Full-page view with a clear return/back action to return to the main dashboard.
-  - Continuously streams live telemetry updates in real-time:
-    - Latitude & Longitude
-    - Current Speed
-    - Bearing (Degrees + Cardinal direction)
-    - Color-Coded GPS Accuracy (Green <10m, Yellow 10-15m, Red >15m)
-  - Opening or viewing the Details screen must **not** pause background odometer accumulation or telemetry tracking.
-
-### Odometer Controls
-- **Reset Functionality:** Each odometer (Total and Interval) has a dedicated "Reset" button located to the right of the numerical display.
-    - Action: Tapping "Reset" sets the corresponding distance to 0.000.
-- **Total Odometer "Hold" Feature:**
-    - Freezes display of mileage and time for the top row while master accumulation continues in the background.
-    - Tapping "Release" jumps display values to real-time master values immediately.
-- **Direct Mileage Entry Feature:**
-    - Manual override popup for Total or Interval odometer values (0.000 precision). Does not reset calibration factor.
-- **Mileage Bump Feature:**
-    - "Bump+" and "Bump-" buttons to adjust Total mileage by a configured increment.
-    - Configurable "Single-Tap" vs "Double-Tap" safety mode in Settings.
-
-### Odometer Direction Control (FPR)
-- **Control Type:** 3-state toggle (Forward, Park, Reverse).
-  1. **Forward (F):** Mileage accumulates normally.
-  2. **Park (P):** Mileage accumulation is strictly disabled. Movement during Park is ignored upon returning to F/R.
-  3. **Reverse (R):** Mileage is subtracted from totals.
-
-### Factor
-- **Input Methods:** Direct numeric entry or Calculated entry (`Factor = Current Factor * (Official Mileage / App Odometer Mileage)`).
-- **Calculated Factor Preview & Confirmation:** Upon entering an "Official Measured Distance", the system must calculate the proposed new factor using the formula:
-  $$\text{New Factor} = \text{Current Factor} \times \left( \frac{\text{Official Distance}}{\text{Current Displayed Odometer Distance}} \right)$$
-- **Rationale:** Because the displayed odometer distance is already scaled by `Current Factor`, adjusting the factor requires scaling the existing factor rather than assuming raw, uncalibrated distance.
-- **Explicit User Confirmation:** The calculated new factor must be displayed in a confirmation prompt alongside the current active factor. The new factor must **not** be applied or saved until the user explicitly taps "CONFIRM" or "APPLY".
-
-### Persistence
-- **Data Persistence:** Calibration factor, bump amount, unit preferences, and odometer states must persist across app restarts and reboots.
-
-### Calibration & Numerical Entry Dialogs
-- **Clear Action Requirement:** Any dialog used for manual numerical input—including Direct Mileage Entry, Official Measured Distance Entry, or Direct Calibration Factor Entry—must feature a prominent, dedicated **"CLEAR"** button.
-- **Behavior:** Tapping "CLEAR" instantly clears the active input field (resets to empty/zero), allowing the user to quickly re-enter a value without backspacing character-by-character.
-
-### Device Layout & Viewport Safety
-- **Overflow Immunity:** All UI screens (including main dashboard, Settings, and Details) must dynamically adapt to constrained landscape viewports (e.g., iPhones with notches and home indicator bars) without layout overflows or `RenderFlex` errors.
-- **Scroll Grace Period:** Any full-screen view whose content exceeds the physical vertical screen height must automatically enable smooth vertical scrolling.
-
-### Display Smoothness & Frame Continuity
-- **Non-Blocking UI Rendering:** The 20Hz numerical display updates must never freeze or jump due to heavy background processes or I/O operations. Display rendering must remain continuous and smooth regardless of background location parsing or state persistence calls.
+## Viewport Safety & Render Continuity
+- **Overflow Immunity:** All UI views (Dashboard, Settings, Details) must dynamically adapt to landscape mobile viewports without `RenderFlex` overflow errors[cite: 12, 13].
+- **Scroll Support:** Secondary screens must support vertical scrolling if content exceeds viewport boundaries[cite: 12, 13].
+- **Frame Continuity:** 20Hz display refresh must remain smooth without freezing or jumping[cite: 12, 13].

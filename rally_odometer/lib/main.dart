@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rally_lib/rally_lib.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'providers/settings_provider.dart';
-import 'providers/odometer_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/odometer_screen.dart';
 import 'screens/settings_screen.dart';
