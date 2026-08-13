@@ -319,6 +319,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: 20),
                 const Divider(),
+                ListTile(
+                  title: const Text('Device Role & Bluetooth'),
+                  subtitle: const Text('Controller, Driver, Navigator, and pairing'),
+                  trailing: const Icon(Icons.bluetooth),
+                  onTap: () => Navigator.pushNamed(context, '/role-selection'),
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
                 const SizedBox(height: 10),
                 const Text(
                   'Bump Increment',

@@ -13,6 +13,8 @@ dependencies:
   flutter_riverpod: ^3.3.1
   geolocator: ^12.0.0
   flutter_background_service: ^5.0.0
+  flutter_blue_plus: ^1.35.5
+  ble_peripheral: ^2.4.0
   shared_preferences: ^2.2.3
   wakelock_plus: ^1.2.5
 

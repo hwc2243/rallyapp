@@ -8,6 +8,27 @@
   - **Top Row:** Total Odometer (Left/Center), Current Time (Top-Right).
   - **Bottom Row:** Interval Odometer (Left/Center), Current Time (Top-Right).
 
+## Device Role Configuration Screen
+- **Role Selector:** 3-way segmented button or radio card list: `[ Controller | Driver | Navigator ]`.
+- **BLE Rate Selector (Controller Mode):** Segmented choice: `[ 5 Hz | 10 Hz (Default) | 20 Hz ]`.
+- **Device Pairing Wizard:** Clean scanning list showing discovered Controller BLE devices with signal strength indicators (RSSI).
+
+## Driver Display Layout
+- **Orientation:** Forced Landscape Mode[cite: 11, 13, 14].
+- **Visuals:** Pure Black background (`#000000`), High-viz Green for Total, High-viz Yellow for Interval[cite: 11, 13, 14].
+- **Layout:**
+  - Top Half: Total Mileage (Large monospace) + Speedometer[cite: 11, 13, 14].
+  - Bottom Half: Interval Mileage (Large monospace) + GPS Accuracy Badge[cite: 11, 13, 14].
+- **Menu:** Bottom-right hamburger icon (`≡`) opening popover containing **Details** only[cite: 11, 13, 14].
+
+## Connection Error Modal
+- **Visual Style:** High-contrast alert window.
+- **Title:** "Controller Connection Failed"
+- **Message:** "Unable to connect to saved Controller display over Bluetooth."
+- **Action Buttons:**
+  - **RETRY:** High-viz Green button.
+  - **RECONFIGURE ROLE:** High-viz Yellow/Amber button.
+
 ## Calibration Overlay
 - **Visuals:** A floating, semi-transparent badge anchored near the top-center of the main screen with high-contrast text: **"Calibrating..."**.
 - **Behavior:** Appears automatically on startup; fades out smoothly once GPS signal stabilizes and Calibration Mode exits.
@@ -20,11 +41,10 @@
   1. **Settings**
   2. **Details** (Live GPS diagnostics: Lat/Lon, Speed, Bearing, Color-Coded Accuracy)
 
-## Live Details Diagnostic Modal
-- **Style:** High-contrast pop-up window over the main UI.
+## Live Details Diagnostic Screen
 - **Content Display:**
   - **Latitude / Longitude:** e.g., `LAT: 37.7749° N` | `LON: -122.4194° W`
-  - **Speed:** e.g., `SPD: 45.2 MPH`
+  - **Speed:** e.g., `SPD: 45 MPH`
   - **Bearing / Heading:** e.g., `HDG: 184° (S)`
   - **GPS Accuracy Indicator:** Badge display showing accuracy in meters (e.g., `ACC: ± 4.2m`).
     - **Color Coding:** 

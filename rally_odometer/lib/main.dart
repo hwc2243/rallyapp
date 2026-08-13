@@ -7,6 +7,9 @@ import 'screens/splash_screen.dart';
 import 'screens/odometer_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/details_screen.dart';
+import 'screens/driver_dashboard_screen.dart';
+import 'screens/navigator_dashboard_screen.dart';
+import 'screens/role_selection_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,6 +61,10 @@ class _RallyOdometerAppState extends ConsumerState<RallyOdometerApp>
 
   @override
   Widget build(BuildContext context) {
+    // These providers activate Controller publication/command handling without
+    // modifying the established Controller dashboard widget tree.
+    ref.watch(controllerBlePublisherProvider);
+    ref.watch(controllerCommandDispatcherProvider);
     return MaterialApp(
       title: 'Rally Odometer',
       debugShowCheckedModeBanner: false,
@@ -68,6 +75,9 @@ class _RallyOdometerAppState extends ConsumerState<RallyOdometerApp>
         '/odometer': (context) => const OdometerScreen(),
         '/settings': (context) => const SettingsScreen(),
         '/details': (context) => const DetailsScreen(),
+        '/driver': (context) => const DriverDashboardScreen(),
+        '/navigator': (context) => const NavigatorDashboardScreen(),
+        '/role-selection': (context) => const RoleSelectionScreen(),
       },
     );
   }

@@ -35,6 +35,7 @@ class LiveTelemetryNotifier extends Notifier<LiveTelemetry> {
       latitude: odometer.latitude,
       longitude: odometer.longitude,
       gpsAccuracy: odometer.lastAccuracy,
+      isDisplayHeld: odometer.isHeld,
     );
   }
 }

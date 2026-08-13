@@ -23,6 +23,69 @@
   }
   ```[cite: 14]
 
+## Driver & Navigator UI Wiring
+
+### Driver Display Screen (`DriverDashboardScreen`)
+```dart
+class DriverDashboardScreen extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Listens exclusively to live telemetry stream from BLE client service
+    final telemetry = ref.watch(bleTelemetryProvider);
+
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            OdometerDisplayRow(value: telemetry.totalDistance, color: Colors.green),
+            OdometerDisplayRow(value: telemetry.intervalDistance, color: Colors.yellow),
+            SpeedAndAccuracyBar(speed: telemetry.speed, accuracy: telemetry.gpsAccuracy),
+          ],
+        ),
+      ),
+      floatingActionButton: DriverPopupMenuButton(), // Only contains Details option
+    );
+  }
+}
+
+## Navigator UI Command Wiring
+
+### Navigator Dashboard Screen (`NavigatorDashboardScreen`)
+```dart
+class NavigatorDashboardScreen extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final telemetry = ref.watch(bleTelemetryProvider);
+
+    return Scaffold(
+      body: SafeArea(
+        child: Row(
+          children: [
+            Expanded(child: OdometerMainDisplay(telemetry: telemetry)),
+            NavigatorControlColumn(
+              onResetTotal: () => _sendCommand(ref, CommandOpcode.resetTotal),
+              onResetInterval: () => _sendCommand(ref, CommandOpcode.resetInterval),
+              onToggleHold: () => _sendCommand(ref, CommandOpcode.toggleHold),
+              onBump: (val) => _sendCommand(ref, CommandOpcode.bumpPlus, value: val),
+              onFprChanged: (state) => _sendCommand(ref, CommandOpcode.setFprState, stringVal: state),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _sendCommand(WidgetRef ref, CommandOpcode opcode, {double? value, String? stringVal}) {
+    final command = ControllerCommand(
+      opcode: opcode,
+      numericValue: value,
+      stringValue: stringVal,
+      timestamp: DateTime.now(),
+    );
+    ref.read(bleClientServiceProvider).sendCommand(command);
+  }
+}
+
 ## Calibration Factor Confirmation Workflow UI
 1. **Input Stage:** User enters "Official Distance" into the factor calculation dialog[cite: 14].
 2. **Preview Stage:** UI invokes `calculateNewFactor()` from `rally_lib` and presents a confirmation dialog showing `Current Factor` alongside `Calculated New Factor`[cite: 14].
