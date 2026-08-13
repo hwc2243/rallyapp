@@ -25,12 +25,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         if (mounted) Navigator.pushReplacementNamed(context, '/role-selection');
         return;
       }
-      final route = switch (role) {
-        DeviceRole.controller => '/odometer',
-        DeviceRole.driver => '/driver',
-        DeviceRole.navigator => '/navigator',
-      };
-      if (mounted) Navigator.pushReplacementNamed(context, route);
+      if (mounted) Navigator.pushReplacementNamed(context, '/dashboard');
     }
   }
 

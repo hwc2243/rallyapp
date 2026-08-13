@@ -1,74 +1,211 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:rally_lib/rally_lib.dart';
 
 import '../widgets/connection_error_modal.dart';
+import '../widgets/shared_overflow_popup_menu_button.dart';
 
 class DriverDashboardScreen extends ConsumerStatefulWidget {
-  const DriverDashboardScreen({super.key});
+  const DriverDashboardScreen({
+    super.key,
+    required this.isControllerEngine,
+  });
+
+  /// Uses local Controller telemetry when true; otherwise uses BLE telemetry.
+  final bool isControllerEngine;
   @override
-  ConsumerState<DriverDashboardScreen> createState() => _DriverDashboardScreenState();
+  ConsumerState<DriverDashboardScreen> createState() =>
+      _DriverDashboardScreenState();
 }
 
 class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
   bool _hasConnected = false;
+  late final Timer _clockTimer;
+  DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _clockTimer.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<bool>>(bleConnectionProvider, (_, next) {
-      if (next.value == true) _hasConnected = true;
-      if (_hasConnected && next.value == false && mounted) {
-        showConnectionErrorModal(
-          context,
-          onRetry: () => ref.read(bleTelemetryServiceProvider).reconnect(),
-          onReconfigureRole: () => Navigator.pushReplacementNamed(context, '/role-selection'),
-        );
-      }
-    });
-    final telemetry = ref.watch(bleTelemetryProvider).value;
+    if (!widget.isControllerEngine) {
+      ref.listen<AsyncValue<bool>>(bleConnectionProvider, (_, next) {
+        if (next.value == true) _hasConnected = true;
+        if (_hasConnected && next.value == false && mounted) {
+          showConnectionErrorModal(
+            context,
+            onRetry: () => ref.read(bleTelemetryServiceProvider).reconnect(),
+            onReconfigureRole: () =>
+                Navigator.pushReplacementNamed(context, '/role-selection'),
+          );
+        }
+      });
+    }
+    final telemetry = widget.isControllerEngine
+        ? ref.watch(liveTelemetryProvider)
+        : ref.watch(bleTelemetryProvider).value;
     final settings = ref.watch(settingsProvider);
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Stack(children: [
-          if (telemetry == null)
-            const Center(child: CircularProgressIndicator())
-          else
+        child: Stack(
+          children: [
             Column(children: [
-              Expanded(child: _distancePanel('TOTAL', telemetry.totalDistance, settings.isMetric, Colors.green)),
-              _statusBar(telemetry.speed, telemetry.gpsAccuracy, settings.isMetric),
-              Expanded(child: _distancePanel('INTERVAL', telemetry.intervalDistance, settings.isMetric, Colors.yellow)),
+              _header(telemetry?.gpsAccuracy ?? 0),
+              Expanded(
+                child: telemetry == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : _dashboardGrid(telemetry, settings.isMetric),
+              ),
             ]),
-          Positioned(
-            right: 8, bottom: 8,
-            child: PopupMenuButton<String>(
-              icon: const Icon(Icons.menu, color: Colors.white),
-              onSelected: (_) => Navigator.pushNamed(context, '/details'),
-              itemBuilder: (_) => const [PopupMenuItem(value: 'details', child: Text('Details'))],
+            Positioned(
+              right: 8,
+              bottom: 8,
+              child: SharedOverflowPopupMenuButton(
+                isControllerEngine: widget.isControllerEngine,
+                icon: Icons.settings,
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _distancePanel(String label, double meters, bool metric, Color color) => Padding(
-    padding: const EdgeInsets.all(20),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('$label (${metric ? 'km' : 'mi'})', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-      Expanded(child: Center(child: FittedBox(child: Text(
-        (meters / (metric ? 1000.0 : 1609.344)).toStringAsFixed(3),
-        style: TextStyle(color: color, fontSize: 130, fontFamily: 'Courier', fontWeight: FontWeight.bold),
-      )))),
-    ]),
-  );
+  Widget _header(double accuracy) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Colors.white24)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [GpsSatelliteIcon(accuracy: accuracy)],
+        ),
+      );
 
-  Widget _statusBar(double speed, double accuracy, bool metric) => Container(
-    padding: const EdgeInsets.all(8),
-    decoration: const BoxDecoration(border: Border.symmetric(horizontal: BorderSide(color: Colors.white24))),
-    child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-      Text('SPD: ${(speed * (metric ? 3.6 : 2.236936)).round()} ${metric ? 'km/h' : 'mph'}', style: const TextStyle(color: Colors.white, fontFamily: 'Courier')),
-      Text('ACC: ±${accuracy.toStringAsFixed(1)}m', style: TextStyle(color: accuracy < 10 ? Colors.green : accuracy <= 15 ? Colors.yellow : Colors.red, fontFamily: 'Courier')),
-    ]),
-  );
+  Widget _dashboardGrid(LiveTelemetry telemetry, bool isMetric) {
+    final speed = telemetry.speed * (isMetric ? 3.6 : 2.236936);
+    return Padding(
+      padding: const EdgeInsets.only(left: 12, top: 12, right: 60, bottom: 12),
+      child: Column(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  child: _distancePanel(
+                    'TOTAL',
+                    telemetry.totalDistance,
+                    isMetric,
+                    Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _valuePanel(
+                    'SPEED (${isMetric ? 'KPH' : 'MPH'})',
+                    '${speed.round()}',
+                    Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  child: _distancePanel(
+                    'INTERVAL',
+                    telemetry.intervalDistance,
+                    isMetric,
+                    Colors.yellow,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _valuePanel(
+                    'TIME',
+                    DateFormat('HH:mm:ss').format(_now),
+                    Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _distancePanel(
+    String label,
+    double meters,
+    bool metric,
+    Color color,
+  ) =>
+      _valuePanel(
+        '$label (${metric ? 'km' : 'mi'})',
+        (meters / (metric ? 1000.0 : 1609.344)).toStringAsFixed(3),
+        color,
+      );
+
+  Widget _valuePanel(String label, String value, Color color) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(border: Border.all(color: Colors.white24)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(
+            label,
+            style: TextStyle(color: color, fontWeight: FontWeight.bold),
+          ),
+          Expanded(
+            child: Center(
+              child: FittedBox(
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 130,
+                    fontFamily: 'Courier',
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ]),
+      );
+}
+
+class GpsSatelliteIcon extends StatelessWidget {
+  const GpsSatelliteIcon({super.key, required this.accuracy});
+
+  final double accuracy;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = accuracy == 0
+        ? Colors.grey
+        : accuracy < 10
+            ? Colors.green
+            : accuracy <= 15
+                ? Colors.yellow
+                : Colors.red;
+    return Icon(Icons.satellite_alt, color: color, size: 28);
+  }
 }

@@ -1,86 +1,521 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:rally_lib/rally_lib.dart';
 
+import '../providers/navigator_hold_provider.dart';
 import '../widgets/connection_error_modal.dart';
+import '../widgets/shared_overflow_popup_menu_button.dart';
+import 'driver_dashboard_screen.dart';
 
-/// Remote counterpart to the Controller dashboard. Every control writes a
-/// command packet; it never mutates local odometer state.
+/// Full-control Navigator layout. Remote Navigators send BLE commands, while
+/// Controller Navigator View applies the same commands directly to its engine.
 class NavigatorDashboardScreen extends ConsumerStatefulWidget {
-  const NavigatorDashboardScreen({super.key});
+  const NavigatorDashboardScreen({
+    super.key,
+    required this.isControllerEngine,
+  });
+
+  final bool isControllerEngine;
+
   @override
-  ConsumerState<NavigatorDashboardScreen> createState() => _NavigatorDashboardScreenState();
+  ConsumerState<NavigatorDashboardScreen> createState() =>
+      _NavigatorDashboardScreenState();
 }
 
-class _NavigatorDashboardScreenState extends ConsumerState<NavigatorDashboardScreen> {
+class _NavigatorDashboardScreenState
+    extends ConsumerState<NavigatorDashboardScreen> {
   bool _hasConnected = false;
-  double? _heldTotal;
+  late final Timer _clockTimer;
+  DateTime _now = DateTime.now();
 
-  void _send(ControllerCommandOpcode opcode, {double? value, String? text}) {
-    ref.read(bleTelemetryServiceProvider).sendCommand(ControllerCommand(
-      opcode: opcode, numericValue: value, stringValue: text, timestamp: DateTime.now(),
-    ));
+  @override
+  void initState() {
+    super.initState();
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _clockTimer.cancel();
+    super.dispose();
+  }
+
+  void _send(ControllerCommandOpcode opcode, {String? stringValue}) {
+    if (widget.isControllerEngine) {
+      final odometer = ref.read(odometerProvider.notifier);
+      switch (opcode) {
+        case ControllerCommandOpcode.resetTotal:
+          odometer.resetTotal();
+        case ControllerCommandOpcode.resetInterval:
+          odometer.resetInterval();
+        case ControllerCommandOpcode.toggleHold:
+          break;
+        case ControllerCommandOpcode.bumpPlus:
+          odometer.applyBump(true);
+        case ControllerCommandOpcode.bumpMinus:
+          odometer.applyBump(false);
+        case ControllerCommandOpcode.setFprState:
+          if (stringValue != null) {
+            odometer.setDirection(OdometerDirection.values.firstWhere(
+              (direction) => direction.name == stringValue,
+            ));
+          }
+        case ControllerCommandOpcode.overrideMileage:
+        case ControllerCommandOpcode.setCalibrationFactor:
+          break;
+      }
+      return;
+    }
+    ref.read(bleTelemetryServiceProvider).sendCommand(
+          ControllerCommand(
+            opcode: opcode,
+            stringValue: stringValue,
+            timestamp: DateTime.now(),
+          ),
+        );
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<bool>>(bleConnectionProvider, (_, next) {
-      if (next.value == true) _hasConnected = true;
-      if (_hasConnected && next.value == false && mounted) {
-        showConnectionErrorModal(
-          context,
-          onRetry: () => ref.read(bleTelemetryServiceProvider).reconnect(),
-          onReconfigureRole: () => Navigator.pushReplacementNamed(context, '/role-selection'),
-        );
-      }
-    });
-    final telemetry = ref.watch(bleTelemetryProvider).value;
+    if (!widget.isControllerEngine) {
+      ref.listen<AsyncValue<bool>>(bleConnectionProvider, (_, next) {
+        if (next.value == true) _hasConnected = true;
+        if (_hasConnected && next.value == false && mounted) {
+          showConnectionErrorModal(
+            context,
+            onRetry: () => ref.read(bleTelemetryServiceProvider).reconnect(),
+            onReconfigureRole: () =>
+                Navigator.pushReplacementNamed(context, '/role-selection'),
+          );
+        }
+      });
+    }
+
+    final telemetry = widget.isControllerEngine
+        ? ref.watch(liveTelemetryProvider)
+        : ref.watch(bleTelemetryProvider).value;
     final settings = ref.watch(settingsProvider);
-    if (telemetry != null && !telemetry.isDisplayHeld) _heldTotal = null;
-    if (telemetry != null && telemetry.isDisplayHeld) _heldTotal ??= telemetry.totalDistance;
-    final total = telemetry == null ? 0.0 : (telemetry.isDisplayHeld ? _heldTotal! : telemetry.totalDistance);
+    final controllerState =
+        widget.isControllerEngine ? ref.watch(odometerProvider) : null;
+    final direction = controllerState?.direction ?? OdometerDirection.forward;
+    final navigatorHold = ref.watch(navigatorHoldProvider);
+
+    final total = telemetry == null
+        ? 0.0
+        : (navigatorHold.isHeld
+            ? navigatorHold.heldTotalDistance ?? telemetry.totalDistance
+            : telemetry.totalDistance);
+    final totalTime = DateFormat('HH:mm:ss').format(
+      navigatorHold.isHeld && navigatorHold.heldTimestamp != null
+          ? DateTime.parse(navigatorHold.heldTimestamp!)
+          : _now,
+    );
+
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(child: Row(children: [
-        Expanded(child: telemetry == null ? const Center(child: CircularProgressIndicator()) : Column(children: [
-          Expanded(child: _display('TOTAL', total, settings.isMetric, Colors.green)),
-          _speed(telemetry.speed, telemetry.gpsAccuracy, settings.isMetric),
-          Expanded(child: _display('INTERVAL', telemetry.intervalDistance, settings.isMetric, Colors.yellow)),
-        ])),
-        SizedBox(width: MediaQuery.of(context).size.width * .20, child: _controls(telemetry, settings)),
-      ])),
+      body: SafeArea(
+        child: telemetry == null
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: _telemetryArea(
+                            telemetry: telemetry,
+                            totalDistance: total,
+                            totalTime: totalTime,
+                            isMetric: settings.isMetric,
+                            bumpAmount: settings.bumpAmount,
+                            requiresDoubleTap: settings.bumpRequireDoubleTap,
+                          ),
+                        ),
+                        const VerticalDivider(color: Colors.white24, width: 1),
+                        Expanded(
+                          child: _controlArea(
+                            telemetry: telemetry,
+                            direction: direction,
+                            navigatorHold: navigatorHold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 
-  Widget _display(String label, double meters, bool metric, Color color) => Padding(
-    padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('$label (${metric ? 'km' : 'mi'})', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-      Expanded(child: Center(child: FittedBox(child: Text((meters / (metric ? 1000 : 1609.344)).toStringAsFixed(3), style: TextStyle(color: color, fontSize: 130, fontFamily: 'Courier', fontWeight: FontWeight.bold))))),
-    ]),
-  );
+  Widget _telemetryArea({
+    required LiveTelemetry telemetry,
+    required double totalDistance,
+    required String totalTime,
+    required bool isMetric,
+    required double bumpAmount,
+    required bool requiresDoubleTap,
+  }) {
+    final unit = isMetric ? 'km' : 'mi';
+    final distanceScale = isMetric ? 1000.0 : 1609.344;
+    final color = const Color(0xFF00FF00);
+    final intervalColor = const Color(0xFFFFFF00);
+    return Column(
+      children: [
+        Expanded(
+          child: _odometerSection(
+            label: 'TOTAL ($unit)',
+            value: totalDistance / distanceScale,
+            color: color,
+            time: totalTime,
+            accuracy: telemetry.gpsAccuracy,
+            trailing: _bumpControls(
+              step:
+                  '${bumpAmount.toStringAsFixed(3)} ${isMetric ? 'KM' : 'MI'}',
+              requiresDoubleTap: requiresDoubleTap,
+            ),
+          ),
+        ),
+        _speedDivider(telemetry.speed, isMetric),
+        Expanded(
+          child: _odometerSection(
+            label: 'INTERVAL ($unit)',
+            value: telemetry.intervalDistance / distanceScale,
+            color: intervalColor,
+            time: DateFormat('HH:mm:ss').format(_now),
+          ),
+        ),
+      ],
+    );
+  }
 
-  Widget _speed(double speed, double accuracy, bool metric) => Padding(
-    padding: const EdgeInsets.all(8), child: Text('SPD: ${(speed * (metric ? 3.6 : 2.236936)).round()}  ACC: ±${accuracy.toStringAsFixed(1)}m', style: const TextStyle(color: Colors.white, fontFamily: 'Courier')),
-  );
+  Widget _odometerSection({
+    required String label,
+    required double value,
+    required Color color,
+    required String time,
+    double? accuracy,
+    Widget? trailing,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                SizedBox(
+                  height: 40,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (accuracy != null) ...[
+                        GpsSatelliteIcon(accuracy: accuracy),
+                        const SizedBox(width: 10),
+                      ],
+                      Text(
+                        time,
+                        style: TextStyle(
+                          color: color,
+                          fontFamily: 'Courier',
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                label,
+                                style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    value.toStringAsFixed(3),
+                                    style: TextStyle(
+                                      color: color,
+                                      fontSize: 140,
+                                      fontFamily: 'Courier',
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (trailing != null) const SizedBox(width: 116),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (trailing != null)
+              Positioned(
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: 116,
+                child: Center(child: trailing),
+              ),
+          ],
+        ),
+      );
 
-  Widget _controls(LiveTelemetry? telemetry, OdometerSettings settings) => Container(
-    padding: const EdgeInsets.all(6), decoration: const BoxDecoration(border: Border(left: BorderSide(color: Colors.white24))),
-    child: Column(children: [
-      _button(telemetry?.isDisplayHeld == true ? 'RELEASE' : 'HOLD', Colors.green, () => _send(ControllerCommandOpcode.toggleHold)),
-      _button('RESET TOTAL', Colors.grey, () => _send(ControllerCommandOpcode.resetTotal)),
-      _button('BUMP +', Colors.blueGrey, () => _send(ControllerCommandOpcode.bumpPlus)),
-      _button('BUMP -', Colors.blueGrey, () => _send(ControllerCommandOpcode.bumpMinus)),
-      _button('RESET INT', Colors.grey, () => _send(ControllerCommandOpcode.resetInterval)),
-      _button('FORWARD', Colors.green, () => _send(ControllerCommandOpcode.setFprState, text: OdometerDirection.forward.name)),
-      _button('PARK', Colors.white, () => _send(ControllerCommandOpcode.setFprState, text: OdometerDirection.park.name)),
-      _button('REVERSE', Colors.red, () => _send(ControllerCommandOpcode.setFprState, text: OdometerDirection.reverse.name)),
-      PopupMenuButton<String>(icon: const Icon(Icons.menu, color: Colors.white), onSelected: (value) => Navigator.pushNamed(context, value), itemBuilder: (_) => const [
-        PopupMenuItem(value: '/settings', child: Text('Settings')), PopupMenuItem(value: '/details', child: Text('Details')),
-      ]),
-    ]),
-  );
+  Widget _speedDivider(double speed, bool isMetric) => Container(
+        width: double.infinity,
+        height: 38,
+        decoration: const BoxDecoration(
+          border:
+              Border.symmetric(horizontal: BorderSide(color: Colors.white24)),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          'SPEED: ${(speed * (isMetric ? 3.6 : 2.236936)).round()} ${isMetric ? 'KPH' : 'MPH'}',
+          style: const TextStyle(
+            color: Colors.white,
+            fontFamily: 'Courier',
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
 
-  Widget _button(String text, Color color, VoidCallback onPressed) => Expanded(child: Padding(
-    padding: const EdgeInsets.symmetric(vertical: 2), child: SizedBox(width: double.infinity, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: color == Colors.white ? Colors.black : Colors.white), onPressed: onPressed, child: FittedBox(child: Text(text)))),
-  ));
+  Widget _bumpControls({
+    required String step,
+    required bool requiresDoubleTap,
+  }) =>
+      Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _bumpButton(
+              label: 'BUMP+',
+              step: step,
+              isPositive: true,
+              requiresDoubleTap: requiresDoubleTap,
+            ),
+            const SizedBox(height: 8),
+            _bumpButton(
+              label: 'BUMP-',
+              step: step,
+              isPositive: false,
+              requiresDoubleTap: requiresDoubleTap,
+            ),
+          ],
+        ),
+      );
+
+  Widget _bumpButton({
+    required String label,
+    required String step,
+    required bool isPositive,
+    required bool requiresDoubleTap,
+  }) {
+    void apply() => _send(
+          isPositive
+              ? ControllerCommandOpcode.bumpPlus
+              : ControllerCommandOpcode.bumpMinus,
+        );
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: requiresDoubleTap ? null : apply,
+      onDoubleTap: requiresDoubleTap ? apply : null,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 108,
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.blueGrey[900],
+              border: Border.all(color: Colors.white24),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  step,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    fontFamily: 'Courier',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (requiresDoubleTap)
+            Positioned(
+              top: -7,
+              right: -12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'x2',
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _controlArea({
+    required LiveTelemetry telemetry,
+    required OdometerDirection direction,
+    required NavigatorHoldState navigatorHold,
+  }) =>
+      Container(
+        padding: const EdgeInsets.all(6),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                children: [
+                  _fprButton('FORWARD', OdometerDirection.forward, direction),
+                  _fprButton('PARK', OdometerDirection.park, direction),
+                  _fprButton('REVERSE', OdometerDirection.reverse, direction),
+                ],
+              ),
+            ),
+            const VerticalDivider(color: Colors.white24, width: 1),
+            Expanded(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Column(children: [
+                      _actionButton(
+                        navigatorHold.isHeld ? 'RELEASE' : 'HOLD',
+                        Colors.green,
+                        () {
+                          final notifier = ref.read(
+                            navigatorHoldProvider.notifier,
+                          );
+                          if (navigatorHold.isHeld) {
+                            notifier.release();
+                          } else {
+                            notifier.hold(
+                              totalDistance: telemetry.totalDistance,
+                              timestamp: _now,
+                            );
+                          }
+                        },
+                      ),
+                      _actionButton(
+                        'RESET',
+                        Colors.grey[850]!,
+                        () => _send(ControllerCommandOpcode.resetTotal),
+                      ),
+                    ]),
+                  ),
+                  const Divider(color: Colors.white24, height: 1),
+                  Expanded(
+                    child: Column(children: [
+                      _actionButton(
+                        'RESET',
+                        Colors.grey[850]!,
+                        () => _send(ControllerCommandOpcode.resetInterval),
+                      ),
+                      Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[850],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: SharedOverflowPopupMenuButton(
+                              isControllerEngine: widget.isControllerEngine,
+                              icon: Icons.settings,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ]),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _fprButton(
+    String label,
+    OdometerDirection value,
+    OdometerDirection activeDirection,
+  ) =>
+      Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    activeDirection == value ? Colors.green : Colors.grey[850],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+              ),
+              onPressed: () => _send(
+                ControllerCommandOpcode.setFprState,
+                stringValue: value.name,
+              ),
+              child: FittedBox(child: Text(label)),
+            ),
+          ),
+        ),
+      );
+
+  Widget _actionButton(String label, Color color, VoidCallback onPressed) =>
+      Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+              ),
+              onPressed: onPressed,
+              child: FittedBox(child: Text(label)),
+            ),
+          ),
+        ),
+      );
 }

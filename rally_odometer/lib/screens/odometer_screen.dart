@@ -110,7 +110,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
-            "SPEED: ${displaySpeed.toStringAsFixed(1)} $unit",
+            "SPEED: ${displaySpeed.round()} $unit",
             style: TextStyle(
               color: isStationary ? Colors.grey[700] : const Color(0xFF00FF00),
               fontSize: 24,
@@ -217,8 +217,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                             children: [
                               _buildDirectionButton(
                                 label: "FORWARD",
-                                isActive:
-                                    odometer.direction ==
+                                isActive: odometer.direction ==
                                     OdometerDirection.forward,
                                 activeColor: Colors.green,
                                 onPressed: () => ref
@@ -227,8 +226,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                               ),
                               _buildDirectionButton(
                                 label: "PARK",
-                                isActive:
-                                    odometer.direction ==
+                                isActive: odometer.direction ==
                                     OdometerDirection.park,
                                 activeColor: Colors.white,
                                 onPressed: () => ref
@@ -237,8 +235,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                               ),
                               _buildDirectionButton(
                                 label: "REVERSE",
-                                isActive:
-                                    odometer.direction ==
+                                isActive: odometer.direction ==
                                     OdometerDirection.reverse,
                                 activeColor: Colors.red,
                                 onPressed: () => ref
@@ -387,9 +384,8 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
 
     if (newValue != null) {
       // Convert back to meters
-      double meters = settings.isMetric
-          ? newValue * 1000.0
-          : newValue * 1609.344;
+      double meters =
+          settings.isMetric ? newValue * 1000.0 : newValue * 1609.344;
 
       if (isTotal) {
         ref.read(odometerProvider.notifier).setTotalDistance(meters);
@@ -427,8 +423,8 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                 style: TextStyle(
                   color: isActive
                       ? (activeColor == Colors.white
-                            ? Colors.black
-                            : Colors.white)
+                          ? Colors.black
+                          : Colors.white)
                       : Colors.grey,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -662,3 +658,11 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
 }
 
 enum _MenuAction { settings, details }
+
+/// The permanent, full-control Controller dashboard baseline.
+///
+/// This wrapper lets routing name the Controller view explicitly without
+/// changing the established [OdometerScreen] layout or interactions.
+class ControllerDashboardScreen extends OdometerScreen {
+  const ControllerDashboardScreen({super.key});
+}
