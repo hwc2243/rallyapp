@@ -43,11 +43,29 @@ final currentTimeProvider = StreamProvider<DateTime>((ref) async* {
   final displaySettings = ref.watch(displaySettingsProvider);
   final timeDelta = Duration(seconds: displaySettings.rallyTimeOffsetSeconds);
   final isDecimalMinutes = displaySettings.isDecimalMinutes;
-  yield DateTime.now().add(timeDelta);
+  final isRemoteDisplay =
+      ref.watch(deviceRoleProvider) != DeviceRole.controller;
+  final telemetry =
+      isRemoteDisplay ? ref.watch(bleTelemetryProvider).value : null;
+
+  DateTime rallyTimeNow() {
+    final controllerTimestamp = telemetry?.timestamp;
+    final receivedAt = telemetry?.receivedAt;
+    if (controllerTimestamp != null && receivedAt != null) {
+      // Continue from the Controller's clock after the most recent packet;
+      // this removes the remote device's own wall-clock skew.
+      return controllerTimestamp
+          .add(timeDelta)
+          .add(DateTime.now().difference(receivedAt));
+    }
+    return DateTime.now().add(timeDelta);
+  }
+
+  yield rallyTimeNow();
   yield* Stream<DateTime>.periodic(
     isDecimalMinutes
         ? const Duration(milliseconds: 100)
         : const Duration(seconds: 1),
-    (_) => DateTime.now().add(timeDelta),
+    (_) => rallyTimeNow(),
   );
 });

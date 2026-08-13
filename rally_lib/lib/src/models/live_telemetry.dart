@@ -20,6 +20,9 @@ class LiveTelemetry {
   final DateTime? navigatorHeldTimestamp;
   final String direction;
 
+  /// Local receipt time. This is intentionally not serialized by Controller.
+  final DateTime? receivedAt;
+
   const LiveTelemetry({
     required this.totalDistance,
     required this.intervalDistance,
@@ -35,6 +38,7 @@ class LiveTelemetry {
     this.navigatorHeldTotalDistance,
     this.navigatorHeldTimestamp,
     this.direction = 'forward',
+    this.receivedAt,
   });
 
   Map<String, dynamic> toJson() => {
@@ -79,6 +83,7 @@ class LiveTelemetry {
           ? null
           : DateTime.parse(json['navigatorHeldTimestamp'] as String),
       direction: json['direction'] as String? ?? 'forward',
+      receivedAt: DateTime.now(),
     );
   }
 }
