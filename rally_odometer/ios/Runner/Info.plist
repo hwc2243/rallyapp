@@ -55,8 +55,12 @@
 	<string>Rally Odometer requires continuous location access to maintain accurate distance tracking even when the screen is off or you're using other apps during a rally.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Rally Odometer requires continuous location access to maintain accurate distance tracking even when the screen is off or you're using other apps during a rally.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Rally Odometer uses Bluetooth to broadcast Controller telemetry and connect Driver and Navigator devices.</string>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>bluetooth-central</string>
+		<string>bluetooth-peripheral</string>
 		<string>location</string>
 	</array>
 	<key>UILaunchStoryboardName</key>

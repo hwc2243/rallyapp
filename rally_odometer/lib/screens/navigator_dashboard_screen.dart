@@ -4,6 +4,7 @@ import 'package:rally_lib/rally_lib.dart';
 
 import '../providers/navigator_hold_provider.dart';
 import '../providers/rally_time_offset_provider.dart';
+import '../widgets/ble_connection_diagnostics.dart';
 import '../widgets/connection_error_modal.dart';
 import '../widgets/shared_overflow_popup_menu_button.dart';
 import 'driver_dashboard_screen.dart';
@@ -105,7 +106,7 @@ class _NavigatorDashboardScreenState
       backgroundColor: Colors.black,
       body: SafeArea(
         child: telemetry == null
-            ? const Center(child: CircularProgressIndicator())
+            ? const BleConnectionDiagnostics()
             : Column(
                 children: [
                   Expanded(

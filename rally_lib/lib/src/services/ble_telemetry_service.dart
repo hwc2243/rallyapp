@@ -14,9 +14,40 @@ import '../models/live_telemetry.dart';
 /// Stable GATT UUIDs used by every Rally Controller peripheral.
 class RallyBleGatt {
   static const serviceUuid = '0000FA10-0000-1000-8000-00805F9B34FB';
-  static const telemetryCharacteristicUuid = '0000FA11-0000-1000-8000-00805F9B34FB';
-  static const commandCharacteristicUuid = '0000FA12-0000-1000-8000-00805F9B34FB';
-  static const frequencyCharacteristicUuid = '0000FA13-0000-1000-8000-00805F9B34FB';
+  static const telemetryCharacteristicUuid =
+      '0000FA11-0000-1000-8000-00805F9B34FB';
+  static const commandCharacteristicUuid =
+      '0000FA12-0000-1000-8000-00805F9B34FB';
+  static const frequencyCharacteristicUuid =
+      '0000FA13-0000-1000-8000-00805F9B34FB';
+}
+
+/// Live Controller peripheral status, exposed for in-app diagnostics.
+class ControllerBleStatus {
+  const ControllerBleStatus({
+    required this.bluetoothPoweredOn,
+    required this.isAdvertising,
+    this.error,
+  });
+
+  final bool bluetoothPoweredOn;
+  final bool isAdvertising;
+  final String? error;
+}
+
+/// Latest central/client connection stage, retained for support diagnostics.
+class BleConnectionDiagnostic {
+  const BleConnectionDiagnostic({
+    required this.stage,
+    required this.detail,
+    required this.timestamp,
+  });
+
+  final String stage;
+  final String detail;
+  final DateTime timestamp;
+
+  String get displayText => '[${timestamp.toIso8601String()}] $stage\n$detail';
 }
 
 /// Sends the most recent telemetry at a selected, bounded BLE packet rate.
@@ -35,13 +66,16 @@ class BleTelemetryPublisher {
 
   void setFrequency(int value) {
     if (!const {5, 10, 20}.contains(value)) {
-      throw ArgumentError.value(value, 'value', 'BLE frequency must be 5, 10, or 20 Hz');
+      throw ArgumentError.value(
+          value, 'value', 'BLE frequency must be 5, 10, or 20 Hz');
     }
     _frequencyHz = value;
     _timer?.cancel();
     _timer = Timer.periodic(Duration(milliseconds: 1000 ~/ value), (_) {
       final telemetry = _latest;
-      if (telemetry != null) _packets.add(utf8.encode(jsonEncode(telemetry.toJson())));
+      if (telemetry != null) {
+        _packets.add(utf8.encode(jsonEncode(telemetry.toJson())));
+      }
     });
   }
 
@@ -60,15 +94,18 @@ class BleTelemetryService {
   static const _pairedControllerKey = 'paired_controller_id';
 
   BleTelemetryService(this._prefs)
-    : publisher = BleTelemetryPublisher(
-        frequencyHz: _readFrequency(_prefs),
-      );
+      : publisher = BleTelemetryPublisher(
+          frequencyHz: _readFrequency(_prefs),
+        );
 
   final SharedPreferences _prefs;
   final BleTelemetryPublisher publisher;
   final _telemetry = StreamController<LiveTelemetry>.broadcast();
   final _commands = StreamController<ControllerCommand>.broadcast();
   final _connection = StreamController<bool>.broadcast();
+  final _controllerStatus = StreamController<ControllerBleStatus>.broadcast();
+  final _connectionDiagnostics =
+      StreamController<BleConnectionDiagnostic>.broadcast();
   StreamSubscription<List<int>>? _telemetrySubscription;
   StreamSubscription<List<int>>? _commandSubscription;
   StreamSubscription<BluetoothConnectionState>? _connectionSubscription;
@@ -78,12 +115,33 @@ class BleTelemetryService {
   BluetoothCharacteristic? _frequencyCharacteristic;
   bool _isDisposed = false;
   bool _controllerGattStarted = false;
+  bool _bluetoothPoweredOn = false;
+  bool _isAdvertising = false;
+  String? _advertisingError;
+  bool _peripheralCallbacksConfigured = false;
+  Completer<void>? _serviceAddedCompleter;
   final Map<String, BytesBuilder> _commandBuffers = {};
+  BleConnectionDiagnostic _connectionDiagnostic = BleConnectionDiagnostic(
+    stage: 'Waiting for Controller',
+    detail: 'No connection attempt has started.',
+    timestamp: DateTime.now(),
+  );
 
   Stream<LiveTelemetry> get telemetry => _telemetry.stream;
   Stream<ControllerCommand> get commands => _commands.stream;
   Stream<bool> get connectionState => _connection.stream;
-  DeviceRole get role => DeviceRoleStorage.fromStorage(_prefs.getString(_roleKey));
+  Stream<BleConnectionDiagnostic> get connectionDiagnostics =>
+      _connectionDiagnostics.stream;
+  BleConnectionDiagnostic get connectionDiagnosticSnapshot =>
+      _connectionDiagnostic;
+  Stream<ControllerBleStatus> get controllerStatus => _controllerStatus.stream;
+  ControllerBleStatus get controllerStatusSnapshot => ControllerBleStatus(
+        bluetoothPoweredOn: _bluetoothPoweredOn,
+        isAdvertising: _isAdvertising,
+        error: _advertisingError,
+      );
+  DeviceRole get role =>
+      DeviceRoleStorage.fromStorage(_prefs.getString(_roleKey));
   int get frequencyHz => publisher.frequencyHz;
   String? get pairedControllerId => _prefs.getString(_pairedControllerKey);
 
@@ -105,42 +163,103 @@ class BleTelemetryService {
   /// Hosts the Controller GATT service and broadcasts each throttled packet to
   /// every subscribed Driver and Navigator central.
   Future<void> startControllerAdvertising() async {
-    if (_controllerGattStarted) return;
-    await peripheral.BlePeripheral.initialize();
-    await peripheral.BlePeripheral.clearServices();
-    await peripheral.BlePeripheral.addService(
-      peripheral.BleService(
-        uuid: RallyBleGatt.serviceUuid,
-        primary: true,
-        characteristics: [
-          peripheral.BleCharacteristic(
-            uuid: RallyBleGatt.telemetryCharacteristicUuid,
-            properties: [peripheral.CharacteristicProperties.notify.index],
-            permissions: [peripheral.AttributePermissions.readable.index],
-          ),
-          peripheral.BleCharacteristic(
-            uuid: RallyBleGatt.commandCharacteristicUuid,
-            properties: [
-              peripheral.CharacteristicProperties.write.index,
-              peripheral.CharacteristicProperties.writeWithoutResponse.index,
-            ],
-            permissions: [peripheral.AttributePermissions.writeable.index],
-          ),
-        ],
-      ),
-    );
-    peripheral.BlePeripheral.setWriteRequestCallback(_onGattWrite);
-    _controllerPacketSubscription = publisher.packets.listen((packet) {
-      peripheral.BlePeripheral.updateCharacteristic(
-        characteristicId: RallyBleGatt.telemetryCharacteristicUuid,
-        value: Uint8List.fromList(packet),
+    if (_controllerGattStarted && _isAdvertising) return;
+    _configurePeripheralCallbacks();
+    _advertisingError = null;
+    _emitControllerStatus();
+    try {
+      await peripheral.BlePeripheral.initialize();
+      if (!await peripheral.BlePeripheral.isSupported()) {
+        throw StateError(
+            'BLE peripheral mode is not supported on this device.');
+      }
+      await peripheral.BlePeripheral.clearServices();
+      final serviceAdded = Completer<void>();
+      _serviceAddedCompleter = serviceAdded;
+      await peripheral.BlePeripheral.addService(
+        peripheral.BleService(
+          uuid: RallyBleGatt.serviceUuid,
+          primary: true,
+          characteristics: [
+            peripheral.BleCharacteristic(
+              uuid: RallyBleGatt.telemetryCharacteristicUuid,
+              properties: [peripheral.CharacteristicProperties.notify.index],
+              permissions: [peripheral.AttributePermissions.readable.index],
+            ),
+            peripheral.BleCharacteristic(
+              uuid: RallyBleGatt.commandCharacteristicUuid,
+              properties: [
+                peripheral.CharacteristicProperties.write.index,
+                peripheral.CharacteristicProperties.writeWithoutResponse.index,
+              ],
+              permissions: [peripheral.AttributePermissions.writeable.index],
+            ),
+          ],
+        ),
       );
+      await serviceAdded.future.timeout(const Duration(seconds: 5));
+      _serviceAddedCompleter = null;
+      peripheral.BlePeripheral.setWriteRequestCallback(_onGattWrite);
+      _controllerPacketSubscription ??= publisher.packets.listen((packet) {
+        peripheral.BlePeripheral.updateCharacteristic(
+          characteristicId: RallyBleGatt.telemetryCharacteristicUuid,
+          value: Uint8List.fromList(packet),
+        );
+      });
+      await peripheral.BlePeripheral.startAdvertising(
+        services: [RallyBleGatt.serviceUuid],
+        localName: 'RallyController',
+      );
+      _controllerGattStarted = true;
+    } catch (error) {
+      _serviceAddedCompleter = null;
+      _controllerGattStarted = false;
+      _isAdvertising = false;
+      _advertisingError = error.toString();
+      _emitControllerStatus();
+    }
+  }
+
+  Future<void> restartControllerAdvertising() async {
+    await stopControllerAdvertising();
+    await startControllerAdvertising();
+  }
+
+  void _configurePeripheralCallbacks() {
+    if (_peripheralCallbacksConfigured) return;
+    _peripheralCallbacksConfigured = true;
+    peripheral.BlePeripheral.setBleStateChangeCallback((poweredOn) {
+      _bluetoothPoweredOn = poweredOn;
+      if (!poweredOn) _isAdvertising = false;
+      _emitControllerStatus();
     });
-    await peripheral.BlePeripheral.startAdvertising(
-      services: [RallyBleGatt.serviceUuid],
-      localName: 'RallyController',
-    );
-    _controllerGattStarted = true;
+    peripheral.BlePeripheral.setAdvertisingStatusUpdateCallback((
+      advertising,
+      error,
+    ) {
+      _isAdvertising = advertising;
+      _advertisingError = error;
+      if (!advertising && error != null) _controllerGattStarted = false;
+      _emitControllerStatus();
+    });
+    peripheral.BlePeripheral.setServiceAddedCallback((_, error) {
+      final completer = _serviceAddedCompleter;
+      if (error != null) {
+        _advertisingError = error;
+        _emitControllerStatus();
+        if (completer != null && !completer.isCompleted) {
+          completer.completeError(StateError(error));
+        }
+      } else if (completer != null && !completer.isCompleted) {
+        completer.complete();
+      }
+    });
+  }
+
+  void _emitControllerStatus() {
+    if (!_controllerStatus.isClosed) {
+      _controllerStatus.add(controllerStatusSnapshot);
+    }
   }
 
   peripheral.WriteRequestResult? _onGattWrite(
@@ -176,6 +295,9 @@ class BleTelemetryService {
       await peripheral.BlePeripheral.clearServices();
       _controllerGattStarted = false;
     }
+    _isAdvertising = false;
+    _advertisingError = null;
+    _emitControllerStatus();
     _commandBuffers.clear();
   }
 
@@ -184,33 +306,66 @@ class BleTelemetryService {
     await _prefs.setInt(_frequencyKey, frequencyHz);
     final characteristic = _frequencyCharacteristic;
     if (characteristic != null) {
-      await characteristic.write(utf8.encode('$frequencyHz'), withoutResponse: false);
+      await characteristic.write(utf8.encode('$frequencyHz'),
+          withoutResponse: false);
     }
   }
 
   Stream<List<ScanResult>> scanForControllers() async* {
+    _setConnectionDiagnostic(
+      'Scanning',
+      'Scanning nearby BLE devices for RallyController.',
+    );
     await FlutterBluePlus.startScan(
-      withServices: [Guid(RallyBleGatt.serviceUuid)],
       timeout: const Duration(seconds: 8),
     );
-    yield* FlutterBluePlus.scanResults;
+    yield* FlutterBluePlus.scanResults.map((results) {
+      final controllers = results.where(_isRallyController).toList();
+      _setConnectionDiagnostic(
+        'Scanning',
+        'Found ${results.length} nearby device(s); '
+            '${controllers.length} RallyController candidate(s).',
+      );
+      return controllers;
+    });
+  }
+
+  bool _isRallyController(ScanResult result) {
+    final advertisedName = result.advertisementData.advName.toLowerCase();
+    final deviceName = result.device.advName.toLowerCase();
+    final hasRallyService = result.advertisementData.serviceUuids.contains(
+      Guid(RallyBleGatt.serviceUuid),
+    );
+    return hasRallyService ||
+        advertisedName == 'rallycontroller' ||
+        deviceName == 'rallycontroller';
   }
 
   Stream<List<BleControllerDevice>> scanForControllerDevices() {
     return scanForControllers().map((results) => results.map((result) {
-      return BleControllerDevice(
-        id: result.device.remoteId.str,
-        name: result.device.platformName.isEmpty
-            ? 'Rally Controller'
-            : result.device.platformName,
-        rssi: result.rssi,
-      );
-    }).toList(growable: false));
+          return BleControllerDevice(
+            id: result.device.remoteId.str,
+            name: result.advertisementData.advName.isNotEmpty
+                ? result.advertisementData.advName
+                : result.device.platformName.isEmpty
+                    ? 'Rally Controller'
+                    : result.device.platformName,
+            rssi: result.rssi,
+          );
+        }).toList(growable: false));
   }
 
   Future<void> pair(BluetoothDevice controller) async {
+    _setConnectionDiagnostic(
+      'Pairing',
+      'Connecting to Controller ${controller.remoteId.str}.',
+    );
     await _connect(controller);
     await _prefs.setString(_pairedControllerKey, controller.remoteId.str);
+    _setConnectionDiagnostic(
+      'Paired',
+      'Connected and saved Controller ${controller.remoteId.str}.',
+    );
   }
 
   Future<void> pairControllerId(String id) =>
@@ -218,50 +373,101 @@ class BleTelemetryService {
 
   Future<void> reconnect() async {
     final id = pairedControllerId;
-    if (id == null || id.isEmpty) return;
+    if (id == null || id.isEmpty) {
+      _setConnectionDiagnostic(
+        'No paired Controller',
+        'Open Device Role & Bluetooth and select RallyController.',
+      );
+      return;
+    }
+    _setConnectionDiagnostic(
+        'Reconnecting', 'Connecting to saved Controller $id.');
     await _connect(BluetoothDevice(remoteId: DeviceIdentifier(id)));
   }
 
   Future<void> _connect(BluetoothDevice controller) async {
-    await disconnect();
-    await stopControllerAdvertising();
-    _controller = controller;
-    await controller.connect(autoConnect: false);
-    _connectionSubscription = controller.connectionState.listen((state) {
-      final connected = state == BluetoothConnectionState.connected;
-      _connection.add(connected);
-      if (!connected && !_isDisposed && role != DeviceRole.controller) {
-        Future<void>.delayed(const Duration(seconds: 2), reconnect);
-      }
-    });
-    final services = await controller.discoverServices();
-    final service = services.firstWhere(
-      (candidate) => candidate.uuid == Guid(RallyBleGatt.serviceUuid),
+    try {
+      await disconnect();
+      await stopControllerAdvertising();
+      _controller = controller;
+      _setConnectionDiagnostic(
+          'Connecting', 'Opening BLE link to ${controller.remoteId.str}.');
+      await controller.connect(autoConnect: false);
+      _connectionSubscription = controller.connectionState.listen((state) {
+        final connected = state == BluetoothConnectionState.connected;
+        _connection.add(connected);
+        _setConnectionDiagnostic(
+          connected ? 'Connected' : 'Disconnected',
+          'BLE connection state: ${state.name}.',
+        );
+        if (!connected && !_isDisposed && role != DeviceRole.controller) {
+          Future<void>.delayed(const Duration(seconds: 2), reconnect);
+        }
+      });
+      _setConnectionDiagnostic(
+          'Discovering GATT', 'Reading Controller services.');
+      final services = await controller.discoverServices();
+      final discoveredUuids =
+          services.map((service) => service.uuid.toString()).join(', ');
+      final service = services.firstWhere(
+        (candidate) => candidate.uuid == Guid(RallyBleGatt.serviceUuid),
+      );
+      final telemetryCharacteristic = service.characteristics.firstWhere(
+        (candidate) =>
+            candidate.uuid == Guid(RallyBleGatt.telemetryCharacteristicUuid),
+      );
+      _commandCharacteristic = service.characteristics.firstWhere(
+        (candidate) =>
+            candidate.uuid == Guid(RallyBleGatt.commandCharacteristicUuid),
+      );
+      final frequencyCharacteristics = service.characteristics.where(
+        (candidate) =>
+            candidate.uuid == Guid(RallyBleGatt.frequencyCharacteristicUuid),
+      );
+      _frequencyCharacteristic = frequencyCharacteristics.isEmpty
+          ? null
+          : frequencyCharacteristics.first;
+      _setConnectionDiagnostic(
+        'Subscribing to telemetry',
+        'Service found. Enabling notifications on ${telemetryCharacteristic.uuid}.',
+      );
+      await telemetryCharacteristic.setNotifyValue(true);
+      _telemetrySubscription =
+          telemetryCharacteristic.lastValueStream.listen((bytes) {
+        if (bytes.isEmpty) return;
+        final map = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
+        _telemetry.add(LiveTelemetry.fromJson(map));
+        _setConnectionDiagnostic(
+            'Receiving telemetry', 'Live telemetry packets are arriving.');
+      });
+      _setConnectionDiagnostic(
+        'Ready',
+        'Connected to ${controller.remoteId.str}. Services: $discoveredUuids',
+      );
+    } catch (error) {
+      _setConnectionDiagnostic('Connection failed', error.toString());
+      rethrow;
+    }
+  }
+
+  void _setConnectionDiagnostic(String stage, String detail) {
+    _connectionDiagnostic = BleConnectionDiagnostic(
+      stage: stage,
+      detail: detail,
+      timestamp: DateTime.now(),
     );
-    final telemetryCharacteristic = service.characteristics.firstWhere(
-      (candidate) => candidate.uuid == Guid(RallyBleGatt.telemetryCharacteristicUuid),
-    );
-    _commandCharacteristic = service.characteristics.firstWhere(
-      (candidate) => candidate.uuid == Guid(RallyBleGatt.commandCharacteristicUuid),
-    );
-    final frequencyCharacteristics = service.characteristics.where(
-      (candidate) => candidate.uuid == Guid(RallyBleGatt.frequencyCharacteristicUuid),
-    );
-    _frequencyCharacteristic = frequencyCharacteristics.isEmpty
-        ? null
-        : frequencyCharacteristics.first;
-    await telemetryCharacteristic.setNotifyValue(true);
-    _telemetrySubscription = telemetryCharacteristic.lastValueStream.listen((bytes) {
-      if (bytes.isEmpty) return;
-      final map = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
-      _telemetry.add(LiveTelemetry.fromJson(map));
-    });
+    if (!_connectionDiagnostics.isClosed) {
+      _connectionDiagnostics.add(_connectionDiagnostic);
+    }
   }
 
   Future<void> sendCommand(ControllerCommand command) async {
     final characteristic = _commandCharacteristic;
-    if (characteristic == null) throw StateError('No Controller command characteristic is connected');
-    await characteristic.write(utf8.encode(jsonEncode(command.toJson())), withoutResponse: false);
+    if (characteristic == null) {
+      throw StateError('No Controller command characteristic is connected');
+    }
+    await characteristic.write(utf8.encode(jsonEncode(command.toJson())),
+        withoutResponse: false);
   }
 
   Future<void> disconnect() async {
@@ -287,5 +493,7 @@ class BleTelemetryService {
     await _telemetry.close();
     await _commands.close();
     await _connection.close();
+    await _controllerStatus.close();
+    await _connectionDiagnostics.close();
   }
 }
