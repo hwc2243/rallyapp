@@ -3,7 +3,10 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/live_telemetry.dart';
+import '../models/controller_configuration.dart';
 import 'odometer_provider.dart';
+import 'navigator_display_hold_provider.dart';
+import 'settings_provider.dart';
 
 /// Publishes a fresh telemetry snapshot at the 20 Hz master refresh rate.
 ///
@@ -26,6 +29,8 @@ class LiveTelemetryNotifier extends Notifier<LiveTelemetry> {
 
   LiveTelemetry _snapshot(DateTime timestamp) {
     final odometer = ref.read(odometerProvider);
+    final settings = ref.read(settingsProvider);
+    final navigatorHold = ref.read(navigatorDisplayHoldProvider);
     return LiveTelemetry(
       totalDistance: odometer.totalDistance,
       intervalDistance: odometer.intervalDistance,
@@ -36,11 +41,22 @@ class LiveTelemetryNotifier extends Notifier<LiveTelemetry> {
       longitude: odometer.longitude,
       gpsAccuracy: odometer.lastAccuracy,
       isDisplayHeld: odometer.isHeld,
+      controllerConfiguration: ControllerConfiguration(
+        isMetric: settings.isMetric,
+        isDecimalMinutes: settings.isDecimalMinutes,
+        rallyTimeOffsetSeconds: settings.rallyTimeOffsetSeconds,
+        bumpAmount: settings.bumpAmount,
+        bumpRequireDoubleTap: settings.bumpRequireDoubleTap,
+      ),
+      isNavigatorDisplayHeld: navigatorHold.isHeld,
+      navigatorHeldTotalDistance: navigatorHold.heldTotalDistance,
+      navigatorHeldTimestamp: navigatorHold.heldTimestamp,
+      direction: odometer.direction.name,
     );
   }
 }
 
 final liveTelemetryProvider =
     NotifierProvider<LiveTelemetryNotifier, LiveTelemetry>(
-      LiveTelemetryNotifier.new,
-    );
+  LiveTelemetryNotifier.new,
+);

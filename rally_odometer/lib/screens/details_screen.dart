@@ -82,7 +82,7 @@ class DetailsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final telemetry = ref.watch(liveTelemetryProvider);
-    final settings = ref.watch(settingsProvider);
+    final settings = ref.watch(displaySettingsProvider);
     final speed =
         settings.isMetric ? telemetry.speed * 3.6 : telemetry.speed * 2.23694;
     final speedUnit = settings.isMetric ? 'KPH' : 'MPH';

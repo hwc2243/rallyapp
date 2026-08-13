@@ -56,6 +56,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
   }
 
+  bool get _isRemoteDisplay =>
+      ref.read(deviceRoleProvider) != DeviceRole.controller;
+
+  Future<void> _sendConfiguration(
+    ControllerCommandOpcode opcode, {
+    double? numericValue,
+    String? stringValue,
+  }) {
+    return ref.read(bleTelemetryServiceProvider).sendCommand(
+          ControllerCommand(
+            opcode: opcode,
+            numericValue: numericValue,
+            stringValue: stringValue,
+            timestamp: DateTime.now(),
+          ),
+        );
+  }
+
   Future<void> _openDirectFactorDialog() async {
     final factor = await showDialog<double>(
       context: context,
@@ -115,7 +133,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (bumpAmount == null) return;
 
-    ref.read(settingsProvider.notifier).setBumpAmount(bumpAmount);
+    if (_isRemoteDisplay) {
+      await _sendConfiguration(
+        ControllerCommandOpcode.setBumpAmount,
+        numericValue: bumpAmount,
+      );
+    } else {
+      ref.read(settingsProvider.notifier).setBumpAmount(bumpAmount);
+    }
     setState(() {
       _bumpController.text = bumpAmount.toStringAsFixed(3);
     });
@@ -150,7 +175,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             TextButton(
               onPressed: () async {
-                await ref.read(rallyTimeOffsetProvider.notifier).reset();
+                if (_isRemoteDisplay) {
+                  await _sendConfiguration(
+                    ControllerCommandOpcode.setRallyTimeOffset,
+                    numericValue: 0,
+                  );
+                } else {
+                  await ref.read(rallyTimeOffsetProvider.notifier).reset();
+                }
                 if (dialogContext.mounted) {
                   Navigator.of(dialogContext).pop();
                 }
@@ -187,9 +219,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   timeDelta += const Duration(days: 1);
                 }
 
-                await ref
-                    .read(rallyTimeOffsetProvider.notifier)
-                    .setOffset(timeDelta);
+                if (_isRemoteDisplay) {
+                  await _sendConfiguration(
+                    ControllerCommandOpcode.setRallyTimeOffset,
+                    numericValue: timeDelta.inSeconds.toDouble(),
+                  );
+                } else {
+                  await ref
+                      .read(rallyTimeOffsetProvider.notifier)
+                      .setOffset(timeDelta);
+                }
                 if (dialogContext.mounted) {
                   Navigator.of(dialogContext).pop();
                 }
@@ -368,7 +407,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(settingsProvider);
+    final settings = ref.watch(displaySettingsProvider);
     final odometer = ref.watch(odometerProvider);
     final currentAppDistance = _currentAppDistance(settings, odometer);
     final factorText = settings.calibrationFactor.toStringAsFixed(5);
@@ -401,8 +440,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: const Text('Use Metric (KM)'),
                   subtitle: Text(settings.isMetric ? 'Kilometers' : 'Miles'),
                   value: settings.isMetric,
-                  onChanged: (_) =>
-                      ref.read(settingsProvider.notifier).toggleMetric(),
+                  onChanged: (_) {
+                    if (_isRemoteDisplay) {
+                      _sendConfiguration(
+                        ControllerCommandOpcode.setMetric,
+                        stringValue: (!settings.isMetric).toString(),
+                      );
+                    } else {
+                      ref.read(settingsProvider.notifier).toggleMetric();
+                    }
+                  },
                 ),
                 SwitchListTile(
                   title: const Text('Decimal Minutes'),
@@ -410,9 +457,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     settings.isDecimalMinutes ? 'HH:mm.mm' : 'HH:mm:ss',
                   ),
                   value: settings.isDecimalMinutes,
-                  onChanged: (_) => ref
-                      .read(settingsProvider.notifier)
-                      .toggleDecimalMinutes(),
+                  onChanged: (_) {
+                    if (_isRemoteDisplay) {
+                      _sendConfiguration(
+                        ControllerCommandOpcode.setDecimalMinutes,
+                        stringValue: (!settings.isDecimalMinutes).toString(),
+                      );
+                    } else {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .toggleDecimalMinutes();
+                    }
+                  },
                 ),
                 ListTile(
                   title: const Text('Sync Rally Clock'),
@@ -453,9 +509,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         : 'Bump buttons trigger on single-tap',
                   ),
                   value: settings.bumpRequireDoubleTap,
-                  onChanged: (_) => ref
-                      .read(settingsProvider.notifier)
-                      .toggleBumpRequireDoubleTap(),
+                  onChanged: (_) {
+                    if (_isRemoteDisplay) {
+                      _sendConfiguration(
+                        ControllerCommandOpcode.setBumpRequireDoubleTap,
+                        stringValue:
+                            (!settings.bumpRequireDoubleTap).toString(),
+                      );
+                    } else {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .toggleBumpRequireDoubleTap();
+                    }
+                  },
                 ),
                 const SizedBox(height: 20),
                 const Divider(),

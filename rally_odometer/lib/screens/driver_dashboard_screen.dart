@@ -41,9 +41,11 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
     final telemetry = widget.isControllerEngine
         ? ref.watch(liveTelemetryProvider)
         : ref.watch(bleTelemetryProvider).value;
-    final settings = ref.watch(settingsProvider);
+    final settings = ref.watch(displaySettingsProvider);
     final currentTime = ref.watch(currentTimeProvider).value ??
-        DateTime.now().add(ref.watch(rallyTimeOffsetProvider));
+        DateTime.now().add(
+          Duration(seconds: settings.rallyTimeOffsetSeconds),
+        );
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(

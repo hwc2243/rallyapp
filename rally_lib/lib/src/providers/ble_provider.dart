@@ -8,6 +8,7 @@ import '../models/live_telemetry.dart';
 import '../services/ble_telemetry_service.dart';
 import '../services/location_service.dart';
 import 'odometer_provider.dart';
+import 'navigator_display_hold_provider.dart';
 import 'settings_provider.dart';
 import 'telemetry_provider.dart';
 
@@ -44,6 +45,24 @@ final bleConnectionProvider = StreamProvider<bool>((ref) {
   return service.connectionState;
 });
 
+/// Settings a display should use. Driver and Navigator mirror the Controller.
+final displaySettingsProvider = Provider<OdometerSettings>((ref) {
+  final localSettings = ref.watch(settingsProvider);
+  if (ref.watch(deviceRoleProvider) == DeviceRole.controller) {
+    return localSettings;
+  }
+  final remoteSettings =
+      ref.watch(bleTelemetryProvider).value?.controllerConfiguration;
+  if (remoteSettings == null) return localSettings;
+  return localSettings.copyWith(
+    isMetric: remoteSettings.isMetric,
+    isDecimalMinutes: remoteSettings.isDecimalMinutes,
+    bumpAmount: remoteSettings.bumpAmount,
+    bumpRequireDoubleTap: remoteSettings.bumpRequireDoubleTap,
+    rallyTimeOffsetSeconds: remoteSettings.rallyTimeOffsetSeconds,
+  );
+});
+
 /// Activates Controller-side publication at the configured packet rate.
 final controllerBlePublisherProvider = Provider<void>((ref) {
   final service = ref.watch(bleTelemetryServiceProvider);
@@ -67,7 +86,16 @@ final controllerCommandDispatcherProvider = Provider<void>((ref) {
       case ControllerCommandOpcode.resetInterval:
         odometer.resetInterval();
       case ControllerCommandOpcode.toggleHold:
-        odometer.toggleHold();
+        final navigatorHold = ref.read(navigatorDisplayHoldProvider.notifier);
+        if (ref.read(navigatorDisplayHoldProvider).isHeld) {
+          navigatorHold.release();
+        } else {
+          final telemetry = ref.read(liveTelemetryProvider);
+          navigatorHold.hold(
+            totalDistance: telemetry.totalDistance,
+            timestamp: telemetry.timestamp,
+          );
+        }
       case ControllerCommandOpcode.bumpPlus:
         odometer.applyBump(true);
       case ControllerCommandOpcode.bumpMinus:
@@ -80,10 +108,44 @@ final controllerCommandDispatcherProvider = Provider<void>((ref) {
           ));
         }
       case ControllerCommandOpcode.overrideMileage:
-        if (command.numericValue != null) odometer.setTotalDistance(command.numericValue!);
+        if (command.numericValue != null) {
+          odometer.setTotalDistance(command.numericValue!);
+        }
       case ControllerCommandOpcode.setCalibrationFactor:
         if (command.numericValue != null) {
-          ref.read(settingsProvider.notifier).setCalibrationFactor(command.numericValue!);
+          ref
+              .read(settingsProvider.notifier)
+              .setCalibrationFactor(command.numericValue!);
+        }
+      case ControllerCommandOpcode.setMetric:
+        if (command.stringValue != null) {
+          ref
+              .read(settingsProvider.notifier)
+              .setMetric(command.stringValue == 'true');
+        }
+      case ControllerCommandOpcode.setDecimalMinutes:
+        if (command.stringValue != null) {
+          ref
+              .read(settingsProvider.notifier)
+              .setDecimalMinutes(command.stringValue == 'true');
+        }
+      case ControllerCommandOpcode.setBumpAmount:
+        if (command.numericValue != null) {
+          ref
+              .read(settingsProvider.notifier)
+              .setBumpAmount(command.numericValue!);
+        }
+      case ControllerCommandOpcode.setBumpRequireDoubleTap:
+        if (command.stringValue != null) {
+          ref
+              .read(settingsProvider.notifier)
+              .setBumpRequireDoubleTap(command.stringValue == 'true');
+        }
+      case ControllerCommandOpcode.setRallyTimeOffset:
+        if (command.numericValue != null) {
+          ref.read(settingsProvider.notifier).setRallyTimeOffset(
+                Duration(seconds: command.numericValue!.round()),
+              );
         }
     }
   });

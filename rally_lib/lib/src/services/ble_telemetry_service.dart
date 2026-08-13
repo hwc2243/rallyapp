@@ -60,6 +60,8 @@ class BleTelemetryPublisher {
   Timer? _timer;
   LiveTelemetry? _latest;
   int _frequencyHz = 10;
+  int _packetSequence = 0;
+  bool _isEmitting = false;
 
   Stream<List<int>> get packets => _packets.stream;
   int get frequencyHz => _frequencyHz;
@@ -71,12 +73,31 @@ class BleTelemetryPublisher {
     }
     _frequencyHz = value;
     _timer?.cancel();
-    _timer = Timer.periodic(Duration(milliseconds: 1000 ~/ value), (_) {
-      final telemetry = _latest;
-      if (telemetry != null) {
-        _packets.add(utf8.encode(jsonEncode(telemetry.toJson())));
+    _timer = Timer.periodic(
+      Duration(milliseconds: 1000 ~/ value),
+      (_) => _emitLatest(),
+    );
+  }
+
+  Future<void> _emitLatest() async {
+    if (_isEmitting) return;
+    final telemetry = _latest;
+    if (telemetry == null) return;
+    _isEmitting = true;
+    try {
+      final payload = utf8.encode(jsonEncode(telemetry.toJson()));
+      for (final fragment in _BlePacketFramer.fragment(
+        payload,
+        _packetSequence++ & 0xff,
+      )) {
+        _packets.add(fragment);
+        // iOS has a finite CBPeripheralManager notification queue. A short
+        // gap allows each notification to drain before the next fragment.
+        await Future<void>.delayed(const Duration(milliseconds: 8));
       }
-    });
+    } finally {
+      _isEmitting = false;
+    }
   }
 
   void publish(LiveTelemetry telemetry) => _latest = telemetry;
@@ -84,6 +105,38 @@ class BleTelemetryPublisher {
     _timer?.cancel();
     await _packets.close();
   }
+}
+
+/// Frames packets below the negotiated Android central MTU. FlutterBluePlus
+/// requests 512 bytes on connect; 180 bytes leaves room for BLE overhead.
+/// The header is `RL`, sequence, fragment index, fragment count.
+class _BlePacketFramer {
+  static const _markerA = 0x52;
+  static const _markerB = 0x4c;
+  static const _headerLength = 5;
+  static const _maxNotificationLength = 180;
+
+  static Iterable<List<int>> fragment(List<int> payload, int sequence) sync* {
+    const payloadLength = _maxNotificationLength - _headerLength;
+    final count = (payload.length / payloadLength).ceil();
+    for (var index = 0; index < count; index++) {
+      final start = index * payloadLength;
+      final end = (start + payloadLength).clamp(0, payload.length);
+      yield [
+        _markerA,
+        _markerB,
+        sequence,
+        index,
+        count,
+        ...payload.sublist(start, end),
+      ];
+    }
+  }
+
+  static bool isFragment(List<int> value) =>
+      value.length >= _headerLength &&
+      value[0] == _markerA &&
+      value[1] == _markerB;
 }
 
 /// BLE GATT server for Controller and central/client transport for Driver and
@@ -110,6 +163,7 @@ class BleTelemetryService {
   StreamSubscription<List<int>>? _commandSubscription;
   StreamSubscription<BluetoothConnectionState>? _connectionSubscription;
   StreamSubscription<List<int>>? _controllerPacketSubscription;
+  Timer? _telemetryTimeout;
   BluetoothDevice? _controller;
   BluetoothCharacteristic? _commandCharacteristic;
   BluetoothCharacteristic? _frequencyCharacteristic;
@@ -121,6 +175,9 @@ class BleTelemetryService {
   bool _peripheralCallbacksConfigured = false;
   Completer<void>? _serviceAddedCompleter;
   final Map<String, BytesBuilder> _commandBuffers = {};
+  BytesBuilder? _telemetryBuffer;
+  int? _telemetrySequence;
+  int _nextTelemetryFragment = 0;
   BleConnectionDiagnostic _connectionDiagnostic = BleConnectionDiagnostic(
     stage: 'Waiting for Controller',
     detail: 'No connection attempt has started.',
@@ -392,6 +449,10 @@ class BleTelemetryService {
       _controller = controller;
       _setConnectionDiagnostic(
           'Connecting', 'Opening BLE link to ${controller.remoteId.str}.');
+      // Android GATT connections are unreliable while a hardware scan remains
+      // active. Stop it explicitly before opening the connection.
+      await FlutterBluePlus.stopScan();
+      await Future<void>.delayed(const Duration(milliseconds: 350));
       await controller.connect(autoConnect: false);
       _connectionSubscription = controller.connectionState.listen((state) {
         final connected = state == BluetoothConnectionState.connected;
@@ -409,17 +470,49 @@ class BleTelemetryService {
       final services = await controller.discoverServices();
       final discoveredUuids =
           services.map((service) => service.uuid.toString()).join(', ');
-      final service = services.firstWhere(
-        (candidate) => candidate.uuid == Guid(RallyBleGatt.serviceUuid),
-      );
-      final telemetryCharacteristic = service.characteristics.firstWhere(
-        (candidate) =>
-            candidate.uuid == Guid(RallyBleGatt.telemetryCharacteristicUuid),
-      );
-      _commandCharacteristic = service.characteristics.firstWhere(
-        (candidate) =>
-            candidate.uuid == Guid(RallyBleGatt.commandCharacteristicUuid),
-      );
+      final rallyServices = services
+          .where(
+              (candidate) => candidate.uuid == Guid(RallyBleGatt.serviceUuid))
+          .toList(growable: false);
+      if (rallyServices.isEmpty) {
+        throw StateError(
+          'Controller GATT service ${RallyBleGatt.serviceUuid} was not found. '
+          'Android discovered: ${discoveredUuids.isEmpty ? 'none' : discoveredUuids}',
+        );
+      }
+      final service = rallyServices.single;
+      final discoveredCharacteristics = service.characteristics
+          .map((item) => item.uuid.toString())
+          .join(', ');
+      final telemetryCharacteristics = service.characteristics
+          .where(
+            (candidate) =>
+                candidate.uuid ==
+                Guid(RallyBleGatt.telemetryCharacteristicUuid),
+          )
+          .toList(growable: false);
+      if (telemetryCharacteristics.isEmpty) {
+        throw StateError(
+          'Telemetry characteristic ${RallyBleGatt.telemetryCharacteristicUuid} '
+          'was not found. Controller service characteristics: '
+          '${discoveredCharacteristics.isEmpty ? 'none' : discoveredCharacteristics}',
+        );
+      }
+      final commandCharacteristics = service.characteristics
+          .where(
+            (candidate) =>
+                candidate.uuid == Guid(RallyBleGatt.commandCharacteristicUuid),
+          )
+          .toList(growable: false);
+      if (commandCharacteristics.isEmpty) {
+        throw StateError(
+          'Command characteristic ${RallyBleGatt.commandCharacteristicUuid} '
+          'was not found. Controller service characteristics: '
+          '${discoveredCharacteristics.isEmpty ? 'none' : discoveredCharacteristics}',
+        );
+      }
+      final telemetryCharacteristic = telemetryCharacteristics.single;
+      _commandCharacteristic = commandCharacteristics.single;
       final frequencyCharacteristics = service.characteristics.where(
         (candidate) =>
             candidate.uuid == Guid(RallyBleGatt.frequencyCharacteristicUuid),
@@ -432,21 +525,79 @@ class BleTelemetryService {
         'Service found. Enabling notifications on ${telemetryCharacteristic.uuid}.',
       );
       await telemetryCharacteristic.setNotifyValue(true);
-      _telemetrySubscription =
-          telemetryCharacteristic.lastValueStream.listen((bytes) {
-        if (bytes.isEmpty) return;
-        final map = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
-        _telemetry.add(LiveTelemetry.fromJson(map));
+      _telemetrySubscription = telemetryCharacteristic.lastValueStream.listen(
+        _onTelemetryNotification,
+        onError: (Object error) => _setConnectionDiagnostic(
+          'Telemetry notification error',
+          error.toString(),
+        ),
+      );
+      _telemetryTimeout?.cancel();
+      _telemetryTimeout = Timer(const Duration(seconds: 5), () {
         _setConnectionDiagnostic(
-            'Receiving telemetry', 'Live telemetry packets are arriving.');
+          'Connected, waiting for telemetry',
+          'GATT subscription succeeded but no telemetry arrived in 5 seconds. '
+              'Keep the Controller app open and verify its BLE status.',
+        );
       });
       _setConnectionDiagnostic(
         'Ready',
         'Connected to ${controller.remoteId.str}. Services: $discoveredUuids',
       );
     } catch (error) {
-      _setConnectionDiagnostic('Connection failed', error.toString());
+      final message = error.toString();
+      final detail = message.contains('android-code: 111')
+          ? '$message\n\nAndroid BLE link failed before GATT discovery. '
+              'Disconnect this Controller from nRF Connect, stop scanning in '
+              'other BLE apps, tap Restart Advertising on the iPhone, then '
+              'retry from within 1–2 metres.'
+          : message;
+      _setConnectionDiagnostic('Connection failed', detail);
       rethrow;
+    }
+  }
+
+  void _onTelemetryNotification(List<int> bytes) {
+    if (bytes.isEmpty) return;
+    if (!_BlePacketFramer.isFragment(bytes)) {
+      _decodeTelemetry(bytes);
+      return;
+    }
+
+    final sequence = bytes[2];
+    final index = bytes[3];
+    final count = bytes[4];
+    if (count == 0 || index >= count) return;
+    if (index == 0) {
+      _telemetrySequence = sequence;
+      _nextTelemetryFragment = 0;
+      _telemetryBuffer = BytesBuilder(copy: false);
+    }
+    final buffer = _telemetryBuffer;
+    if (buffer == null ||
+        _telemetrySequence != sequence ||
+        index != _nextTelemetryFragment) {
+      return;
+    }
+    buffer.add(bytes.sublist(_BlePacketFramer._headerLength));
+    _nextTelemetryFragment++;
+    if (_nextTelemetryFragment == count) {
+      _telemetryBuffer = null;
+      _decodeTelemetry(buffer.toBytes());
+    }
+  }
+
+  void _decodeTelemetry(List<int> bytes) {
+    try {
+      final map = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
+      _telemetry.add(LiveTelemetry.fromJson(map));
+      _telemetryTimeout?.cancel();
+      _setConnectionDiagnostic(
+        'Receiving telemetry',
+        'Live telemetry packets are arriving.',
+      );
+    } catch (error) {
+      _setConnectionDiagnostic('Telemetry decode failed', error.toString());
     }
   }
 
@@ -472,6 +623,7 @@ class BleTelemetryService {
 
   Future<void> disconnect() async {
     await _telemetrySubscription?.cancel();
+    _telemetryTimeout?.cancel();
     await _commandSubscription?.cancel();
     await _connectionSubscription?.cancel();
     _telemetrySubscription = null;
@@ -481,6 +633,9 @@ class BleTelemetryService {
     _controller = null;
     _commandCharacteristic = null;
     _frequencyCharacteristic = null;
+    _telemetryBuffer = null;
+    _telemetrySequence = null;
+    _nextTelemetryFragment = 0;
     if (controller != null) await controller.disconnect();
     _connection.add(false);
   }

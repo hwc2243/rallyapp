@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
 
-import '../providers/navigator_hold_provider.dart';
 import '../providers/rally_time_offset_provider.dart';
 import '../widgets/ble_connection_diagnostics.dart';
 import '../widgets/connection_error_modal.dart';
@@ -50,6 +49,11 @@ class _NavigatorDashboardScreenState
           }
         case ControllerCommandOpcode.overrideMileage:
         case ControllerCommandOpcode.setCalibrationFactor:
+        case ControllerCommandOpcode.setMetric:
+        case ControllerCommandOpcode.setDecimalMinutes:
+        case ControllerCommandOpcode.setBumpAmount:
+        case ControllerCommandOpcode.setBumpRequireDoubleTap:
+        case ControllerCommandOpcode.setRallyTimeOffset:
           break;
       }
       return;
@@ -82,22 +86,31 @@ class _NavigatorDashboardScreenState
     final telemetry = widget.isControllerEngine
         ? ref.watch(liveTelemetryProvider)
         : ref.watch(bleTelemetryProvider).value;
-    final settings = ref.watch(settingsProvider);
+    final settings = ref.watch(displaySettingsProvider);
     final controllerState =
         widget.isControllerEngine ? ref.watch(odometerProvider) : null;
-    final direction = controllerState?.direction ?? OdometerDirection.forward;
-    final navigatorHold = ref.watch(navigatorHoldProvider);
+    final direction = controllerState?.direction ??
+        OdometerDirection.values.firstWhere(
+          (value) => value.name == telemetry?.direction,
+          orElse: () => OdometerDirection.forward,
+        );
     final currentTime = ref.watch(currentTimeProvider).value ??
-        DateTime.now().add(ref.watch(rallyTimeOffsetProvider));
+        DateTime.now().add(
+          Duration(seconds: settings.rallyTimeOffsetSeconds),
+        );
 
     final total = telemetry == null
         ? 0.0
-        : (navigatorHold.isHeld
-            ? navigatorHold.heldTotalDistance ?? telemetry.totalDistance
+        : (telemetry.isNavigatorDisplayHeld
+            ? telemetry.navigatorHeldTotalDistance ?? telemetry.totalDistance
             : telemetry.totalDistance);
     final totalTime = formatRallyTime(
-      navigatorHold.isHeld && navigatorHold.heldTimestamp != null
-          ? DateTime.parse(navigatorHold.heldTimestamp!)
+      telemetry != null &&
+              telemetry.isNavigatorDisplayHeld &&
+              telemetry.navigatorHeldTimestamp != null
+          ? telemetry.navigatorHeldTimestamp!.add(
+              Duration(seconds: settings.rallyTimeOffsetSeconds),
+            )
           : currentTime,
       settings.isDecimalMinutes,
     );
@@ -130,7 +143,6 @@ class _NavigatorDashboardScreenState
                           child: _controlArea(
                             telemetry: telemetry,
                             direction: direction,
-                            navigatorHold: navigatorHold,
                           ),
                         ),
                       ],
@@ -386,7 +398,6 @@ class _NavigatorDashboardScreenState
   Widget _controlArea({
     required LiveTelemetry telemetry,
     required OdometerDirection direction,
-    required NavigatorHoldState navigatorHold,
   }) =>
       Container(
         padding: const EdgeInsets.all(6),
@@ -408,22 +419,23 @@ class _NavigatorDashboardScreenState
                   Expanded(
                     child: Column(children: [
                       _actionButton(
-                        navigatorHold.isHeld ? 'RELEASE' : 'HOLD',
+                        telemetry.isNavigatorDisplayHeld ? 'RELEASE' : 'HOLD',
                         Colors.green,
                         () {
-                          final notifier = ref.read(
-                            navigatorHoldProvider.notifier,
-                          );
-                          if (navigatorHold.isHeld) {
-                            notifier.release();
-                          } else {
-                            notifier.hold(
-                              totalDistance: telemetry.totalDistance,
-                              timestamp: ref.read(currentTimeProvider).value ??
-                                  DateTime.now().add(
-                                    ref.read(rallyTimeOffsetProvider),
-                                  ),
+                          if (widget.isControllerEngine) {
+                            final notifier = ref.read(
+                              navigatorDisplayHoldProvider.notifier,
                             );
+                            if (telemetry.isNavigatorDisplayHeld) {
+                              notifier.release();
+                            } else {
+                              notifier.hold(
+                                totalDistance: telemetry.totalDistance,
+                                timestamp: DateTime.now(),
+                              );
+                            }
+                          } else {
+                            _send(ControllerCommandOpcode.toggleHold);
                           }
                         },
                       ),

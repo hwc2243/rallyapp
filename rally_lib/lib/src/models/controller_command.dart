@@ -7,6 +7,11 @@ enum ControllerCommandOpcode {
   setFprState,
   overrideMileage,
   setCalibrationFactor,
+  setMetric,
+  setDecimalMinutes,
+  setBumpAmount,
+  setBumpRequireDoubleTap,
+  setRallyTimeOffset,
 }
 
 /// A command issued by a Navigator for execution by the Controller.
@@ -24,11 +29,11 @@ class ControllerCommand {
   });
 
   Map<String, dynamic> toJson() => {
-    'opcode': opcode.name,
-    'numericValue': numericValue,
-    'stringValue': stringValue,
-    'timestamp': timestamp.toIso8601String(),
-  };
+        'opcode': opcode.name,
+        'numericValue': numericValue,
+        'stringValue': stringValue,
+        'timestamp': timestamp.toIso8601String(),
+      };
 
   factory ControllerCommand.fromJson(Map<String, dynamic> json) {
     return ControllerCommand(

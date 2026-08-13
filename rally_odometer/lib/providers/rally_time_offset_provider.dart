@@ -3,23 +3,16 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
 
-const _rallyTimeOffsetPreferenceKey = 'rally_time_offset_seconds';
-
 /// Stores the difference between official rally time and device time.
 class RallyTimeOffsetNotifier extends Notifier<Duration> {
   @override
-  Duration build() {
-    final seconds = ref
-        .watch(sharedPreferencesProvider)
-        .getInt(_rallyTimeOffsetPreferenceKey);
-    return Duration(seconds: seconds ?? 0);
-  }
+  Duration build() => Duration(
+        seconds: ref.watch(settingsProvider).rallyTimeOffsetSeconds,
+      );
 
   Future<void> setOffset(Duration offset) async {
+    ref.read(settingsProvider.notifier).setRallyTimeOffset(offset);
     state = offset;
-    await ref
-        .read(sharedPreferencesProvider)
-        .setInt(_rallyTimeOffsetPreferenceKey, offset.inSeconds);
   }
 
   Future<void> reset() => setOffset(Duration.zero);
@@ -47,8 +40,9 @@ String formatRallyTime(DateTime time, bool isDecimalMinutes) {
 
 /// Emits adjusted rally time at the precision needed by the clock preference.
 final currentTimeProvider = StreamProvider<DateTime>((ref) async* {
-  final timeDelta = ref.watch(rallyTimeOffsetProvider);
-  final isDecimalMinutes = ref.watch(settingsProvider).isDecimalMinutes;
+  final displaySettings = ref.watch(displaySettingsProvider);
+  final timeDelta = Duration(seconds: displaySettings.rallyTimeOffsetSeconds);
+  final isDecimalMinutes = displaySettings.isDecimalMinutes;
   yield DateTime.now().add(timeDelta);
   yield* Stream<DateTime>.periodic(
     isDecimalMinutes
