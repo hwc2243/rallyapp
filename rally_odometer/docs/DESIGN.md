@@ -10,6 +10,7 @@
 - **Role Selector:** 3-way segmented button or radio card list: `[ Controller | Driver | Navigator ]`[cite: 6].
 - **Controller Display View Selector:** Visible when Role is set to `Controller`: `[ Driver View | Navigator View ]`[cite: 6].
 - **BLE Rate Selector (Controller Mode):** Segmented choice: `[ 5 Hz | 10 Hz (Default) | 20 Hz ]`[cite: 6].
+- **Sync Rally Clock Setting:** Entry dialog to set official rally time. Calculates time delta against device clock and applies offset globally across all app clocks[cite: 10].
 - **Device Pairing Wizard:** Clean scanning list showing discovered Controller BLE devices with signal strength indicators (RSSI)[cite: 6].
 
 ## Driver Display Layout (2x2 Grid)
@@ -24,6 +25,27 @@
   - **Bottom-Right Quad:** Current System Time (`HH:mm:ss` format)[cite: 6].
 - **Menu Placement:** Positioned in the **bottom-right** corner of the screen layout[cite: 6].
 
+## Navigator Display Layout & Control Column
+
+### 1. Left Telemetry Area (~75% Screen Width)
+- **Top Section (Total Odometer Block - Green Accent):**
+  - **Top Header:** Green adjusted system clock (`HH:mm:ss`) centered at the top[cite: 10].
+  - **Main Display:** Bold green `TOTAL (mi)` label placed inline directly to the left of large green Total mileage text (`0.000` precision)[cite: 10].
+  - **Bump Controls & Satellite Layout:** Stacked `BUMP+` / `BUMP-` buttons on far right with color-coded Satellite Dish Icon positioned directly to their left[cite: 10].
+- **Middle Section (Speed Divider Bar):**
+  - Centered monospace readout `SPEED: X MPH` (whole integer), bounded above and below by horizontal divider lines[cite: 10, 11].
+- **Bottom Section (Interval Odometer Block - Yellow Accent):**
+  - **Top Header:** Yellow adjusted system clock (`HH:mm:ss`) centered at the top[cite: 10].
+  - **Main Display:** Bold yellow `INTERVAL (mi)` label placed inline directly to the left of large yellow Interval mileage text (`0.000` precision)[cite: 10].
+
+### 2. Right Control Area (~25% Screen Width)
+Divided into two side-by-side vertical stacks[cite: 10]:
+- **Sub-Column 1 (FPR Direction Stack):** `FORWARD` (Green active), `PARK` (Dark grey), `REVERSE` (Dark grey)[cite: 10].
+- **Sub-Column 2 (Action Stack):**
+  - **Top Group:** `HOLD` button on top, Total `RESET` button below it[cite: 10].
+  - **Divider Line:** Crisp horizontal line separating top Total controls from bottom controls[cite: 10].
+  - **Bottom Group:** Interval `RESET` button below line, and Settings **Gear Button** (`Icons.settings`) at the very bottom right[cite: 10].
+  
 ## Connection Error Modal
 - **Visual Style:** High-contrast alert window[cite: 6].
 - **Title:** "Controller Connection Failed"[cite: 6]

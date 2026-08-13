@@ -1,10 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:rally_lib/rally_lib.dart';
 
+import '../providers/rally_time_offset_provider.dart';
 import '../widgets/connection_error_modal.dart';
 import '../widgets/shared_overflow_popup_menu_button.dart';
 
@@ -23,22 +21,6 @@ class DriverDashboardScreen extends ConsumerStatefulWidget {
 
 class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
   bool _hasConnected = false;
-  late final Timer _clockTimer;
-  DateTime _now = DateTime.now();
-
-  @override
-  void initState() {
-    super.initState();
-    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _now = DateTime.now());
-    });
-  }
-
-  @override
-  void dispose() {
-    _clockTimer.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +41,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         ? ref.watch(liveTelemetryProvider)
         : ref.watch(bleTelemetryProvider).value;
     final settings = ref.watch(settingsProvider);
+    final currentTime = ref.watch(currentTimeProvider).value ??
+        DateTime.now().add(ref.watch(rallyTimeOffsetProvider));
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -69,7 +53,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
               Expanded(
                 child: telemetry == null
                     ? const Center(child: CircularProgressIndicator())
-                    : _dashboardGrid(telemetry, settings.isMetric),
+                    : _dashboardGrid(
+                        telemetry,
+                        settings.isMetric,
+                        settings.isDecimalMinutes,
+                        currentTime,
+                      ),
               ),
             ]),
             Positioned(
@@ -97,7 +86,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         ),
       );
 
-  Widget _dashboardGrid(LiveTelemetry telemetry, bool isMetric) {
+  Widget _dashboardGrid(
+    LiveTelemetry telemetry,
+    bool isMetric,
+    bool isDecimalMinutes,
+    DateTime currentTime,
+  ) {
     final speed = telemetry.speed * (isMetric ? 3.6 : 2.236936);
     return Padding(
       padding: const EdgeInsets.only(left: 12, top: 12, right: 60, bottom: 12),
@@ -141,7 +135,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
                 Expanded(
                   child: _valuePanel(
                     'TIME',
-                    DateFormat('HH:mm:ss').format(_now),
+                    formatRallyTime(currentTime, isDecimalMinutes),
                     Colors.white,
                   ),
                 ),

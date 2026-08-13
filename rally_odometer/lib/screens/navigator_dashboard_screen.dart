@@ -1,11 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:rally_lib/rally_lib.dart';
 
 import '../providers/navigator_hold_provider.dart';
+import '../providers/rally_time_offset_provider.dart';
 import '../widgets/connection_error_modal.dart';
 import '../widgets/shared_overflow_popup_menu_button.dart';
 import 'driver_dashboard_screen.dart';
@@ -28,22 +26,6 @@ class NavigatorDashboardScreen extends ConsumerStatefulWidget {
 class _NavigatorDashboardScreenState
     extends ConsumerState<NavigatorDashboardScreen> {
   bool _hasConnected = false;
-  late final Timer _clockTimer;
-  DateTime _now = DateTime.now();
-
-  @override
-  void initState() {
-    super.initState();
-    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _now = DateTime.now());
-    });
-  }
-
-  @override
-  void dispose() {
-    _clockTimer.cancel();
-    super.dispose();
-  }
 
   void _send(ControllerCommandOpcode opcode, {String? stringValue}) {
     if (widget.isControllerEngine) {
@@ -104,16 +86,19 @@ class _NavigatorDashboardScreenState
         widget.isControllerEngine ? ref.watch(odometerProvider) : null;
     final direction = controllerState?.direction ?? OdometerDirection.forward;
     final navigatorHold = ref.watch(navigatorHoldProvider);
+    final currentTime = ref.watch(currentTimeProvider).value ??
+        DateTime.now().add(ref.watch(rallyTimeOffsetProvider));
 
     final total = telemetry == null
         ? 0.0
         : (navigatorHold.isHeld
             ? navigatorHold.heldTotalDistance ?? telemetry.totalDistance
             : telemetry.totalDistance);
-    final totalTime = DateFormat('HH:mm:ss').format(
+    final totalTime = formatRallyTime(
       navigatorHold.isHeld && navigatorHold.heldTimestamp != null
           ? DateTime.parse(navigatorHold.heldTimestamp!)
-          : _now,
+          : currentTime,
+      settings.isDecimalMinutes,
     );
 
     return Scaffold(
@@ -135,6 +120,8 @@ class _NavigatorDashboardScreenState
                             isMetric: settings.isMetric,
                             bumpAmount: settings.bumpAmount,
                             requiresDoubleTap: settings.bumpRequireDoubleTap,
+                            isDecimalMinutes: settings.isDecimalMinutes,
+                            currentTime: currentTime,
                           ),
                         ),
                         const VerticalDivider(color: Colors.white24, width: 1),
@@ -161,6 +148,8 @@ class _NavigatorDashboardScreenState
     required bool isMetric,
     required double bumpAmount,
     required bool requiresDoubleTap,
+    required bool isDecimalMinutes,
+    required DateTime currentTime,
   }) {
     final unit = isMetric ? 'km' : 'mi';
     final distanceScale = isMetric ? 1000.0 : 1609.344;
@@ -188,7 +177,7 @@ class _NavigatorDashboardScreenState
             label: 'INTERVAL ($unit)',
             value: telemetry.intervalDistance / distanceScale,
             color: intervalColor,
-            time: DateFormat('HH:mm:ss').format(_now),
+            time: formatRallyTime(currentTime, isDecimalMinutes),
           ),
         ),
       ],
@@ -429,7 +418,10 @@ class _NavigatorDashboardScreenState
                           } else {
                             notifier.hold(
                               totalDistance: telemetry.totalDistance,
-                              timestamp: _now,
+                              timestamp: ref.read(currentTimeProvider).value ??
+                                  DateTime.now().add(
+                                    ref.read(rallyTimeOffsetProvider),
+                                  ),
                             );
                           }
                         },

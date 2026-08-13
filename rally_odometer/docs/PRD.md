@@ -9,8 +9,11 @@ A high-precision, user-facing Flutter application for TSD Rallying powered by `r
 3. **Display Precision Standards:**
    - **Numerical Mileage Displays:** Rendered to thousandths precision (`0.000`)[cite: 7].
    - **Vehicle Speed Displays:** Rendered strictly as a **whole integer with zero decimal places** (e.g., `45 MPH` using `.round()`) across all screens and views[cite: 7].
-4. **Wakelock Integration:** The application must keep the device screen awake indefinitely (`WakelockPlus.enable()`) while active, preventing lock screen timeouts or dimming.
-5. **Header & Overflow Navigation Menu:**
+4. **Global Rally Time Sync:**
+   - Settings must support entering an official rally time to calculate a persistent duration offset (`timeDelta = enteredRallyTime - deviceTime`)[cite: 10].
+   - All app clocks (`NavigatorDashboardScreen`, `DriverDashboardScreen`, `DetailsScreen`) must render `deviceTime + timeDelta` in `HH:mm:ss` format[cite: 10, 11].
+5. **Wakelock Integration:** The application must keep the device screen awake indefinitely (`WakelockPlus.enable()`) while active, preventing lock screen timeouts or dimming.
+6. **Header & Overflow Navigation Menu:**
     1. **`Details`**: Opens full-screen diagnostic view.
     2. **View Toggle Action**: Contextually displays **`Navigator View`** (when in Driver View) or **`Driver View`** (when in Navigator View).
     3. **`Settings`**: Opens application configuration screen.
