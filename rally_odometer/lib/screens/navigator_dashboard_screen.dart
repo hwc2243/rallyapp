@@ -5,6 +5,7 @@ import 'package:rally_lib/rally_lib.dart';
 import '../providers/rally_time_offset_provider.dart';
 import '../widgets/ble_connection_diagnostics.dart';
 import '../widgets/connection_error_modal.dart';
+import '../widgets/mileage_entry_dialog.dart';
 import '../widgets/shared_overflow_popup_menu_button.dart';
 import 'driver_dashboard_screen.dart';
 
@@ -27,7 +28,11 @@ class _NavigatorDashboardScreenState
     extends ConsumerState<NavigatorDashboardScreen> {
   bool _hasConnected = false;
 
-  void _send(ControllerCommandOpcode opcode, {String? stringValue}) {
+  void _send(
+    ControllerCommandOpcode opcode, {
+    double? numericValue,
+    String? stringValue,
+  }) {
     if (widget.isControllerEngine) {
       final odometer = ref.read(odometerProvider.notifier);
       switch (opcode) {
@@ -48,6 +53,13 @@ class _NavigatorDashboardScreenState
             ));
           }
         case ControllerCommandOpcode.overrideMileage:
+          if (numericValue != null) {
+            odometer.setTotalDistance(numericValue);
+          }
+        case ControllerCommandOpcode.overrideIntervalMileage:
+          if (numericValue != null) {
+            odometer.setIntervalDistance(numericValue);
+          }
         case ControllerCommandOpcode.setCalibrationFactor:
         case ControllerCommandOpcode.setMetric:
         case ControllerCommandOpcode.setDecimalMinutes:
@@ -61,10 +73,37 @@ class _NavigatorDashboardScreenState
     ref.read(bleTelemetryServiceProvider).sendCommand(
           ControllerCommand(
             opcode: opcode,
+            numericValue: numericValue,
             stringValue: stringValue,
             timestamp: DateTime.now(),
           ),
         );
+  }
+
+  Future<void> _editMileage({
+    required bool isTotal,
+    required double meters,
+    required bool isMetric,
+  }) async {
+    final unit = isMetric ? 'KM' : 'MI';
+    final scale = isMetric ? 1000.0 : 1609.344;
+    final entered = await showDialog<double>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => MileageEntryDialog(
+        initialValue: (meters / scale).toStringAsFixed(3),
+        title: 'SET ${isTotal ? 'TOTAL' : 'INTERVAL'} MILEAGE ($unit)',
+        decimalPlaces: 3,
+        maxDigitsBeforeDecimal: 8,
+      ),
+    );
+    if (entered == null) return;
+    _send(
+      isTotal
+          ? ControllerCommandOpcode.overrideMileage
+          : ControllerCommandOpcode.overrideIntervalMileage,
+      numericValue: entered * scale,
+    );
   }
 
   @override
@@ -182,6 +221,11 @@ class _NavigatorDashboardScreenState
                   '${bumpAmount.toStringAsFixed(3)} ${isMetric ? 'KM' : 'MI'}',
               requiresDoubleTap: requiresDoubleTap,
             ),
+            onValueTap: () => _editMileage(
+              isTotal: true,
+              meters: totalDistance,
+              isMetric: isMetric,
+            ),
           ),
         ),
         _speedDivider(telemetry.speed, isMetric),
@@ -191,6 +235,11 @@ class _NavigatorDashboardScreenState
             value: telemetry.intervalDistance / distanceScale,
             color: intervalColor,
             time: formatRallyTime(currentTime, isDecimalMinutes),
+            onValueTap: () => _editMileage(
+              isTotal: false,
+              meters: telemetry.intervalDistance,
+              isMetric: isMetric,
+            ),
           ),
         ),
       ],
@@ -204,6 +253,7 @@ class _NavigatorDashboardScreenState
     required String time,
     double? accuracy,
     Widget? trailing,
+    VoidCallback? onValueTap,
   }) =>
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
@@ -236,33 +286,37 @@ class _NavigatorDashboardScreenState
                   child: Row(
                     children: [
                       Expanded(
-                        child: Center(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                label,
-                                style: TextStyle(
-                                  color: color,
-                                  fontWeight: FontWeight.bold,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: onValueTap,
+                          child: Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  label,
+                                  style: TextStyle(
+                                    color: color,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    value.toStringAsFixed(3),
-                                    style: TextStyle(
-                                      color: color,
-                                      fontSize: 140,
-                                      fontFamily: 'Courier',
-                                      fontWeight: FontWeight.bold,
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      value.toStringAsFixed(3),
+                                      style: TextStyle(
+                                        color: color,
+                                        fontSize: 140,
+                                        fontFamily: 'Courier',
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),

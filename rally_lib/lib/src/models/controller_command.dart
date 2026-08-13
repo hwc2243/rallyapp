@@ -6,6 +6,7 @@ enum ControllerCommandOpcode {
   bumpMinus,
   setFprState,
   overrideMileage,
+  overrideIntervalMileage,
   setCalibrationFactor,
   setMetric,
   setDecimalMinutes,

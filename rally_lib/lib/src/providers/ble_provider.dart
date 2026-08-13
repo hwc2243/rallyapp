@@ -111,6 +111,10 @@ final controllerCommandDispatcherProvider = Provider<void>((ref) {
         if (command.numericValue != null) {
           odometer.setTotalDistance(command.numericValue!);
         }
+      case ControllerCommandOpcode.overrideIntervalMileage:
+        if (command.numericValue != null) {
+          odometer.setIntervalDistance(command.numericValue!);
+        }
       case ControllerCommandOpcode.setCalibrationFactor:
         if (command.numericValue != null) {
           ref
