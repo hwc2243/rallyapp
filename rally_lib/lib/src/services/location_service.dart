@@ -285,4 +285,8 @@ class LocationService {
 
     return true;
   }
+
+  /// Checks that the Controller's required location hardware is enabled
+  /// without prompting for permissions during launch routing.
+  Future<bool> isHardwareReady() => Geolocator.isLocationServiceEnabled();
 }

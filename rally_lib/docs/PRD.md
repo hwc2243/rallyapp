@@ -21,6 +21,7 @@ The library must maintain and continuously emit a real-time data structure conta
 - `latitude` (double)[cite: 12, 13]
 - `longitude` (double)[cite: 12, 13]
 - `gps_accuracy` (double, meters)[cite: 12, 13]
+- `is_display_held` (boolean)
 
 **Continuous Update Rule:** Telemetry parameters (`timestamp`, `speed`, `bearing`, `latitude`, `longitude`, `gps_accuracy`) must update continuously at the master refresh rate, even when odometer accumulation is paused or set to PARK[cite: 12, 13].
 
@@ -66,3 +67,33 @@ The library must maintain and continuously emit a real-time data structure conta
 
 ## Thread & Execution Performance
 - **Non-Blocking Architecture:** High-frequency telemetry updates (20Hz) must execute without blocking host UI rendering isolates or causing frame drops[cite: 12, 13].
+
+## Multi-Device BLE Architecture & Role Engine
+The library must support a multi-device distributed architecture using Bluetooth Low Energy (BLE) across iOS and Android[cite: 13, 14]:
+1. **Device Roles:**
+   - **Controller:** Acts as the master central node[cite: 13, 14]. Requires hardware GPS[cite: 13, 14]. Runs local 20Hz GPS interpolation and distance accumulation engine[cite: 13, 14]. Acts as BLE Peripheral/Server broadcasting live telemetry[cite: 13, 14].
+   - **Driver:** BLE Central/Client[cite: 13, 14]. Receives live telemetry stream[cite: 13, 14]. Does not require GPS[cite: 13, 14].
+   - **Navigator:** BLE Central/Client[cite: 13, 14]. Receives live telemetry stream and sends control commands back to Controller[cite: 13, 14]. Does not require GPS[cite: 13, 14].
+2. **Multi-Client Connection Management:**
+   - The Controller must support simultaneous active BLE connections to a Driver display and a Navigator display.
+   - **Role Termination Rule:** Changing a device's role away from Controller must immediately terminate all active BLE server sockets and client connections.
+3. **BLE Telemetry Streaming & Data Rate Selection:**
+   - Streams serialized `LiveTelemetry` packets to connected Driver and Navigator devices[cite: 13, 14].
+   - **Configurable Refresh Rate:** User-selectable BLE broadcast frequency:
+     - **5Hz** (200ms period)
+     - **10Hz** (100ms period - **Default**)
+     - **20Hz** (50ms period)
+   - The selected BLE rate must be persisted to local storage.
+4. **Hold State Synchronization:**
+   - The BLE payload includes a master `isDisplayHeld` flag.
+   - Toggling Hold/Release on either Controller or Navigator updates the state on both devices simultaneously.
+   - **Driver Display Independence:** The Driver display strictly ignores `isDisplayHeld` and continuously receives and displays live, non-frozen background mileage.
+
+## Controller Command Protocol
+The library provides an upstream command service (`ControllerCommand`) allowing Navigator devices to send commands to the Controller:
+- **Command Opcodes:** `resetTotal`, `resetInterval`, `toggleHold`, `bumpPlus`, `bumpMinus`, `setFprState`, `overrideMileage`, `setCalibrationFactor`.
+- **Execution Rule:** Upon receiving a valid command packet over BLE, the Controller executes the action through its local `OdometerNotifier` state machine as if triggered locally.
+
+## Connection Recovery & Auto-Connect
+- Driver and Navigator roles save the paired Controller's BLE Service UUID / Device MAC address to local storage[cite: 13, 14].
+- On system launch, client roles automatically attempt reconnection to the saved Controller.

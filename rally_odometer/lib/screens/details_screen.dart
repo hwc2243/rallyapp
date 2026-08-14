@@ -82,10 +82,9 @@ class DetailsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final telemetry = ref.watch(liveTelemetryProvider);
-    final settings = ref.watch(settingsProvider);
-    final speed = settings.isMetric
-        ? telemetry.speed * 3.6
-        : telemetry.speed * 2.23694;
+    final settings = ref.watch(displaySettingsProvider);
+    final speed =
+        settings.isMetric ? telemetry.speed * 3.6 : telemetry.speed * 2.23694;
     final speedUnit = settings.isMetric ? 'KPH' : 'MPH';
     final accuracyColor = _accuracyColor(telemetry.gpsAccuracy);
     final accuracy = telemetry.gpsAccuracy == 0
@@ -104,9 +103,8 @@ class DetailsScreen extends ConsumerWidget {
           physics: const BouncingScrollPhysics(),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final horizontalPadding = constraints.maxWidth < 600
-                  ? 12.0
-                  : 16.0;
+              final horizontalPadding =
+                  constraints.maxWidth < 600 ? 12.0 : 16.0;
               final usableWidth = constraints.maxWidth - horizontalPadding * 2;
               final columnCount = usableWidth >= 680 ? 3 : 2;
               final tileWidth =
@@ -122,7 +120,7 @@ class DetailsScreen extends ConsumerWidget {
                 ),
                 _telemetryTile(
                   label: 'SPD',
-                  value: '${speed.toStringAsFixed(1)} $speedUnit',
+                  value: '${speed.round()} $speedUnit',
                 ),
                 _telemetryTile(
                   label: 'HDG',

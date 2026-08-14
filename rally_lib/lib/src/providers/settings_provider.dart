@@ -7,6 +7,7 @@ class OdometerSettings {
   final double calibrationFactor;
   final double bumpAmount;
   final bool bumpRequireDoubleTap;
+  final int rallyTimeOffsetSeconds;
 
   OdometerSettings({
     required this.isMetric,
@@ -14,6 +15,7 @@ class OdometerSettings {
     required this.calibrationFactor,
     required this.bumpAmount,
     required this.bumpRequireDoubleTap,
+    required this.rallyTimeOffsetSeconds,
   });
 
   OdometerSettings copyWith({
@@ -22,14 +24,16 @@ class OdometerSettings {
     double? calibrationFactor,
     double? bumpAmount,
     bool? bumpRequireDoubleTap,
+    int? rallyTimeOffsetSeconds,
   }) {
     return OdometerSettings(
       isMetric: isMetric ?? this.isMetric,
       isDecimalMinutes: isDecimalMinutes ?? this.isDecimalMinutes,
       calibrationFactor: calibrationFactor ?? this.calibrationFactor,
       bumpAmount: bumpAmount ?? this.bumpAmount,
-      bumpRequireDoubleTap:
-          bumpRequireDoubleTap ?? this.bumpRequireDoubleTap,
+      bumpRequireDoubleTap: bumpRequireDoubleTap ?? this.bumpRequireDoubleTap,
+      rallyTimeOffsetSeconds:
+          rallyTimeOffsetSeconds ?? this.rallyTimeOffsetSeconds,
     );
   }
 }
@@ -44,13 +48,19 @@ class SettingsNotifier extends Notifier<OdometerSettings> {
       calibrationFactor: prefs.getDouble('calibrationFactor') ?? 1.00000,
       bumpAmount: prefs.getDouble('bumpAmount') ?? 0.010,
       bumpRequireDoubleTap: prefs.getBool('bumpRequireDoubleTap') ?? false,
+      rallyTimeOffsetSeconds: prefs.getInt('rallyTimeOffsetSeconds') ?? 0,
     );
   }
 
   SharedPreferences get _prefs => ref.read(sharedPreferencesProvider);
 
   void toggleMetric() {
-    final toggledToMetric = !state.isMetric;
+    setMetric(!state.isMetric);
+  }
+
+  void setMetric(bool isMetric) {
+    if (state.isMetric == isMetric) return;
+    final toggledToMetric = isMetric;
     final convertedBumpAmount = toggledToMetric
         ? state.bumpAmount * 1.609344
         : state.bumpAmount / 1.609344;
@@ -63,7 +73,11 @@ class SettingsNotifier extends Notifier<OdometerSettings> {
   }
 
   void toggleDecimalMinutes() {
-    state = state.copyWith(isDecimalMinutes: !state.isDecimalMinutes);
+    setDecimalMinutes(!state.isDecimalMinutes);
+  }
+
+  void setDecimalMinutes(bool isDecimalMinutes) {
+    state = state.copyWith(isDecimalMinutes: isDecimalMinutes);
     _prefs.setBool('isDecimalMinutes', state.isDecimalMinutes);
   }
 
@@ -78,10 +92,19 @@ class SettingsNotifier extends Notifier<OdometerSettings> {
   }
 
   void toggleBumpRequireDoubleTap() {
+    setBumpRequireDoubleTap(!state.bumpRequireDoubleTap);
+  }
+
+  void setBumpRequireDoubleTap(bool value) {
     state = state.copyWith(
-      bumpRequireDoubleTap: !state.bumpRequireDoubleTap,
+      bumpRequireDoubleTap: value,
     );
     _prefs.setBool('bumpRequireDoubleTap', state.bumpRequireDoubleTap);
+  }
+
+  void setRallyTimeOffset(Duration offset) {
+    state = state.copyWith(rallyTimeOffsetSeconds: offset.inSeconds);
+    _prefs.setInt('rallyTimeOffsetSeconds', state.rallyTimeOffsetSeconds);
   }
 }
 
@@ -89,6 +112,7 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('SharedPreferences must be initialized before use');
 });
 
-final settingsProvider = NotifierProvider<SettingsNotifier, OdometerSettings>(() {
+final settingsProvider =
+    NotifierProvider<SettingsNotifier, OdometerSettings>(() {
   return SettingsNotifier();
 });

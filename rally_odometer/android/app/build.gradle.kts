@@ -7,7 +7,8 @@ plugins {
 
 android {
     namespace = "com.example.rally_odometer"
-    compileSdk = flutter.compileSdkVersion
+    // permission_handler_android 13 requires Android API 37 to compile.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

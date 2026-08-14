@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rally_lib/rally_lib.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
@@ -17,7 +19,13 @@ class _SplashScreenState extends State<SplashScreen> {
   void _navigateToHome() async {
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) {
-      Navigator.pushReplacementNamed(context, '/odometer');
+      final role = ref.read(deviceRoleProvider);
+      if (role == DeviceRole.controller &&
+          !await ref.read(locationServiceProvider).isHardwareReady()) {
+        if (mounted) Navigator.pushReplacementNamed(context, '/role-selection');
+        return;
+      }
+      if (mounted) Navigator.pushReplacementNamed(context, '/dashboard');
     }
   }
 

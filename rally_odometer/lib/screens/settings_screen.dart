@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
+
+import '../providers/rally_time_offset_provider.dart';
 import '../widgets/mileage_entry_dialog.dart';
 
 enum CalibrationEntryMode { direct, measured }
@@ -52,6 +54,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() {
       _entryMode = mode;
     });
+  }
+
+  bool get _isRemoteDisplay =>
+      ref.read(deviceRoleProvider) != DeviceRole.controller;
+
+  Future<void> _sendConfiguration(
+    ControllerCommandOpcode opcode, {
+    double? numericValue,
+    String? stringValue,
+  }) {
+    return ref.read(bleTelemetryServiceProvider).sendCommand(
+          ControllerCommand(
+            opcode: opcode,
+            numericValue: numericValue,
+            stringValue: stringValue,
+            timestamp: DateTime.now(),
+          ),
+        );
   }
 
   Future<void> _openDirectFactorDialog() async {
@@ -113,10 +133,124 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (bumpAmount == null) return;
 
-    ref.read(settingsProvider.notifier).setBumpAmount(bumpAmount);
+    if (_isRemoteDisplay) {
+      await _sendConfiguration(
+        ControllerCommandOpcode.setBumpAmount,
+        numericValue: bumpAmount,
+      );
+    } else {
+      ref.read(settingsProvider.notifier).setBumpAmount(bumpAmount);
+    }
     setState(() {
       _bumpController.text = bumpAmount.toStringAsFixed(3);
     });
+  }
+
+  Future<void> _openRallyClockDialog() async {
+    final timeDelta = ref.read(rallyTimeOffsetProvider);
+    final currentRallyTime =
+        ref.read(currentTimeProvider).value ?? DateTime.now().add(timeDelta);
+    final controller = TextEditingController(
+      text: formatRallyTime(currentRallyTime, false),
+    );
+
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('SYNC RALLY CLOCK'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.datetime,
+            decoration: const InputDecoration(
+              labelText: 'Official rally time',
+              hintText: 'HH:mm:ss',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: controller.clear,
+              child: const Text('CLEAR'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (_isRemoteDisplay) {
+                  await _sendConfiguration(
+                    ControllerCommandOpcode.setRallyTimeOffset,
+                    numericValue: 0,
+                  );
+                } else {
+                  await ref.read(rallyTimeOffsetProvider.notifier).reset();
+                }
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+              child: const Text('RESET TO DEVICE TIME'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('CANCEL'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final enteredTime = _parseClockTime(controller.text);
+                if (enteredTime == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Enter time as HH:mm:ss')),
+                  );
+                  return;
+                }
+
+                final deviceTime = DateTime.now();
+                final enteredRallyTime = DateTime(
+                  deviceTime.year,
+                  deviceTime.month,
+                  deviceTime.day,
+                  enteredTime.hour,
+                  enteredTime.minute,
+                  enteredTime.second,
+                );
+                var timeDelta = enteredRallyTime.difference(deviceTime);
+                if (timeDelta > const Duration(hours: 12)) {
+                  timeDelta -= const Duration(days: 1);
+                } else if (timeDelta < const Duration(hours: -12)) {
+                  timeDelta += const Duration(days: 1);
+                }
+
+                if (_isRemoteDisplay) {
+                  await _sendConfiguration(
+                    ControllerCommandOpcode.setRallyTimeOffset,
+                    numericValue: timeDelta.inSeconds.toDouble(),
+                  );
+                } else {
+                  await ref
+                      .read(rallyTimeOffsetProvider.notifier)
+                      .setOffset(timeDelta);
+                }
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+              child: const Text('SYNC'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  DateTime? _parseClockTime(String value) {
+    final match = RegExp(r'^(\d{2}):(\d{2}):(\d{2})$').firstMatch(value);
+    if (match == null) return null;
+    final hour = int.parse(match.group(1)!);
+    final minute = int.parse(match.group(2)!);
+    final second = int.parse(match.group(3)!);
+    if (hour > 23 || minute > 59 || second > 59) return null;
+    return DateTime(2000, 1, 1, hour, minute, second);
   }
 
   Future<void> _calculateFactor() async {
@@ -273,11 +407,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(settingsProvider);
+    final settings = ref.watch(displaySettingsProvider);
     final odometer = ref.watch(odometerProvider);
     final currentAppDistance = _currentAppDistance(settings, odometer);
     final factorText = settings.calibrationFactor.toStringAsFixed(5);
     final bumpText = settings.bumpAmount.toStringAsFixed(3);
+    final currentRallyTime = ref.watch(currentTimeProvider).value ??
+        DateTime.now().add(ref.watch(rallyTimeOffsetProvider));
 
     if (_factorController.text != factorText) {
       _factorController.text = factorText;
@@ -304,8 +440,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: const Text('Use Metric (KM)'),
                   subtitle: Text(settings.isMetric ? 'Kilometers' : 'Miles'),
                   value: settings.isMetric,
-                  onChanged: (_) =>
-                      ref.read(settingsProvider.notifier).toggleMetric(),
+                  onChanged: (_) {
+                    if (_isRemoteDisplay) {
+                      _sendConfiguration(
+                        ControllerCommandOpcode.setMetric,
+                        stringValue: (!settings.isMetric).toString(),
+                      );
+                    } else {
+                      ref.read(settingsProvider.notifier).toggleMetric();
+                    }
+                  },
                 ),
                 SwitchListTile(
                   title: const Text('Decimal Minutes'),
@@ -313,9 +457,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     settings.isDecimalMinutes ? 'HH:mm.mm' : 'HH:mm:ss',
                   ),
                   value: settings.isDecimalMinutes,
-                  onChanged: (_) => ref
-                      .read(settingsProvider.notifier)
-                      .toggleDecimalMinutes(),
+                  onChanged: (_) {
+                    if (_isRemoteDisplay) {
+                      _sendConfiguration(
+                        ControllerCommandOpcode.setDecimalMinutes,
+                        stringValue: (!settings.isDecimalMinutes).toString(),
+                      );
+                    } else {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .toggleDecimalMinutes();
+                    }
+                  },
+                ),
+                ListTile(
+                  title: const Text('Sync Rally Clock'),
+                  subtitle: Text(
+                    'Official time: ${formatRallyTime(currentRallyTime, settings.isDecimalMinutes)}',
+                  ),
+                  trailing: const Icon(Icons.schedule),
+                  onTap: _openRallyClockDialog,
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
+                ListTile(
+                  title: const Text('Device Role & Bluetooth'),
+                  subtitle:
+                      const Text('Controller, Driver, Navigator, and pairing'),
+                  trailing: const Icon(Icons.bluetooth),
+                  onTap: () => Navigator.pushNamed(context, '/role-selection'),
                 ),
                 const SizedBox(height: 20),
                 const Divider(),
@@ -339,9 +509,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         : 'Bump buttons trigger on single-tap',
                   ),
                   value: settings.bumpRequireDoubleTap,
-                  onChanged: (_) => ref
-                      .read(settingsProvider.notifier)
-                      .toggleBumpRequireDoubleTap(),
+                  onChanged: (_) {
+                    if (_isRemoteDisplay) {
+                      _sendConfiguration(
+                        ControllerCommandOpcode.setBumpRequireDoubleTap,
+                        stringValue:
+                            (!settings.bumpRequireDoubleTap).toString(),
+                      );
+                    } else {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .toggleBumpRequireDoubleTap();
+                    }
+                  },
                 ),
                 const SizedBox(height: 20),
                 const Divider(),

@@ -1,9 +1,9 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:rally_lib/rally_lib.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+
+import '../providers/rally_time_offset_provider.dart';
 import '../widgets/mileage_entry_dialog.dart';
 
 class OdometerScreen extends ConsumerStatefulWidget {
@@ -16,51 +16,14 @@ class OdometerScreen extends ConsumerStatefulWidget {
 class _OdometerScreenState extends ConsumerState<OdometerScreen> {
   static const double _bumpControlColumnWidth = 92;
 
-  String _currentTimeDisplay = "";
-  late Timer _timer;
-
   @override
   void initState() {
     super.initState();
     WakelockPlus.enable();
-    _refreshDisplay();
-    // Global refresh timer set to 100ms as per specifications
-    _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      _refreshDisplay();
-    });
-  }
-
-  void _refreshDisplay() {
-    if (!mounted) return;
-    final settings = ref.read(settingsProvider);
-    setState(() {
-      _currentTimeDisplay = _formatTime(
-        DateTime.now(),
-        settings.isDecimalMinutes,
-      );
-    });
-  }
-
-  String _formatTime(DateTime time, bool isDecimalMinutes) {
-    if (isDecimalMinutes) {
-      // HH:mm.[hundredths]
-      // Formula for Hundredths: (Seconds / 60) * 100 or simply (Seconds * 5) / 3
-      double totalSecondsInMinute = time.second + time.millisecond / 1000.0;
-      double hundredths = (totalSecondsInMinute / 60.0) * 100.0;
-
-      String hh = time.hour.toString().padLeft(2, '0');
-      String mm = time.minute.toString().padLeft(2, '0');
-      String ss = hundredths.toInt().toString().padLeft(2, '0');
-
-      return "$hh:$mm.$ss";
-    } else {
-      return DateFormat('HH:mm:ss').format(time);
-    }
   }
 
   @override
   void dispose() {
-    _timer.cancel();
     WakelockPlus.disable();
     super.dispose();
   }
@@ -110,7 +73,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
-            "SPEED: ${displaySpeed.toStringAsFixed(1)} $unit",
+            "SPEED: ${displaySpeed.round()} $unit",
             style: TextStyle(
               color: isStationary ? Colors.grey[700] : const Color(0xFF00FF00),
               fontSize: 24,
@@ -128,14 +91,24 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
     final odometer = ref.watch(odometerProvider);
     final telemetry = ref.watch(liveTelemetryProvider);
     final settings = ref.watch(settingsProvider);
+    final timeDelta = ref.watch(rallyTimeOffsetProvider);
+    final currentTime =
+        ref.watch(currentTimeProvider).value ?? DateTime.now().add(timeDelta);
+    final currentTimeDisplay = formatRallyTime(
+      currentTime,
+      settings.isDecimalMinutes,
+    );
 
     final totalDisplayDistance = odometer.isHeld
         ? (odometer.frozenTotalDistance ?? odometer.totalDistance)
         : odometer.totalDistance;
 
     final totalDisplayTime = odometer.isHeld && odometer.frozenTime != null
-        ? _formatTime(odometer.frozenTime!, settings.isDecimalMinutes)
-        : _currentTimeDisplay;
+        ? formatRallyTime(
+            odometer.frozenTime!.add(timeDelta),
+            settings.isDecimalMinutes,
+          )
+        : currentTimeDisplay;
 
     final isReverse = odometer.direction == OdometerDirection.reverse;
     final isParked = odometer.direction == OdometerDirection.park;
@@ -186,7 +159,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                             odometer.intervalDistance,
                             settings.isMetric,
                           ),
-                          time: _currentTimeDisplay,
+                          time: currentTimeDisplay,
                           color: intervalColor,
                           isDimmed: isParked,
                           trailingControlWidth: _bumpControlColumnWidth,
@@ -217,8 +190,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                             children: [
                               _buildDirectionButton(
                                 label: "FORWARD",
-                                isActive:
-                                    odometer.direction ==
+                                isActive: odometer.direction ==
                                     OdometerDirection.forward,
                                 activeColor: Colors.green,
                                 onPressed: () => ref
@@ -227,8 +199,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                               ),
                               _buildDirectionButton(
                                 label: "PARK",
-                                isActive:
-                                    odometer.direction ==
+                                isActive: odometer.direction ==
                                     OdometerDirection.park,
                                 activeColor: Colors.white,
                                 onPressed: () => ref
@@ -237,8 +208,7 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                               ),
                               _buildDirectionButton(
                                 label: "REVERSE",
-                                isActive:
-                                    odometer.direction ==
+                                isActive: odometer.direction ==
                                     OdometerDirection.reverse,
                                 activeColor: Colors.red,
                                 onPressed: () => ref
@@ -387,9 +357,8 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
 
     if (newValue != null) {
       // Convert back to meters
-      double meters = settings.isMetric
-          ? newValue * 1000.0
-          : newValue * 1609.344;
+      double meters =
+          settings.isMetric ? newValue * 1000.0 : newValue * 1609.344;
 
       if (isTotal) {
         ref.read(odometerProvider.notifier).setTotalDistance(meters);
@@ -427,8 +396,8 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                 style: TextStyle(
                   color: isActive
                       ? (activeColor == Colors.white
-                            ? Colors.black
-                            : Colors.white)
+                          ? Colors.black
+                          : Colors.white)
                       : Colors.grey,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -662,3 +631,11 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
 }
 
 enum _MenuAction { settings, details }
+
+/// The permanent, full-control Controller dashboard baseline.
+///
+/// This wrapper lets routing name the Controller view explicitly without
+/// changing the established [OdometerScreen] layout or interactions.
+class ControllerDashboardScreen extends OdometerScreen {
+  const ControllerDashboardScreen({super.key});
+}
