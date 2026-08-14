@@ -16,7 +16,10 @@ class SharedOverflowPopupMenuButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final displayView = ref.watch(controllerDisplayViewProvider);
+    final isRemote = !isControllerEngine;
+    final displayView = isControllerEngine
+        ? ref.watch(controllerDisplayViewProvider)
+        : ref.watch(remoteDisplayViewProvider);
     return PopupMenuButton<String>(
       icon: Icon(icon, color: Colors.white, size: 28),
       onSelected: (action) {
@@ -27,14 +30,20 @@ class SharedOverflowPopupMenuButton extends ConsumerWidget {
             final nextView = displayView == ControllerDisplayView.driver
                 ? ControllerDisplayView.navigator
                 : ControllerDisplayView.driver;
-            ref.read(controllerDisplayViewProvider.notifier).setView(nextView);
+            if (isControllerEngine) {
+              ref
+                  .read(controllerDisplayViewProvider.notifier)
+                  .setView(nextView);
+            } else {
+              ref.read(remoteDisplayViewProvider.notifier).setView(nextView);
+            }
           case 'settings':
             Navigator.pushNamed(context, '/settings');
         }
       },
       itemBuilder: (_) => [
         const PopupMenuItem(value: 'details', child: Text('Details')),
-        if (isControllerEngine)
+        if (isControllerEngine || isRemote)
           PopupMenuItem(
             value: 'toggle-view',
             child: Text(

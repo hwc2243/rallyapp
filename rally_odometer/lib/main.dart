@@ -43,17 +43,19 @@ class RallyOdometerApp extends ConsumerStatefulWidget {
 /// tear down GPS, odometer accumulation, or Controller BLE publication.
 Widget buildDashboardForRole(
   DeviceRole role,
-  ControllerDisplayView view,
+  ControllerDisplayView controllerView,
+  ControllerDisplayView remoteView,
 ) {
   switch (role) {
     case DeviceRole.controller:
-      return view == ControllerDisplayView.driver
+      return controllerView == ControllerDisplayView.driver
           ? const DriverDashboardScreen(isControllerEngine: true)
           : const NavigatorDashboardScreen(isControllerEngine: true);
     case DeviceRole.driver:
-      return const DriverDashboardScreen(isControllerEngine: false);
     case DeviceRole.navigator:
-      return const NavigatorDashboardScreen(isControllerEngine: false);
+      return remoteView == ControllerDisplayView.driver
+          ? const DriverDashboardScreen(isControllerEngine: false)
+          : const NavigatorDashboardScreen(isControllerEngine: false);
   }
 }
 
@@ -65,6 +67,7 @@ class DashboardForRoleScreen extends ConsumerWidget {
     return buildDashboardForRole(
       ref.watch(deviceRoleProvider),
       ref.watch(controllerDisplayViewProvider),
+      ref.watch(remoteDisplayViewProvider),
     );
   }
 }
