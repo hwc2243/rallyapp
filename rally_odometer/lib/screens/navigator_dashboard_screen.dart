@@ -216,11 +216,14 @@ class _NavigatorDashboardScreenState
             color: color,
             time: totalTime,
             accuracy: telemetry.gpsAccuracy,
-            trailing: _bumpControls(
+            trailing: _bumpButton(
+              label: 'BUMP+',
               step:
                   '${bumpAmount.toStringAsFixed(3)} ${isMetric ? 'KM' : 'MI'}',
+              isPositive: true,
               requiresDoubleTap: requiresDoubleTap,
             ),
+            trailingAlignment: Alignment.bottomCenter,
             onValueTap: () => _editMileage(
               isTotal: true,
               meters: totalDistance,
@@ -235,6 +238,14 @@ class _NavigatorDashboardScreenState
             value: telemetry.intervalDistance / distanceScale,
             color: intervalColor,
             time: formatRallyTime(currentTime, isDecimalMinutes),
+            trailing: _bumpButton(
+              label: 'BUMP-',
+              step:
+                  '${bumpAmount.toStringAsFixed(3)} ${isMetric ? 'KM' : 'MI'}',
+              isPositive: false,
+              requiresDoubleTap: requiresDoubleTap,
+            ),
+            trailingAlignment: Alignment.topCenter,
             onValueTap: () => _editMileage(
               isTotal: false,
               meters: telemetry.intervalDistance,
@@ -253,6 +264,7 @@ class _NavigatorDashboardScreenState
     required String time,
     double? accuracy,
     Widget? trailing,
+    Alignment? trailingAlignment,
     VoidCallback? onValueTap,
   }) =>
       Padding(
@@ -289,7 +301,8 @@ class _NavigatorDashboardScreenState
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: onValueTap,
-                          child: Center(
+                          child: Align(
+                            alignment: Alignment.centerRight,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -332,7 +345,10 @@ class _NavigatorDashboardScreenState
                 right: 0,
                 bottom: 0,
                 width: 116,
-                child: Center(child: trailing),
+                child: Align(
+                  alignment: trailingAlignment ?? Alignment.center,
+                  child: trailing,
+                ),
               ),
           ],
         ),
@@ -353,31 +369,6 @@ class _NavigatorDashboardScreenState
             fontFamily: 'Courier',
             fontWeight: FontWeight.bold,
           ),
-        ),
-      );
-
-  Widget _bumpControls({
-    required String step,
-    required bool requiresDoubleTap,
-  }) =>
-      Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _bumpButton(
-              label: 'BUMP+',
-              step: step,
-              isPositive: true,
-              requiresDoubleTap: requiresDoubleTap,
-            ),
-            const SizedBox(height: 8),
-            _bumpButton(
-              label: 'BUMP-',
-              step: step,
-              isPositive: false,
-              requiresDoubleTap: requiresDoubleTap,
-            ),
-          ],
         ),
       );
 
