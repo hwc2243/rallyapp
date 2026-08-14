@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
 
 import '../providers/rally_time_offset_provider.dart';
+import '../providers/controller_display_view_provider.dart';
 import '../widgets/mileage_entry_dialog.dart';
 
 enum CalibrationEntryMode { direct, measured }
@@ -407,6 +408,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final role = ref.watch(deviceRoleProvider);
+    final isController = role == DeviceRole.controller;
+    final displayView = isController
+        ? ref.watch(controllerDisplayViewProvider)
+        : ref.watch(remoteDisplayViewProvider);
     final settings = ref.watch(displaySettingsProvider);
     final odometer = ref.watch(odometerProvider);
     final currentAppDistance = _currentAppDistance(settings, odometer);
@@ -477,6 +483,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   trailing: const Icon(Icons.schedule),
                   onTap: _openRallyClockDialog,
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 10),
+                const Text(
+                  'Device Settings',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                const SizedBox(height: 8),
+                const Text('DISPLAY VIEW'),
+                const SizedBox(height: 8),
+                SegmentedButton<ControllerDisplayView>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ControllerDisplayView.driver,
+                      label: Text('Driver View'),
+                    ),
+                    ButtonSegment(
+                      value: ControllerDisplayView.navigator,
+                      label: Text('Navigator View'),
+                    ),
+                  ],
+                  selected: {displayView},
+                  onSelectionChanged: (value) {
+                    if (isController) {
+                      ref
+                          .read(controllerDisplayViewProvider.notifier)
+                          .setView(value.first);
+                    } else {
+                      ref
+                          .read(remoteDisplayViewProvider.notifier)
+                          .setView(value.first);
+                    }
+                  },
                 ),
                 const SizedBox(height: 20),
                 const Divider(),

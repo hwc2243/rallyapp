@@ -5,15 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:rally_lib/rally_lib.dart';
 
-import '../providers/controller_display_view_provider.dart';
-
 class RoleSelectionScreen extends ConsumerWidget {
   const RoleSelectionScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final role = ref.watch(deviceRoleProvider);
-    final controllerDisplayView = ref.watch(controllerDisplayViewProvider);
     final service = ref.watch(bleTelemetryServiceProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('DEVICE ROLE & BLUETOOTH')),
@@ -48,26 +45,6 @@ class RoleSelectionScreen extends ConsumerWidget {
                 const SizedBox(height: 24),
                 if (role == DeviceRole.controller) ...[
                   _ControllerAdvertisingDiagnostics(service: service),
-                  const SizedBox(height: 24),
-                  const Text('CONTROLLER DISPLAY VIEW',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  SegmentedButton<ControllerDisplayView>(
-                    segments: const [
-                      ButtonSegment(
-                        value: ControllerDisplayView.driver,
-                        label: Text('Driver View'),
-                      ),
-                      ButtonSegment(
-                        value: ControllerDisplayView.navigator,
-                        label: Text('Navigator View'),
-                      ),
-                    ],
-                    selected: {controllerDisplayView},
-                    onSelectionChanged: (value) => ref
-                        .read(controllerDisplayViewProvider.notifier)
-                        .setView(value.first),
-                  ),
                   const SizedBox(height: 24),
                   const Text('BLE BROADCAST RATE',
                       style: TextStyle(fontWeight: FontWeight.bold)),
