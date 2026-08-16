@@ -42,6 +42,8 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         ? ref.watch(liveTelemetryProvider)
         : ref.watch(bleTelemetryProvider).value;
     final settings = ref.watch(displaySettingsProvider);
+    final showBluetoothController = widget.isControllerEngine &&
+        ref.watch(bluetoothControllerEnabledProvider);
     final currentTime = ref.watch(currentTimeProvider).value ??
         DateTime.now().add(
           Duration(seconds: settings.rallyTimeOffsetSeconds),
@@ -52,7 +54,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         child: Stack(
           children: [
             Column(children: [
-              _header(telemetry?.gpsAccuracy ?? 0),
+              _header(telemetry?.gpsAccuracy ?? 0, showBluetoothController),
               Expanded(
                 child: telemetry == null
                     ? const BleConnectionDiagnostics()
@@ -78,14 +80,20 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
     );
   }
 
-  Widget _header(double accuracy) => Container(
+  Widget _header(double accuracy, bool showBluetoothController) => Container(
         padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
         decoration: const BoxDecoration(
           border: Border(bottom: BorderSide(color: Colors.white24)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [GpsSatelliteIcon(accuracy: accuracy)],
+          children: [
+            GpsSatelliteIcon(accuracy: accuracy),
+            if (showBluetoothController) ...[
+              const SizedBox(width: 8),
+              const Icon(Icons.bluetooth, color: Colors.lightBlueAccent),
+            ],
+          ],
         ),
       );
 

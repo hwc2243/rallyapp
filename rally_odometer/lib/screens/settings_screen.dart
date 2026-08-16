@@ -19,6 +19,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _factorController;
   late final TextEditingController _measuredController;
   late final TextEditingController _bumpController;
+  late final Future<bool> _gpsHardwareReady;
   CalibrationEntryMode _entryMode = CalibrationEntryMode.direct;
 
   @override
@@ -32,6 +33,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _bumpController = TextEditingController(
       text: settings.bumpAmount.toStringAsFixed(3),
     );
+    _gpsHardwareReady = ref.read(locationServiceProvider).isHardwareReady();
   }
 
   @override
@@ -492,7 +494,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
                 const SizedBox(height: 8),
-                const Text('DISPLAY VIEW'),
                 const SizedBox(height: 8),
                 SegmentedButton<ControllerDisplayView>(
                   segments: const [
@@ -518,17 +519,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     }
                   },
                 ),
-                const SizedBox(height: 20),
-                const Divider(),
-                ListTile(
-                  title: const Text('Device Role & Bluetooth'),
-                  subtitle:
-                      const Text('Controller, Driver, Navigator, and pairing'),
-                  trailing: const Icon(Icons.bluetooth),
-                  onTap: () => Navigator.pushNamed(context, '/role-selection'),
+                FutureBuilder<bool>(
+                  future: _gpsHardwareReady,
+                  builder: (context, snapshot) {
+                    if (snapshot.data != true) {
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      children: [
+                        const SizedBox(height: 20),
+                        const Divider(),
+                        ListTile(
+                          title: const Text('Bluetooth'),
+                          subtitle: const Text('Controller broadcast settings'),
+                          trailing: const Icon(Icons.bluetooth),
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/role-selection'),
+                        ),
+                        const SizedBox(height: 20),
+                        const Divider(),
+                      ],
+                    );
+                  },
                 ),
-                const SizedBox(height: 20),
-                const Divider(),
                 const SizedBox(height: 10),
                 const Text(
                   'Bump Increment',

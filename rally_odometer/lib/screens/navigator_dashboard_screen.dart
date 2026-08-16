@@ -126,6 +126,8 @@ class _NavigatorDashboardScreenState
         ? ref.watch(liveTelemetryProvider)
         : ref.watch(bleTelemetryProvider).value;
     final settings = ref.watch(displaySettingsProvider);
+    final showBluetoothController = widget.isControllerEngine &&
+        ref.watch(bluetoothControllerEnabledProvider);
     final controllerState =
         widget.isControllerEngine ? ref.watch(odometerProvider) : null;
     final direction = controllerState?.direction ??
@@ -175,6 +177,7 @@ class _NavigatorDashboardScreenState
                             requiresDoubleTap: settings.bumpRequireDoubleTap,
                             isDecimalMinutes: settings.isDecimalMinutes,
                             currentTime: currentTime,
+                            showBluetoothController: showBluetoothController,
                           ),
                         ),
                         const VerticalDivider(color: Colors.white24, width: 1),
@@ -202,6 +205,7 @@ class _NavigatorDashboardScreenState
     required bool requiresDoubleTap,
     required bool isDecimalMinutes,
     required DateTime currentTime,
+    required bool showBluetoothController,
   }) {
     final unit = isMetric ? 'km' : 'mi';
     final distanceScale = isMetric ? 1000.0 : 1609.344;
@@ -216,6 +220,7 @@ class _NavigatorDashboardScreenState
             color: color,
             time: totalTime,
             accuracy: telemetry.gpsAccuracy,
+            showBluetoothController: showBluetoothController,
             trailing: _bumpButton(
               label: 'BUMP+',
               step:
@@ -263,6 +268,7 @@ class _NavigatorDashboardScreenState
     required Color color,
     required String time,
     double? accuracy,
+    bool showBluetoothController = false,
     Widget? trailing,
     Alignment? trailingAlignment,
     VoidCallback? onValueTap,
@@ -280,6 +286,13 @@ class _NavigatorDashboardScreenState
                     children: [
                       if (accuracy != null) ...[
                         GpsSatelliteIcon(accuracy: accuracy),
+                        if (showBluetoothController) ...[
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.bluetooth,
+                            color: Colors.lightBlueAccent,
+                          ),
+                        ],
                         const SizedBox(width: 10),
                       ],
                       Text(

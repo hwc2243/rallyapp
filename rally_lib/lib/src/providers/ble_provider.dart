@@ -7,8 +7,9 @@ import '../models/device_role.dart';
 import '../models/live_telemetry.dart';
 import '../services/ble_telemetry_service.dart';
 import '../services/location_service.dart';
-import 'odometer_provider.dart';
+import 'bluetooth_controller_provider.dart';
 import 'navigator_display_hold_provider.dart';
+import 'odometer_provider.dart';
 import 'settings_provider.dart';
 import 'telemetry_provider.dart';
 
@@ -66,7 +67,13 @@ final displaySettingsProvider = Provider<OdometerSettings>((ref) {
 /// Activates Controller-side publication at the configured packet rate.
 final controllerBlePublisherProvider = Provider<void>((ref) {
   final service = ref.watch(bleTelemetryServiceProvider);
-  if (ref.watch(deviceRoleProvider) != DeviceRole.controller) return;
+  if (ref.watch(deviceRoleProvider) != DeviceRole.controller) {
+    return;
+  }
+  if (!ref.watch(bluetoothControllerEnabledProvider)) {
+    unawaited(service.stopControllerAdvertising());
+    return;
+  }
   unawaited(service.startControllerAdvertising());
   ref.listen<LiveTelemetry>(liveTelemetryProvider, (_, telemetry) {
     service.publisher.publish(telemetry);
@@ -77,7 +84,10 @@ final controllerBlePublisherProvider = Provider<void>((ref) {
 /// machines, exactly like a local Controller control interaction.
 final controllerCommandDispatcherProvider = Provider<void>((ref) {
   final service = ref.watch(bleTelemetryServiceProvider);
-  if (ref.watch(deviceRoleProvider) != DeviceRole.controller) return;
+  if (ref.watch(deviceRoleProvider) != DeviceRole.controller ||
+      !ref.watch(bluetoothControllerEnabledProvider)) {
+    return;
+  }
   final subscription = service.commands.listen((command) {
     final odometer = ref.read(odometerProvider.notifier);
     switch (command.opcode) {

@@ -9,5 +9,6 @@ export 'src/providers/odometer_provider.dart';
 export 'src/providers/settings_provider.dart';
 export 'src/providers/telemetry_provider.dart';
 export 'src/providers/navigator_display_hold_provider.dart';
+export 'src/providers/bluetooth_controller_provider.dart';
 export 'src/providers/ble_provider.dart';
 export 'src/utils/factor_math.dart';
