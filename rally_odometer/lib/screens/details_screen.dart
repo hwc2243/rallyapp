@@ -81,8 +81,24 @@ class DetailsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final telemetry = ref.watch(liveTelemetryProvider);
+    final isController =
+        ref.watch(deviceRoleProvider) == DeviceRole.controller;
+    final telemetry = isController
+        ? ref.watch(liveTelemetryProvider)
+        : ref.watch(bleTelemetryProvider).value;
     final settings = ref.watch(displaySettingsProvider);
+    if (telemetry == null) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          title: const Text('LIVE DETAILS'),
+          leading: const BackButton(),
+        ),
+        body: const SafeArea(
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
     final speed =
         settings.isMetric ? telemetry.speed * 3.6 : telemetry.speed * 2.23694;
     final speedUnit = settings.isMetric ? 'KPH' : 'MPH';

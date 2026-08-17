@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
 
 import '../providers/rally_time_offset_provider.dart';
+import '../providers/controller_display_view_provider.dart';
 import '../widgets/mileage_entry_dialog.dart';
 
 enum CalibrationEntryMode { direct, measured }
@@ -18,12 +19,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _factorController;
   late final TextEditingController _measuredController;
   late final TextEditingController _bumpController;
+  late final Future<bool> _gpsHardwareReady;
   CalibrationEntryMode _entryMode = CalibrationEntryMode.direct;
 
   @override
   void initState() {
     super.initState();
-    final settings = ref.read(settingsProvider);
+    final settings = ref.read(displaySettingsProvider);
     _factorController = TextEditingController(
       text: settings.calibrationFactor.toStringAsFixed(5),
     );
@@ -31,6 +33,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _bumpController = TextEditingController(
       text: settings.bumpAmount.toStringAsFixed(3),
     );
+    _gpsHardwareReady = ref.read(locationServiceProvider).isHardwareReady();
   }
 
   @override
@@ -41,13 +44,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.dispose();
   }
 
-  double _currentAppDistance(
-    OdometerSettings settings,
-    OdometerState odometer,
-  ) {
-    return settings.isMetric
-        ? odometer.totalDistance / 1000.0
-        : odometer.totalDistance / 1609.344;
+  double _currentAppDistance(OdometerSettings settings, double meters) {
+    return settings.isMetric ? meters / 1000.0 : meters / 1609.344;
   }
 
   void _setEntryMode(CalibrationEntryMode mode) {
@@ -88,7 +86,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (factor == null) return;
 
-    ref.read(settingsProvider.notifier).setCalibrationFactor(factor);
+    if (_isRemoteDisplay) {
+      await _sendConfiguration(
+        ControllerCommandOpcode.setCalibrationFactor,
+        numericValue: factor,
+      );
+    } else {
+      ref.read(settingsProvider.notifier).setCalibrationFactor(factor);
+    }
     setState(() {
       _entryMode = CalibrationEntryMode.direct;
       _factorController.text = factor.toStringAsFixed(5);
@@ -255,9 +260,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _calculateFactor() async {
     final measured = double.tryParse(_measuredController.text);
-    final odometer = ref.read(odometerProvider);
-    final settings = ref.read(settingsProvider);
-    final currentAppDistance = _currentAppDistance(settings, odometer);
+    final settings = ref.read(displaySettingsProvider);
+    final controllerMeters = _isRemoteDisplay
+        ? ref.read(bleTelemetryProvider).value?.totalDistance ?? 0.0
+        : ref.read(odometerProvider).totalDistance;
+    final currentAppDistance = _currentAppDistance(settings, controllerMeters);
 
     if (measured == null || measured <= 0 || currentAppDistance <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -284,7 +291,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (confirmed != true || !mounted) return;
 
-    ref.read(settingsProvider.notifier).setCalibrationFactor(newFactor);
+    if (_isRemoteDisplay) {
+      await _sendConfiguration(
+        ControllerCommandOpcode.setCalibrationFactor,
+        numericValue: newFactor,
+      );
+    } else {
+      ref.read(settingsProvider.notifier).setCalibrationFactor(newFactor);
+    }
+    if (!mounted) return;
     setState(() {
       _entryMode = CalibrationEntryMode.measured;
       _factorController.text = newFactor.toStringAsFixed(5);
@@ -407,9 +422,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final role = ref.watch(deviceRoleProvider);
+    final isController = role == DeviceRole.controller;
+    final displayView = isController
+        ? ref.watch(controllerDisplayViewProvider)
+        : ref.watch(remoteDisplayViewProvider);
     final settings = ref.watch(displaySettingsProvider);
-    final odometer = ref.watch(odometerProvider);
-    final currentAppDistance = _currentAppDistance(settings, odometer);
+    final controllerMeters = isController
+        ? ref.watch(odometerProvider).totalDistance
+        : ref.watch(bleTelemetryProvider).value?.totalDistance ?? 0.0;
+    final currentAppDistance = _currentAppDistance(settings, controllerMeters);
     final factorText = settings.calibrationFactor.toStringAsFixed(5);
     final bumpText = settings.bumpAmount.toStringAsFixed(3);
     final currentRallyTime = ref.watch(currentTimeProvider).value ??
@@ -480,15 +502,60 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: 20),
                 const Divider(),
-                ListTile(
-                  title: const Text('Device Role & Bluetooth'),
-                  subtitle:
-                      const Text('Controller, Driver, Navigator, and pairing'),
-                  trailing: const Icon(Icons.bluetooth),
-                  onTap: () => Navigator.pushNamed(context, '/role-selection'),
+                const SizedBox(height: 10),
+                const Text(
+                  'Device Settings',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
-                const SizedBox(height: 20),
-                const Divider(),
+                const SizedBox(height: 8),
+                const SizedBox(height: 8),
+                SegmentedButton<ControllerDisplayView>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ControllerDisplayView.driver,
+                      label: Text('Driver View'),
+                    ),
+                    ButtonSegment(
+                      value: ControllerDisplayView.navigator,
+                      label: Text('Navigator View'),
+                    ),
+                  ],
+                  selected: {displayView},
+                  onSelectionChanged: (value) {
+                    if (isController) {
+                      ref
+                          .read(controllerDisplayViewProvider.notifier)
+                          .setView(value.first);
+                    } else {
+                      ref
+                          .read(remoteDisplayViewProvider.notifier)
+                          .setView(value.first);
+                    }
+                  },
+                ),
+                FutureBuilder<bool>(
+                  future: _gpsHardwareReady,
+                  builder: (context, snapshot) {
+                    if (!isController || snapshot.data != true) {
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      children: [
+                        const SizedBox(height: 20),
+                        const Divider(),
+                        ListTile(
+                          title: const Text('Bluetooth'),
+                          subtitle: const Text('Controller broadcast settings'),
+                          trailing: const Icon(Icons.bluetooth),
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/role-selection'),
+                        ),
+                        const SizedBox(height: 20),
+                        const Divider(),
+                      ],
+                    );
+                  },
+                ),
                 const SizedBox(height: 10),
                 const Text(
                   'Bump Increment',

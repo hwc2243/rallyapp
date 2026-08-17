@@ -22,8 +22,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       final role = ref.read(deviceRoleProvider);
       if (role == DeviceRole.controller &&
           !await ref.read(locationServiceProvider).isHardwareReady()) {
-        if (mounted) Navigator.pushReplacementNamed(context, '/role-selection');
-        return;
+        // A Controller requires local GPS. Devices without it remain remote
+        // displays and do not expose Controller Bluetooth settings.
+        await ref.read(deviceRoleProvider.notifier).setRole(DeviceRole.driver);
       }
       if (mounted) Navigator.pushReplacementNamed(context, '/dashboard');
     }

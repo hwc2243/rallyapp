@@ -5,18 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:rally_lib/rally_lib.dart';
 
-import '../providers/controller_display_view_provider.dart';
-
 class RoleSelectionScreen extends ConsumerWidget {
   const RoleSelectionScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final role = ref.watch(deviceRoleProvider);
-    final controllerDisplayView = ref.watch(controllerDisplayViewProvider);
+    final bluetoothControllerEnabled =
+        ref.watch(bluetoothControllerEnabledProvider);
     final service = ref.watch(bleTelemetryServiceProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('DEVICE ROLE & BLUETOOTH')),
+      appBar: AppBar(title: const Text('BLUETOOTH')),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -24,64 +23,36 @@ class RoleSelectionScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('DEVICE ROLE',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                SegmentedButton<DeviceRole>(
-                  segments: const [
-                    ButtonSegment(
-                        value: DeviceRole.controller,
-                        label: Text('Controller')),
-                    ButtonSegment(
-                        value: DeviceRole.driver, label: Text('Driver')),
-                    ButtonSegment(
-                        value: DeviceRole.navigator, label: Text('Navigator')),
-                  ],
-                  selected: {role},
-                  onSelectionChanged: (value) async {
-                    await ref
-                        .read(deviceRoleProvider.notifier)
-                        .setRole(value.first);
-                    if (context.mounted) Navigator.pop(context);
-                  },
-                ),
-                const SizedBox(height: 24),
                 if (role == DeviceRole.controller) ...[
-                  _ControllerAdvertisingDiagnostics(service: service),
-                  const SizedBox(height: 24),
-                  const Text('CONTROLLER DISPLAY VIEW',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  SegmentedButton<ControllerDisplayView>(
-                    segments: const [
-                      ButtonSegment(
-                        value: ControllerDisplayView.driver,
-                        label: Text('Driver View'),
-                      ),
-                      ButtonSegment(
-                        value: ControllerDisplayView.navigator,
-                        label: Text('Navigator View'),
-                      ),
-                    ],
-                    selected: {controllerDisplayView},
-                    onSelectionChanged: (value) => ref
-                        .read(controllerDisplayViewProvider.notifier)
-                        .setView(value.first),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Enable Bluetooth Controller'),
+                    subtitle: const Text(
+                      'Broadcast telemetry to Driver and Navigator devices',
+                    ),
+                    value: bluetoothControllerEnabled,
+                    onChanged: (value) => ref
+                        .read(bluetoothControllerEnabledProvider.notifier)
+                        .setEnabled(value),
                   ),
                   const SizedBox(height: 24),
-                  const Text('BLE BROADCAST RATE',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  SegmentedButton<int>(
-                    segments: const [
-                      ButtonSegment(value: 5, label: Text('5 Hz')),
-                      ButtonSegment(value: 10, label: Text('10 Hz')),
-                      ButtonSegment(value: 20, label: Text('20 Hz')),
-                    ],
-                    selected: {service.frequencyHz},
-                    onSelectionChanged: (value) =>
-                        service.setFrequency(value.first),
-                  ),
+                  if (bluetoothControllerEnabled) ...[
+                    _ControllerAdvertisingDiagnostics(service: service),
+                    const SizedBox(height: 24),
+                    const Text('BLE BROADCAST RATE',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    SegmentedButton<int>(
+                      segments: const [
+                        ButtonSegment(value: 5, label: Text('5 Hz')),
+                        ButtonSegment(value: 10, label: Text('10 Hz')),
+                        ButtonSegment(value: 20, label: Text('20 Hz')),
+                      ],
+                      selected: {service.frequencyHz},
+                      onSelectionChanged: (value) =>
+                          service.setFrequency(value.first),
+                    ),
+                  ],
                 ] else ...[
                   const Text('PAIR CONTROLLER',
                       style: TextStyle(fontWeight: FontWeight.bold)),
