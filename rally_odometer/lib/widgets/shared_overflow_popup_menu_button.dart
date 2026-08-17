@@ -52,7 +52,9 @@ class SharedOverflowPopupMenuButton extends ConsumerWidget {
                   : 'Driver View',
             ),
           ),
-        if (isControllerEngine)
+        // Both Controller and remote displays use the same Settings sections.
+        // Bluetooth is conditionally omitted by Settings on remote hardware.
+        if (isControllerEngine || isRemote)
           const PopupMenuItem(value: 'settings', child: Text('Settings')),
       ],
     );

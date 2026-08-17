@@ -58,6 +58,7 @@ final displaySettingsProvider = Provider<OdometerSettings>((ref) {
   return localSettings.copyWith(
     isMetric: remoteSettings.isMetric,
     isDecimalMinutes: remoteSettings.isDecimalMinutes,
+    calibrationFactor: remoteSettings.calibrationFactor,
     bumpAmount: remoteSettings.bumpAmount,
     bumpRequireDoubleTap: remoteSettings.bumpRequireDoubleTap,
     rallyTimeOffsetSeconds: remoteSettings.rallyTimeOffsetSeconds,

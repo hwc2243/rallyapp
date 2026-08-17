@@ -44,6 +44,7 @@ class LiveTelemetryNotifier extends Notifier<LiveTelemetry> {
       controllerConfiguration: ControllerConfiguration(
         isMetric: settings.isMetric,
         isDecimalMinutes: settings.isDecimalMinutes,
+        calibrationFactor: settings.calibrationFactor,
         rallyTimeOffsetSeconds: settings.rallyTimeOffsetSeconds,
         bumpAmount: settings.bumpAmount,
         bumpRequireDoubleTap: settings.bumpRequireDoubleTap,
