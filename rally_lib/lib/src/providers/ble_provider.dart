@@ -61,6 +61,7 @@ final displaySettingsProvider = Provider<OdometerSettings>((ref) {
     calibrationFactor: remoteSettings.calibrationFactor,
     bumpAmount: remoteSettings.bumpAmount,
     bumpRequireDoubleTap: remoteSettings.bumpRequireDoubleTap,
+    sensorFusionEnabled: remoteSettings.sensorFusionEnabled,
     rallyTimeOffsetSeconds: remoteSettings.rallyTimeOffsetSeconds,
   );
 });
@@ -161,6 +162,12 @@ final controllerCommandDispatcherProvider = Provider<void>((ref) {
           ref.read(settingsProvider.notifier).setRallyTimeOffset(
                 Duration(seconds: command.numericValue!.round()),
               );
+        }
+      case ControllerCommandOpcode.setSensorFusionEnabled:
+        if (command.stringValue != null) {
+          ref
+              .read(settingsProvider.notifier)
+              .setSensorFusionEnabled(command.stringValue == 'true');
         }
     }
   });

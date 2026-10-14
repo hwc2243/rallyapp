@@ -41,6 +41,8 @@ class LiveTelemetryNotifier extends Notifier<LiveTelemetry> {
       longitude: odometer.longitude,
       gpsAccuracy: odometer.lastAccuracy,
       isDisplayHeld: odometer.isHeld,
+      isCalibrating: odometer.isCalibrating,
+      isSensorFusionActive: odometer.isSensorFusionActive,
       controllerConfiguration: ControllerConfiguration(
         isMetric: settings.isMetric,
         isDecimalMinutes: settings.isDecimalMinutes,
@@ -48,6 +50,7 @@ class LiveTelemetryNotifier extends Notifier<LiveTelemetry> {
         rallyTimeOffsetSeconds: settings.rallyTimeOffsetSeconds,
         bumpAmount: settings.bumpAmount,
         bumpRequireDoubleTap: settings.bumpRequireDoubleTap,
+        sensorFusionEnabled: settings.sensorFusionEnabled,
       ),
       isNavigatorDisplayHeld: navigatorHold.isHeld,
       navigatorHeldTotalDistance: navigatorHold.heldTotalDistance,

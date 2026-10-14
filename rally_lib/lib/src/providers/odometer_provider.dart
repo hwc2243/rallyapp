@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/location_service.dart';
+import '../services/sensor_fusion_service.dart';
 import 'settings_provider.dart';
 
 class OdometerState {
@@ -22,6 +23,7 @@ class OdometerState {
   final OdometerDirection direction;
   final bool isStationaryLock;
   final bool isCalibrating;
+  final bool isSensorFusionActive;
 
   OdometerState({
     required this.totalDistance,
@@ -37,6 +39,7 @@ class OdometerState {
     this.direction = OdometerDirection.forward,
     this.isStationaryLock = false,
     this.isCalibrating = true,
+    this.isSensorFusionActive = false,
   });
 
   OdometerState copyWith({
@@ -53,6 +56,7 @@ class OdometerState {
     OdometerDirection? direction,
     bool? isStationaryLock,
     bool? isCalibrating,
+    bool? isSensorFusionActive,
   }) {
     return OdometerState(
       totalDistance: totalDistance ?? this.totalDistance,
@@ -68,6 +72,7 @@ class OdometerState {
       direction: direction ?? this.direction,
       isStationaryLock: isStationaryLock ?? this.isStationaryLock,
       isCalibrating: isCalibrating ?? this.isCalibrating,
+      isSensorFusionActive: isSensorFusionActive ?? this.isSensorFusionActive,
     );
   }
 }
@@ -134,23 +139,32 @@ class OdometerNotifier extends Notifier<OdometerState> {
     _interpolationTimer = Timer.periodic(_interpolationPeriod, (_) {
       final locationService = ref.read(locationServiceProvider);
       final settings = ref.read(settingsProvider);
+      final sensorFusion = ref.read(sensorFusionServiceProvider);
+      sensorFusion.setEnabled(settings.sensorFusionEnabled);
+      final isSensorFusionActive = sensorFusion.isAssisting;
       final now = DateTime.now();
-      final hasFreshGps =
-          _lastGpsFixAt != null &&
+      final hasFreshGps = _lastGpsFixAt != null &&
           now.difference(_lastGpsFixAt!).inSeconds <=
               LocationService.backgroundGapThresholdSeconds;
-      final displaySpeed = hasFreshGps ? state.currentSpeed : 0.0;
-      final canInterpolate =
-          hasFreshGps &&
+      final displaySpeed = isSensorFusionActive
+          ? sensorFusion.speedMetersPerSecond
+          : hasFreshGps
+              ? state.currentSpeed
+              : 0.0;
+      final canInterpolate = (hasFreshGps || isSensorFusionActive) &&
           !state.isCalibrating &&
           !state.isStationaryLock &&
           !(state.direction == OdometerDirection.forward && _isSoftSyncCatchUp);
-      final rawDelta = canInterpolate
-          ? displaySpeed *
-                _interpolationSeconds *
-                locationService.directionMultiplier *
-                settings.calibrationFactor
-          : 0.0;
+      final rawDelta = !canInterpolate
+          ? 0.0
+          : isSensorFusionActive
+              ? sensorFusion.consumePredictedDistanceMeters() *
+                  locationService.directionMultiplier *
+                  settings.calibrationFactor
+              : displaySpeed *
+                  _interpolationSeconds *
+                  locationService.directionMultiplier *
+                  settings.calibrationFactor;
       final delta = state.direction == OdometerDirection.forward
           ? math.max(0.0, rawDelta)
           : rawDelta;
@@ -159,6 +173,7 @@ class OdometerNotifier extends Notifier<OdometerState> {
         totalDistance: state.totalDistance + delta,
         intervalDistance: state.intervalDistance + delta,
         currentSpeed: displaySpeed,
+        isSensorFusionActive: isSensorFusionActive,
       );
     });
   }
@@ -192,23 +207,24 @@ class OdometerNotifier extends Notifier<OdometerState> {
 
   void _onPositionUpdate(Position position) {
     final settings = ref.read(settingsProvider);
-    final result = ref
-        .read(locationServiceProvider)
-        .processGpsUpdate(
+    final sensorFusion = ref.read(sensorFusionServiceProvider);
+    sensorFusion.setEnabled(settings.sensorFusionEnabled);
+    sensorFusion.updateGps(position);
+    final result = ref.read(locationServiceProvider).processGpsUpdate(
           lastPosition: _lastPosition,
           currentPosition: position,
           calibrationFactor: settings.calibrationFactor,
         );
 
     state = state.copyWith(
-      currentSpeed: result.acceptedFix
-          ? result.smoothedSpeed
-          : state.currentSpeed,
+      currentSpeed:
+          result.acceptedFix ? result.smoothedSpeed : state.currentSpeed,
       isStationaryLock: result.isStationaryLock,
       lastAccuracy: position.accuracy,
       lastValidBearing: _normaliseBearing(position) ?? state.lastValidBearing,
       latitude: position.latitude,
       longitude: position.longitude,
+      isSensorFusionActive: sensorFusion.isAssisting,
     );
 
     if (state.isCalibrating) {
@@ -243,14 +259,12 @@ class OdometerNotifier extends Notifier<OdometerState> {
     final intervalDrift =
         (state.intervalDistance - _gpsAnchoredIntervalDistance).abs();
 
-    final shouldSync =
-        result.hardResetAnchor ||
+    final shouldSync = result.hardResetAnchor ||
         totalDrift > _softSyncThresholdMeters ||
         intervalDrift > _softSyncThresholdMeters;
 
     if (state.direction == OdometerDirection.forward) {
-      _isSoftSyncCatchUp =
-          _gpsAnchoredTotalDistance < state.totalDistance ||
+      _isSoftSyncCatchUp = _gpsAnchoredTotalDistance < state.totalDistance ||
           _gpsAnchoredIntervalDistance < state.intervalDistance;
 
       if (shouldSync && !_isSoftSyncCatchUp) {
@@ -361,6 +375,12 @@ class OdometerNotifier extends Notifier<OdometerState> {
 }
 
 final locationServiceProvider = Provider((ref) => LocationService());
+
+final sensorFusionServiceProvider = Provider<SensorFusionService>((ref) {
+  final service = SensorFusionService();
+  ref.onDispose(service.dispose);
+  return service;
+});
 
 final odometerProvider = NotifierProvider<OdometerNotifier, OdometerState>(() {
   return OdometerNotifier();

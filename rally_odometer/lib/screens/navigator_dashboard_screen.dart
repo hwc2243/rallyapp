@@ -66,6 +66,7 @@ class _NavigatorDashboardScreenState
         case ControllerCommandOpcode.setBumpAmount:
         case ControllerCommandOpcode.setBumpRequireDoubleTap:
         case ControllerCommandOpcode.setRallyTimeOffset:
+        case ControllerCommandOpcode.setSensorFusionEnabled:
           break;
       }
       return;
@@ -161,35 +162,46 @@ class _NavigatorDashboardScreenState
       body: SafeArea(
         child: telemetry == null
             ? const BleConnectionDiagnostics()
-            : Column(
+            : Stack(
                 children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: _telemetryArea(
-                            telemetry: telemetry,
-                            totalDistance: total,
-                            totalTime: totalTime,
-                            isMetric: settings.isMetric,
-                            bumpAmount: settings.bumpAmount,
-                            requiresDoubleTap: settings.bumpRequireDoubleTap,
-                            isDecimalMinutes: settings.isDecimalMinutes,
-                            currentTime: currentTime,
-                            showBluetoothController: showBluetoothController,
-                          ),
+                  Column(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: _telemetryArea(
+                                telemetry: telemetry,
+                                totalDistance: total,
+                                totalTime: totalTime,
+                                isMetric: settings.isMetric,
+                                bumpAmount: settings.bumpAmount,
+                                requiresDoubleTap:
+                                    settings.bumpRequireDoubleTap,
+                                isDecimalMinutes: settings.isDecimalMinutes,
+                                currentTime: currentTime,
+                                showBluetoothController:
+                                    showBluetoothController,
+                              ),
+                            ),
+                            const VerticalDivider(
+                              color: Colors.white24,
+                              width: 1,
+                            ),
+                            Expanded(
+                              child: _controlArea(
+                                telemetry: telemetry,
+                                direction: direction,
+                              ),
+                            ),
+                          ],
                         ),
-                        const VerticalDivider(color: Colors.white24, width: 1),
-                        Expanded(
-                          child: _controlArea(
-                            telemetry: telemetry,
-                            direction: direction,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                  if (telemetry.isCalibrating)
+                    const Positioned.fill(child: CalibrationOverlay()),
                 ],
               ),
       ),
@@ -220,6 +232,7 @@ class _NavigatorDashboardScreenState
             color: color,
             time: totalTime,
             accuracy: telemetry.gpsAccuracy,
+            isSensorFusionActive: telemetry.isSensorFusionActive,
             showBluetoothController: showBluetoothController,
             trailing: _bumpButton(
               label: 'BUMP+',
@@ -268,6 +281,7 @@ class _NavigatorDashboardScreenState
     required Color color,
     required String time,
     double? accuracy,
+    bool isSensorFusionActive = false,
     bool showBluetoothController = false,
     Widget? trailing,
     Alignment? trailingAlignment,
@@ -285,7 +299,10 @@ class _NavigatorDashboardScreenState
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       if (accuracy != null) ...[
-                        GpsSatelliteIcon(accuracy: accuracy),
+                        GpsSatelliteIcon(
+                          accuracy: accuracy,
+                          isSensorFusionActive: isSensorFusionActive,
+                        ),
                         if (showBluetoothController) ...[
                           const SizedBox(width: 8),
                           const Icon(

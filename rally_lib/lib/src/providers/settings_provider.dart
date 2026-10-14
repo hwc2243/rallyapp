@@ -7,6 +7,7 @@ class OdometerSettings {
   final double calibrationFactor;
   final double bumpAmount;
   final bool bumpRequireDoubleTap;
+  final bool sensorFusionEnabled;
   final int rallyTimeOffsetSeconds;
 
   OdometerSettings({
@@ -15,6 +16,7 @@ class OdometerSettings {
     required this.calibrationFactor,
     required this.bumpAmount,
     required this.bumpRequireDoubleTap,
+    required this.sensorFusionEnabled,
     required this.rallyTimeOffsetSeconds,
   });
 
@@ -24,6 +26,7 @@ class OdometerSettings {
     double? calibrationFactor,
     double? bumpAmount,
     bool? bumpRequireDoubleTap,
+    bool? sensorFusionEnabled,
     int? rallyTimeOffsetSeconds,
   }) {
     return OdometerSettings(
@@ -32,6 +35,7 @@ class OdometerSettings {
       calibrationFactor: calibrationFactor ?? this.calibrationFactor,
       bumpAmount: bumpAmount ?? this.bumpAmount,
       bumpRequireDoubleTap: bumpRequireDoubleTap ?? this.bumpRequireDoubleTap,
+      sensorFusionEnabled: sensorFusionEnabled ?? this.sensorFusionEnabled,
       rallyTimeOffsetSeconds:
           rallyTimeOffsetSeconds ?? this.rallyTimeOffsetSeconds,
     );
@@ -48,6 +52,7 @@ class SettingsNotifier extends Notifier<OdometerSettings> {
       calibrationFactor: prefs.getDouble('calibrationFactor') ?? 1.00000,
       bumpAmount: prefs.getDouble('bumpAmount') ?? 0.010,
       bumpRequireDoubleTap: prefs.getBool('bumpRequireDoubleTap') ?? false,
+      sensorFusionEnabled: prefs.getBool('sensorFusionEnabled') ?? true,
       rallyTimeOffsetSeconds: prefs.getInt('rallyTimeOffsetSeconds') ?? 0,
     );
   }
@@ -100,6 +105,11 @@ class SettingsNotifier extends Notifier<OdometerSettings> {
       bumpRequireDoubleTap: value,
     );
     _prefs.setBool('bumpRequireDoubleTap', state.bumpRequireDoubleTap);
+  }
+
+  void setSensorFusionEnabled(bool value) {
+    state = state.copyWith(sensorFusionEnabled: value);
+    _prefs.setBool('sensorFusionEnabled', value);
   }
 
   void setRallyTimeOffset(Duration offset) {

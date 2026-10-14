@@ -14,6 +14,8 @@ class LiveTelemetry {
   final double longitude;
   final double gpsAccuracy;
   final bool isDisplayHeld;
+  final bool isCalibrating;
+  final bool isSensorFusionActive;
   final ControllerConfiguration? controllerConfiguration;
   final bool isNavigatorDisplayHeld;
   final double? navigatorHeldTotalDistance;
@@ -33,6 +35,8 @@ class LiveTelemetry {
     required this.longitude,
     required this.gpsAccuracy,
     required this.isDisplayHeld,
+    this.isCalibrating = false,
+    this.isSensorFusionActive = false,
     this.controllerConfiguration,
     this.isNavigatorDisplayHeld = false,
     this.navigatorHeldTotalDistance,
@@ -51,6 +55,8 @@ class LiveTelemetry {
         'longitude': longitude,
         'gpsAccuracy': gpsAccuracy,
         'isDisplayHeld': isDisplayHeld,
+        'isCalibrating': isCalibrating,
+        'isSensorFusionActive': isSensorFusionActive,
         'controllerConfiguration': controllerConfiguration?.toJson(),
         'isNavigatorDisplayHeld': isNavigatorDisplayHeld,
         'navigatorHeldTotalDistance': navigatorHeldTotalDistance,
@@ -70,6 +76,8 @@ class LiveTelemetry {
       longitude: asDouble('longitude'),
       gpsAccuracy: asDouble('gpsAccuracy'),
       isDisplayHeld: json['isDisplayHeld'] as bool? ?? false,
+      isCalibrating: json['isCalibrating'] as bool? ?? false,
+      isSensorFusionActive: json['isSensorFusionActive'] as bool? ?? false,
       controllerConfiguration:
           json['controllerConfiguration'] is Map<String, dynamic>
               ? ControllerConfiguration.fromJson(

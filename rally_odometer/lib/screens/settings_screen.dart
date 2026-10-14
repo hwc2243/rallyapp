@@ -550,6 +550,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           onTap: () =>
                               Navigator.pushNamed(context, '/role-selection'),
                         ),
+                        SwitchListTile(
+                          title: const Text('Sensor-Assisted GPS'),
+                          subtitle: Text(
+                            settings.sensorFusionEnabled
+                                ? 'Uses IMU and compass when GPS accuracy exceeds 30 m'
+                                : 'GPS-only distance tracking',
+                          ),
+                          value: settings.sensorFusionEnabled,
+                          onChanged: (value) {
+                            if (_isRemoteDisplay) {
+                              _sendConfiguration(
+                                ControllerCommandOpcode.setSensorFusionEnabled,
+                                stringValue: value.toString(),
+                              );
+                            } else {
+                              ref
+                                  .read(settingsProvider.notifier)
+                                  .setSensorFusionEnabled(value);
+                            }
+                          },
+                        ),
                         const SizedBox(height: 20),
                         const Divider(),
                       ],
@@ -557,89 +578,115 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   },
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Bump Increment',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-                const SizedBox(height: 8),
-                _buildDialogField(
-                  controller: _bumpController,
-                  label: 'Bump Amount (${settings.isMetric ? 'KM' : 'MI'})',
-                  onTap: _openBumpAmountDialog,
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Require Double-Tap for Bumps'),
-                  subtitle: Text(
-                    settings.bumpRequireDoubleTap
-                        ? 'Bump buttons trigger on double-tap'
-                        : 'Bump buttons trigger on single-tap',
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Bump Increment',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildDialogField(
+                        controller: _bumpController,
+                        label:
+                            'Bump Amount (${settings.isMetric ? 'KM' : 'MI'})',
+                        onTap: _openBumpAmountDialog,
+                      ),
+                      SwitchListTile(
+                        title: const Text('Require Double-Tap for Bumps'),
+                        subtitle: Text(
+                          settings.bumpRequireDoubleTap
+                              ? 'Bump buttons trigger on double-tap'
+                              : 'Bump buttons trigger on single-tap',
+                        ),
+                        value: settings.bumpRequireDoubleTap,
+                        onChanged: (_) {
+                          if (_isRemoteDisplay) {
+                            _sendConfiguration(
+                              ControllerCommandOpcode.setBumpRequireDoubleTap,
+                              stringValue:
+                                  (!settings.bumpRequireDoubleTap).toString(),
+                            );
+                          } else {
+                            ref
+                                .read(settingsProvider.notifier)
+                                .toggleBumpRequireDoubleTap();
+                          }
+                        },
+                      ),
+                    ],
                   ),
-                  value: settings.bumpRequireDoubleTap,
-                  onChanged: (_) {
-                    if (_isRemoteDisplay) {
-                      _sendConfiguration(
-                        ControllerCommandOpcode.setBumpRequireDoubleTap,
-                        stringValue:
-                            (!settings.bumpRequireDoubleTap).toString(),
-                      );
-                    } else {
-                      ref
-                          .read(settingsProvider.notifier)
-                          .toggleBumpRequireDoubleTap();
-                    }
-                  },
                 ),
                 const SizedBox(height: 20),
                 const Divider(),
                 const SizedBox(height: 10),
-                const Text(
-                  'Calibration Factor',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Current app mileage: ${currentAppDistance.toStringAsFixed(3)} ${settings.isMetric ? 'KM' : 'MI'}',
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _buildModeToggle(CalibrationEntryMode.direct),
-                    const SizedBox(width: 8),
-                    const SizedBox(width: 150, child: Text('Direct Entry')),
-                    Expanded(
-                      child: _buildDialogField(
-                        controller: _factorController,
-                        label: 'Calibration Factor',
-                        onTap: _openDirectFactorDialog,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    _buildModeToggle(CalibrationEntryMode.measured),
-                    const SizedBox(width: 8),
-                    const SizedBox(
-                      width: 150,
-                      child: Text('Measure Mileage Entry'),
-                    ),
-                    Expanded(
-                      child: _buildDialogField(
-                        controller: _measuredController,
-                        label:
-                            'Measured Mileage (${settings.isMetric ? 'KM' : 'MI'})',
-                        onTap: _openMeasuredMileageDialog,
-                        trailing: ElevatedButton(
-                          onPressed: _entryMode == CalibrationEntryMode.measured
-                              ? _calculateFactor
-                              : null,
-                          child: const Text('Calculate'),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Calibration Factor',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Text(
+                        'Current app mileage: ${currentAppDistance.toStringAsFixed(3)} ${settings.isMetric ? 'KM' : 'MI'}',
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          _buildModeToggle(CalibrationEntryMode.direct),
+                          const SizedBox(width: 8),
+                          const SizedBox(
+                            width: 150,
+                            child: Text('Direct Entry'),
+                          ),
+                          Expanded(
+                            child: _buildDialogField(
+                              controller: _factorController,
+                              label: 'Calibration Factor',
+                              onTap: _openDirectFactorDialog,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          _buildModeToggle(CalibrationEntryMode.measured),
+                          const SizedBox(width: 8),
+                          const SizedBox(
+                            width: 150,
+                            child: Text('Measure Mileage Entry'),
+                          ),
+                          Expanded(
+                            child: _buildDialogField(
+                              controller: _measuredController,
+                              label:
+                                  'Measured Mileage (${settings.isMetric ? 'KM' : 'MI'})',
+                              onTap: _openMeasuredMileageDialog,
+                              trailing: ElevatedButton(
+                                onPressed:
+                                    _entryMode == CalibrationEntryMode.measured
+                                        ? _calculateFactor
+                                        : null,
+                                child: const Text('Calculate'),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

@@ -7,6 +7,7 @@ class ControllerConfiguration {
     required this.rallyTimeOffsetSeconds,
     required this.bumpAmount,
     required this.bumpRequireDoubleTap,
+    required this.sensorFusionEnabled,
   });
 
   final bool isMetric;
@@ -15,6 +16,7 @@ class ControllerConfiguration {
   final int rallyTimeOffsetSeconds;
   final double bumpAmount;
   final bool bumpRequireDoubleTap;
+  final bool sensorFusionEnabled;
 
   Map<String, dynamic> toJson() => {
         'isMetric': isMetric,
@@ -23,6 +25,7 @@ class ControllerConfiguration {
         'rallyTimeOffsetSeconds': rallyTimeOffsetSeconds,
         'bumpAmount': bumpAmount,
         'bumpRequireDoubleTap': bumpRequireDoubleTap,
+        'sensorFusionEnabled': sensorFusionEnabled,
       };
 
   factory ControllerConfiguration.fromJson(Map<String, dynamic> json) =>
@@ -34,5 +37,6 @@ class ControllerConfiguration {
         rallyTimeOffsetSeconds: json['rallyTimeOffsetSeconds'] as int? ?? 0,
         bumpAmount: (json['bumpAmount'] as num?)?.toDouble() ?? 0.010,
         bumpRequireDoubleTap: json['bumpRequireDoubleTap'] as bool? ?? false,
+        sensorFusionEnabled: json['sensorFusionEnabled'] as bool? ?? true,
       );
 }

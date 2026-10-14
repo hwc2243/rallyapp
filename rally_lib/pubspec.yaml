@@ -17,6 +17,7 @@ dependencies:
   ble_peripheral: ^2.4.0
   shared_preferences: ^2.2.3
   wakelock_plus: ^1.2.5
+  sensors_plus: ^6.1.1
 
 dev_dependencies:
   flutter_test:

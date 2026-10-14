@@ -78,6 +78,9 @@ class _RallyOdometerAppState extends ConsumerState<RallyOdometerApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Starts only after Flutter has installed its platform binding. The
+    // odometer provider deliberately stays platform-neutral for service tests.
+    ref.read(sensorFusionServiceProvider).start();
   }
 
   @override
