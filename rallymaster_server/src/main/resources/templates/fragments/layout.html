@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en" xmlns:th="https://www.thymeleaf.org">
+<body>
+  <nav th:fragment="navbar" class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-semibold" th:href="@{/rally/list}">RallyMaster</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar"
+              aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="mainNavbar">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link" th:href="@{/rally/list}">Rallies</a></li>
+        </ul>
+        <div class="dropdown" th:if="${currentUser != null}">
+          <button class="btn btn-outline-light dropdown-toggle d-flex align-items-center gap-2" type="button"
+                  data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-person-circle" aria-hidden="true"></i>
+            <span th:text="${currentUser != null ? currentUser.firstName + ' ' + currentUser.lastName : 'Account'}">Account</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow">
+            <li><h6 class="dropdown-header">Organizations</h6></li>
+            <li th:each="organization : ${currentOrganizations}">
+              <form th:action="@{/signin/organization}" method="post">
+                <input type="hidden" name="organizationId" th:value="${organization.id}">
+                <button class="dropdown-item" type="submit"
+                        th:classappend="${currentOrganization != null and currentOrganization.id == organization.id} ? ' active'"
+                        th:text="${organization.name}">Organization</button>
+              </form>
+            </li>
+            <li th:if="${currentOrganizations == null or currentOrganizations.isEmpty()}">
+              <span class="dropdown-item-text text-body-secondary">No organizations</span>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" th:href="@{/signin/onboard}"><i class="bi bi-plus-lg me-2"></i>Add organization</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <form th:action="@{/logout}" method="post">
+                <button class="dropdown-item" type="submit"><i class="bi bi-box-arrow-right me-2"></i>Logout</button>
+              </form>
+            </li>
+          </ul>
+        </div>
+        <a class="btn btn-outline-light" th:if="${currentUser == null}"
+           th:href="@{/oauth2/authorization/keycloak}">Login</a>
+      </div>
+    </div>
+  </nav>
+</body>
+</html>

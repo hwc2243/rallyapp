@@ -1,0 +1,58 @@
+<service name="rallymaster" package="com.rallyapp.rallymaster" multitenant="true">
+
+	<tenant-discriminator name="organizationId" type="long" />
+
+	<entity name="organization" db-name="organization" persistence="true">
+		<attribute name="name" type="string" db-name="name" />
+		
+		<related name="memberships" relationship="one_to_many" entity="organizationMembership" collection="set" mapped-by="organization" />
+		
+		<finder unique="true">
+			<finder-attribute name="name"/>
+		</finder>
+		
+		<api>
+			<external operations="CREATE READ UPDATE DELETE" />
+		</api>
+	</entity>
+	
+	<entity name="organizationMembership" db-name="organization_membership" persistence="true" multitenant="true">
+		<attribute name="role" type="enum" enum-values="ADMIN,RALLYMASTER,VIEWER"/>
+
+		<related name="user" relationship="many_to_one" entity="user" key-only="true"/>
+		<related name="organization" relationship="many_to_one" entity="organization" key-only="true"/>
+
+		<finder tenant-scoped="false">
+			<finder-attribute name="user"/>
+		</finder>
+		
+		<api>
+			<external operations="CREATE READ UPDATE DELETE" />
+		</api>
+	</entity>
+	
+	<entity name="rally" db-name="rally" multitenant="true">
+		<attribute name="name" type="string"/>
+		<attribute name="description" type="string"/>
+		<attribute name="date" type="date"/>
+		
+		<related name="user" relationship="one_to_one" entity="user" key-only="true" />
+		
+		<api>
+			<external operations="CREATE READ UPDATE DELETE" />
+		</api>
+	</entity>
+	
+	<entity name="user" db-name="user_">
+		<attribute name="emailAddress" type="string"/>
+		<attribute name="firstName" type="string"/>
+		<attribute name="lastName" type="string"/>
+		
+		<related name="memberships" relationship="one_to_many" entity="organizationMembership" collection="set" mapped-by="user" />
+				
+		<finder unique="true">
+			<finder-attribute name="emailAddress"/>
+		</finder>
+	</entity>
+
+</service>
