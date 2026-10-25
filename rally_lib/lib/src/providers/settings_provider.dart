@@ -8,6 +8,7 @@ class OdometerSettings {
   final double bumpAmount;
   final bool bumpRequireDoubleTap;
   final bool sensorFusionEnabled;
+  final double sensorFusionAccuracyThresholdMeters;
   final int rallyTimeOffsetSeconds;
 
   OdometerSettings({
@@ -17,6 +18,7 @@ class OdometerSettings {
     required this.bumpAmount,
     required this.bumpRequireDoubleTap,
     required this.sensorFusionEnabled,
+    required this.sensorFusionAccuracyThresholdMeters,
     required this.rallyTimeOffsetSeconds,
   });
 
@@ -27,6 +29,7 @@ class OdometerSettings {
     double? bumpAmount,
     bool? bumpRequireDoubleTap,
     bool? sensorFusionEnabled,
+    double? sensorFusionAccuracyThresholdMeters,
     int? rallyTimeOffsetSeconds,
   }) {
     return OdometerSettings(
@@ -36,6 +39,9 @@ class OdometerSettings {
       bumpAmount: bumpAmount ?? this.bumpAmount,
       bumpRequireDoubleTap: bumpRequireDoubleTap ?? this.bumpRequireDoubleTap,
       sensorFusionEnabled: sensorFusionEnabled ?? this.sensorFusionEnabled,
+      sensorFusionAccuracyThresholdMeters:
+          sensorFusionAccuracyThresholdMeters ??
+              this.sensorFusionAccuracyThresholdMeters,
       rallyTimeOffsetSeconds:
           rallyTimeOffsetSeconds ?? this.rallyTimeOffsetSeconds,
     );
@@ -53,6 +59,8 @@ class SettingsNotifier extends Notifier<OdometerSettings> {
       bumpAmount: prefs.getDouble('bumpAmount') ?? 0.010,
       bumpRequireDoubleTap: prefs.getBool('bumpRequireDoubleTap') ?? false,
       sensorFusionEnabled: prefs.getBool('sensorFusionEnabled') ?? true,
+      sensorFusionAccuracyThresholdMeters:
+          prefs.getDouble('sensorFusionAccuracyThresholdMeters') ?? 30.0,
       rallyTimeOffsetSeconds: prefs.getInt('rallyTimeOffsetSeconds') ?? 0,
     );
   }
@@ -110,6 +118,12 @@ class SettingsNotifier extends Notifier<OdometerSettings> {
   void setSensorFusionEnabled(bool value) {
     state = state.copyWith(sensorFusionEnabled: value);
     _prefs.setBool('sensorFusionEnabled', value);
+  }
+
+  void setSensorFusionAccuracyThresholdMeters(double value) {
+    final threshold = value.clamp(1.0, 200.0).toDouble();
+    state = state.copyWith(sensorFusionAccuracyThresholdMeters: threshold);
+    _prefs.setDouble('sensorFusionAccuracyThresholdMeters', threshold);
   }
 
   void setRallyTimeOffset(Duration offset) {

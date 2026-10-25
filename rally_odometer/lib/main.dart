@@ -11,6 +11,7 @@ import 'screens/driver_dashboard_screen.dart';
 import 'screens/navigator_dashboard_screen.dart';
 import 'screens/role_selection_screen.dart';
 import 'providers/controller_display_view_provider.dart';
+import 'widgets/precision_drive_orientation_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -80,7 +81,12 @@ class _RallyOdometerAppState extends ConsumerState<RallyOdometerApp>
     WidgetsBinding.instance.addObserver(this);
     // Starts only after Flutter has installed its platform binding. The
     // odometer provider deliberately stays platform-neutral for service tests.
-    ref.read(sensorFusionServiceProvider).start();
+    final sensorFusion = ref.read(sensorFusionServiceProvider)..start();
+    if (ref.read(settingsProvider).sensorFusionEnabled) {
+      sensorFusion.requestCalibration();
+    } else {
+      sensorFusion.setEnabled(false);
+    }
   }
 
   @override
@@ -108,6 +114,9 @@ class _RallyOdometerAppState extends ConsumerState<RallyOdometerApp>
       title: 'Rally Odometer',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(brightness: Brightness.dark, primarySwatch: Colors.blue),
+      builder: (context, child) => PrecisionDriveOrientationGate(
+        child: child ?? const SizedBox.shrink(),
+      ),
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),

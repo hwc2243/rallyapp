@@ -141,6 +141,9 @@ class OdometerNotifier extends Notifier<OdometerState> {
       final settings = ref.read(settingsProvider);
       final sensorFusion = ref.read(sensorFusionServiceProvider);
       sensorFusion.setEnabled(settings.sensorFusionEnabled);
+      sensorFusion.setAssistanceAccuracyThresholdMeters(
+        settings.sensorFusionAccuracyThresholdMeters,
+      );
       final isSensorFusionActive = sensorFusion.isAssisting;
       final now = DateTime.now();
       final hasFreshGps = _lastGpsFixAt != null &&
@@ -209,6 +212,9 @@ class OdometerNotifier extends Notifier<OdometerState> {
     final settings = ref.read(settingsProvider);
     final sensorFusion = ref.read(sensorFusionServiceProvider);
     sensorFusion.setEnabled(settings.sensorFusionEnabled);
+    sensorFusion.setAssistanceAccuracyThresholdMeters(
+      settings.sensorFusionAccuracyThresholdMeters,
+    );
     sensorFusion.updateGps(position);
     final result = ref.read(locationServiceProvider).processGpsUpdate(
           lastPosition: _lastPosition,
