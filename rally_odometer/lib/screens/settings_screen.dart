@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
@@ -707,49 +708,77 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           onTap: () =>
                               Navigator.pushNamed(context, '/role-selection'),
                         ),
-                        SwitchListTile(
-                          title: const Text('PrecisionDrive Assist'),
-                          subtitle: Text(
-                            settings.sensorFusionEnabled
-                                ? 'Enhances distance continuity when GPS accuracy exceeds the engagement threshold'
-                                : 'GPS-only distance tracking',
-                          ),
-                          value: settings.sensorFusionEnabled,
-                          onChanged: (value) {
-                            if (_isRemoteDisplay) {
-                              _sendConfiguration(
-                                ControllerCommandOpcode.setSensorFusionEnabled,
-                                stringValue: value.toString(),
-                              );
-                            } else {
-                              ref
-                                  .read(settingsProvider.notifier)
-                                  .setSensorFusionEnabled(value);
-                            }
-                          },
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: _buildDialogField(
-                            controller: _precisionDriveAccuracyController,
-                            label: 'Engage when GPS accuracy exceeds (m)',
-                            onTap: _openPrecisionDriveAccuracyDialog,
-                            showUnderline: false,
-                          ),
-                        ),
-                        if (settings.sensorFusionEnabled)
+                        if (kDebugMode)
                           ListTile(
-                            contentPadding:
-                                const EdgeInsets.symmetric(horizontal: 16),
-                            title: const Text('Calibrate PrecisionDrive'),
+                            title: const Text('Testing Edition'),
                             subtitle: const Text(
-                              'Relearn the phone mount and vehicle direction',
+                              'Debug builds only — restart calibration after changing',
                             ),
-                            trailing: const Icon(Icons.tune),
-                            onTap: () => ref
-                                .read(sensorFusionServiceProvider)
-                                .requestCalibration(),
+                            trailing: DropdownButton<DebugEditionOverride>(
+                              value: settings.debugEditionOverride,
+                              onChanged: (edition) {
+                                if (edition != null) {
+                                  ref
+                                      .read(settingsProvider.notifier)
+                                      .setDebugEditionOverride(edition);
+                                }
+                              },
+                              items: const [
+                                DropdownMenuItem(
+                                  value: DebugEditionOverride.free,
+                                  child: Text('Free'),
+                                ),
+                                DropdownMenuItem(
+                                  value: DebugEditionOverride.precisionDrive,
+                                  child: Text('PrecisionDrive'),
+                                ),
+                              ],
+                            ),
                           ),
+                        if (settings.precisionDriveAvailable) ...[
+                          SwitchListTile(
+                            title: const Text('PrecisionDrive Assist'),
+                            subtitle: const Text(
+                              'Enhances distance continuity when GPS accuracy exceeds the engagement threshold',
+                            ),
+                            value: settings.sensorFusionEnabled,
+                            onChanged: (value) {
+                              if (_isRemoteDisplay) {
+                                _sendConfiguration(
+                                  ControllerCommandOpcode
+                                      .setSensorFusionEnabled,
+                                  stringValue: value.toString(),
+                                );
+                              } else {
+                                ref
+                                    .read(settingsProvider.notifier)
+                                    .setSensorFusionEnabled(value);
+                              }
+                            },
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: _buildDialogField(
+                              controller: _precisionDriveAccuracyController,
+                              label: 'Engage when GPS accuracy exceeds (m)',
+                              onTap: _openPrecisionDriveAccuracyDialog,
+                              showUnderline: false,
+                            ),
+                          ),
+                          if (settings.sensorFusionEnabled)
+                            ListTile(
+                              contentPadding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              title: const Text('Calibrate PrecisionDrive'),
+                              subtitle: const Text(
+                                'Relearn the phone mount and vehicle direction',
+                              ),
+                              trailing: const Icon(Icons.tune),
+                              onTap: () => ref
+                                  .read(sensorFusionServiceProvider)
+                                  .requestCalibration(),
+                            ),
+                        ],
                       ],
                     );
                   },

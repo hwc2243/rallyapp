@@ -14,6 +14,9 @@ class PrecisionDriveOrientationGate extends ConsumerWidget {
     final enabled = ref.watch(
       settingsProvider.select((settings) => settings.sensorFusionEnabled),
     );
+    final available = ref.watch(
+      settingsProvider.select((settings) => settings.precisionDriveAvailable),
+    );
     final isController = ref.watch(deviceRoleProvider) == DeviceRole.controller;
     final sensorFusion = ref.read(sensorFusionServiceProvider);
 
@@ -22,6 +25,7 @@ class PrecisionDriveOrientationGate extends ConsumerWidget {
       builder: (context, _) {
         final mountState = sensorFusion.orientation.value;
         final shouldShow = enabled &&
+            available &&
             isController &&
             mountState.status != PrecisionDriveOrientationStatus.idle &&
             mountState.needsCalibration;
@@ -69,15 +73,15 @@ class _PrecisionDriveOrientationScreen extends StatelessWidget {
       child: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final compact = constraints.maxHeight < 500;
+            final compact = constraints.maxHeight < 600;
             return SingleChildScrollView(
               padding: EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: compact ? 12 : 24,
+                horizontal: compact ? 20 : 24,
+                vertical: compact ? 8 : 24,
               ),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - (compact ? 24 : 48),
+                  minHeight: constraints.maxHeight - (compact ? 16 : 48),
                 ),
                 child: Center(
                   child: ConstrainedBox(
@@ -90,19 +94,19 @@ class _PrecisionDriveOrientationScreen extends StatelessWidget {
                           isStationary
                               ? Icons.sensors
                               : Icons.directions_car_filled,
-                          size: compact ? 92 : 132,
+                          size: compact ? 64 : 132,
                           color: const Color(0xFF55B7FF),
                         ),
-                        SizedBox(height: compact ? 12 : 24),
+                        SizedBox(height: compact ? 8 : 24),
                         Text(
                           'Calibrating PrecisionDrive Assist',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: compact ? 22 : 26,
+                            fontSize: compact ? 20 : 26,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        SizedBox(height: compact ? 6 : 12),
+                        SizedBox(height: compact ? 4 : 12),
                         Text(
                           isMountConfirmation
                               ? 'Mount the phone in its normal position, then press Continue.'
@@ -111,11 +115,11 @@ class _PrecisionDriveOrientationScreen extends StatelessWidget {
                                   : 'Drive forward in a straight line so PrecisionDrive can learn the vehicle direction.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: compact ? 17 : 19,
-                            height: 1.35,
+                            fontSize: compact ? 15 : 19,
+                            height: compact ? 1.2 : 1.35,
                           ),
                         ),
-                        SizedBox(height: compact ? 6 : 12),
+                        SizedBox(height: compact ? 4 : 12),
                         Text(
                           isMountConfirmation
                               ? 'Calibration uses this stationary mount position each time you drive.'
@@ -124,19 +128,25 @@ class _PrecisionDriveOrientationScreen extends StatelessWidget {
                                   : 'The calibration screen will close automatically when a GPS course is available.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: compact ? 14 : 15,
-                            height: 1.35,
+                            fontSize: compact ? 13 : 15,
+                            height: compact ? 1.2 : 1.35,
                             color: Colors.white.withValues(alpha: 0.72),
                           ),
                         ),
-                        SizedBox(height: compact ? 16 : 28),
+                        SizedBox(height: compact ? 10 : 28),
                         if (isMountConfirmation) ...[
                           FilledButton.icon(
                             onPressed: onContinue,
                             icon: const Icon(Icons.play_arrow),
                             label: const Text('Continue'),
+                            style: FilledButton.styleFrom(
+                              minimumSize: Size.fromHeight(compact ? 38 : 48),
+                              padding: EdgeInsets.symmetric(
+                                vertical: compact ? 8 : 12,
+                              ),
+                            ),
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: compact ? 6 : 12),
                         ],
                         OutlinedButton.icon(
                           onPressed: onDisable,
@@ -147,8 +157,9 @@ class _PrecisionDriveOrientationScreen extends StatelessWidget {
                             side: const BorderSide(color: Colors.white54),
                             padding: EdgeInsets.symmetric(
                               horizontal: 22,
-                              vertical: compact ? 10 : 14,
+                              vertical: compact ? 8 : 14,
                             ),
+                            minimumSize: Size.fromHeight(compact ? 38 : 48),
                           ),
                         ),
                       ],

@@ -140,7 +140,11 @@ class OdometerNotifier extends Notifier<OdometerState> {
       final locationService = ref.read(locationServiceProvider);
       final settings = ref.read(settingsProvider);
       final sensorFusion = ref.read(sensorFusionServiceProvider);
-      sensorFusion.setEnabled(settings.sensorFusionEnabled);
+      sensorFusion.setEnabled(
+        settings.sensorFusionEnabled && settings.precisionDriveAvailable,
+      );
+      sensorFusion.setLowSpeedAssistEnabled(settings.precisionDriveAvailable);
+      sensorFusion.setStationaryLocked(state.isStationaryLock);
       sensorFusion.setAssistanceAccuracyThresholdMeters(
         settings.sensorFusionAccuracyThresholdMeters,
       );
@@ -211,7 +215,10 @@ class OdometerNotifier extends Notifier<OdometerState> {
   void _onPositionUpdate(Position position) {
     final settings = ref.read(settingsProvider);
     final sensorFusion = ref.read(sensorFusionServiceProvider);
-    sensorFusion.setEnabled(settings.sensorFusionEnabled);
+    sensorFusion.setEnabled(
+      settings.sensorFusionEnabled && settings.precisionDriveAvailable,
+    );
+    sensorFusion.setLowSpeedAssistEnabled(settings.precisionDriveAvailable);
     sensorFusion.setAssistanceAccuracyThresholdMeters(
       settings.sensorFusionAccuracyThresholdMeters,
     );
@@ -221,6 +228,7 @@ class OdometerNotifier extends Notifier<OdometerState> {
           currentPosition: position,
           calibrationFactor: settings.calibrationFactor,
         );
+    sensorFusion.setStationaryLocked(result.isStationaryLock);
 
     state = state.copyWith(
       currentSpeed:

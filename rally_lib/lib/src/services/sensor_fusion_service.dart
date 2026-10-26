@@ -49,6 +49,8 @@ class PrecisionDriveOrientationState {
 /// sensor sample is present and the latest GPS horizontal accuracy is > 30 m.
 class SensorFusionService {
   static const double defaultAssistanceAccuracyThresholdMeters = 30.0;
+  static const double creepAssistMaximumSpeedMetersPerSecond = 2.2352;
+  static const double creepAssistMinimumSpeedMetersPerSecond = 0.3;
   static const Duration _sensorFreshness = Duration(seconds: 1);
   static const double _maxPredictionStepSeconds = 0.1;
   static const double _maxAccelerationMetersPerSecondSquared = 8.0;
@@ -60,6 +62,9 @@ class SensorFusionService {
 
   bool _started = false;
   bool _enabled = true;
+  bool _lowSpeedAssistEnabled = false;
+  bool _stationaryLocked = false;
+  double _latestGpsSpeed = 0.0;
   PrecisionDriveMountOrientation _mountOrientation =
       PrecisionDriveMountOrientation.upright;
   DateTime? _stationaryCalibrationStartedAt;
@@ -187,6 +192,16 @@ class SensorFusionService {
     _refreshAssistance();
   }
 
+  void setLowSpeedAssistEnabled(bool enabled) {
+    _lowSpeedAssistEnabled = enabled;
+    _refreshAssistance();
+  }
+
+  void setStationaryLocked(bool locked) {
+    _stationaryLocked = locked;
+    _refreshAssistance();
+  }
+
   bool get isAssisting {
     _refreshAssistance();
     return _wasAssisting;
@@ -200,6 +215,7 @@ class SensorFusionService {
     final timestamp = now ?? DateTime.now();
     _predict(timestamp);
     _latestGpsAccuracy = position.accuracy;
+    _latestGpsSpeed = position.speed;
     final gpsHeading = _gpsHeading(position);
     if (gpsHeading != null) {}
     if (orientation.value.status ==
@@ -371,7 +387,11 @@ class SensorFusionService {
         orientation.value.isMountedCorrectly &&
         _hasState &&
         sensorIsFresh &&
-        _latestGpsAccuracy > _assistanceAccuracyThresholdMeters;
+        !_stationaryLocked &&
+        (_latestGpsAccuracy > _assistanceAccuracyThresholdMeters ||
+            (_lowSpeedAssistEnabled &&
+                _latestGpsSpeed >= creepAssistMinimumSpeedMetersPerSecond &&
+                _latestGpsSpeed <= creepAssistMaximumSpeedMetersPerSecond));
     if (shouldAssist != _wasAssisting) {
       _pendingDistanceMeters = 0.0;
       _wasAssisting = shouldAssist;

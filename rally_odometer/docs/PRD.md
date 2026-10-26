@@ -82,6 +82,40 @@ The application supports three operational modes selected via Settings[cite: 7]:
   - Displays "N/A" when bearing is uninitialized[cite: 6, 7].
   - Displays helper message: *"Data will be available when motion is detected."* when bearing is unavailable[cite: 6, 7].
 
+## PrecisionDrive Assist
+
+PrecisionDrive Assist is an optional, premium distance-continuity feature. It
+uses calibrated phone inertial sensors together with GPS; it is not a
+replacement for GPS.
+
+- **Availability:** The Free edition uses GPS-only distance handling. The
+  PrecisionDrive edition exposes PrecisionDrive controls and may use the IMU.
+  A debug-build-only Testing Edition override supports testing both editions on
+  one installed development app; this is not the eventual production purchase
+  entitlement.
+- **Engagement:** The user may enable PrecisionDrive and choose the GPS
+  horizontal-accuracy engagement threshold, defaulting to 30 m. Assistance is
+  eligible when reported GPS accuracy exceeds that threshold, or during the
+  paid-only low-speed creep range.
+- **Creep assist:** After successful calibration, PrecisionDrive may assist at
+  0.3–2.2352 m/s (approximately 0.7–5 mph). It must not accumulate IMU-only
+  distance while the stationary lock is active.
+- **Calibration triggers:** Calibration starts only when the app launches with
+  PrecisionDrive already enabled or when the user selects **Calibrate
+  PrecisionDrive** in Settings. Enabling the switch later must not silently
+  launch calibration.
+- **Calibration flow:** The full-screen calibration experience first asks the
+  user to mount the phone and press **Continue**. It then captures a short
+  stationary baseline and asks the driver to proceed straight until GPS course
+  is available. Every calibration stage includes **Disable PrecisionDrive
+  Assist**.
+- **Mount handling:** There is no user mount selector. Calibration infers the
+  fixed mount orientation from the stationary gravity vector and establishes
+  the vehicle-forward direction from the first valid forward GPS course.
+- **Settings:** When the premium capability is available, Device Settings
+  includes PrecisionDrive Assist, the engagement-accuracy entry, and the
+  manual calibration action. Free-mode settings do not expose these controls.
+
 ## Viewport Safety & Render Continuity
 - **Overflow Immunity:** All UI views (Dashboard, Settings, Details) must dynamically adapt to landscape mobile viewports without `RenderFlex` overflow errors[cite: 6, 7].
 - **Scroll Support:** Secondary screens must support vertical scrolling if content exceeds viewport boundaries[cite: 6, 7].

@@ -82,7 +82,8 @@ class _RallyOdometerAppState extends ConsumerState<RallyOdometerApp>
     // Starts only after Flutter has installed its platform binding. The
     // odometer provider deliberately stays platform-neutral for service tests.
     final sensorFusion = ref.read(sensorFusionServiceProvider)..start();
-    if (ref.read(settingsProvider).sensorFusionEnabled) {
+    final settings = ref.read(settingsProvider);
+    if (settings.sensorFusionEnabled && settings.precisionDriveAvailable) {
       sensorFusion.requestCalibration();
     } else {
       sensorFusion.setEnabled(false);
