@@ -6,9 +6,9 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
-/** Local bootstrap configuration. Production must enable the keycloak profile. */
+/** Permissive fallback used only when no named security profile is active. */
 @Configuration
-@Profile("!keycloak")
+@Profile("!local & !production & !keycloak")
 public class DevelopmentSecurityConfiguration {
 
 	@Bean

@@ -26,7 +26,7 @@ public class LocalSecurityConfiguration {
 			KeycloakLogoutHandler keycloakLogoutHandler) throws Exception {
 		return http
 				.authorizeHttpRequests(authorize -> authorize
-						.requestMatchers("/", "/signup", "/actuator/health").permitAll()
+						.requestMatchers("/", "/signup", "/privacy", "/actuator/health").permitAll()
 						.anyRequest().authenticated())
 				.oauth2Login(oauth2 -> oauth2
 						.authorizationEndpoint(endpoint -> endpoint.authorizationRequestResolver(authorizationRequestResolver)))
