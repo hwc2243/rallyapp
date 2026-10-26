@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Rally Odometer</string>
+	<string>RallyMaster Odometer</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -52,11 +52,11 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Your location is used to precisely calculate odometer distance and track your rally progress while the app is active.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Rally Odometer requires continuous location access to maintain accurate distance tracking even when the screen is off or you're using other apps during a rally.</string>
+	<string>RallyMaster Odometer requires continuous location access to maintain accurate distance tracking even when the screen is off or you're using other apps during a rally.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Rally Odometer requires continuous location access to maintain accurate distance tracking even when the screen is off or you're using other apps during a rally.</string>
+	<string>RallyMaster Odometer requires continuous location access to maintain accurate distance tracking even when the screen is off or you're using other apps during a rally.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Rally Odometer uses Bluetooth to broadcast Controller telemetry and connect Driver and Navigator devices.</string>
+	<string>RallyMaster Odometer uses Bluetooth to broadcast Controller telemetry and connect Driver and Navigator devices.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>

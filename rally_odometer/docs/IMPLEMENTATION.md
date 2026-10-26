@@ -1,4 +1,4 @@
-# Implementation Plan: Rally Odometer App (`rally_odometer`)
+# Implementation Plan: RallyMaster Odometer App (`rally_odometer`)
 
 ## Technical Stack & Dependencies
 - **UI Framework:** Flutter (Forced landscape orientation)[cite: 10, 12].

@@ -1,4 +1,4 @@
-# Product Requirement Document: Rally Odometer (`rally_odometer`)
+# Product Requirement Document: RallyMaster Odometer (`rally_odometer`)
 
 ## Application Overview
 A high-precision, user-facing Flutter application for TSD Rallying powered by `rally_lib`[cite: 6, 7].

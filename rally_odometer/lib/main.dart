@@ -112,7 +112,7 @@ class _RallyOdometerAppState extends ConsumerState<RallyOdometerApp>
     ref.watch(controllerBlePublisherProvider);
     ref.watch(controllerCommandDispatcherProvider);
     return MaterialApp(
-      title: 'Rally Odometer',
+      title: 'RallyMaster Odometer',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(brightness: Brightness.dark, primarySwatch: Colors.blue),
       builder: (context, child) => PrecisionDriveOrientationGate(

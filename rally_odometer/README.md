@@ -1,4 +1,4 @@
-# rally_odometer
+# RallyMaster Odometer
 
 A new Flutter project.
 

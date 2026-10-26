@@ -1,4 +1,4 @@
-# Design Specification: Rally Odometer
+# Design Specification: RallyMaster Odometer
 
 ## Visual Hierarchy & Typography
 - **Orientation:** Locked to Landscape Mode[cite: 6, 7].
