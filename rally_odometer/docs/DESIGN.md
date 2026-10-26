@@ -1,4 +1,4 @@
-# Design Specification: Rally Odometer
+# Design Specification: RallyMaster Odometer
 
 ## Visual Hierarchy & Typography
 - **Orientation:** Locked to Landscape Mode[cite: 6, 7].
@@ -87,6 +87,49 @@ Divided into two side-by-side vertical stacks[cite: 10]:
 
 ## Low-Speed Rendering
 - Mileage updates at low speed (e.g., walking speed) must increment smoothly without numerical flicker, horizontal layout shifting, or regression[cite: 6].
+
+## PrecisionDrive Calibration and Creep Assist
+
+### Calibration Screen
+- PrecisionDrive uses a full-screen, safe-area-aware calibration gate rather
+  than a small dashboard badge. The content is compact and scrollable on short
+  landscape iPhone viewports.
+- The initial state displays **Calibrating PrecisionDrive Assist**, instructs
+  the user to mount the phone, and provides **Continue** and **Disable
+  PrecisionDrive Assist** actions.
+- The stationary state explains that the vehicle must remain still while the
+  app learns the fixed phone orientation. The drive-forward state asks for a
+  straight drive until a valid GPS course is observed. Disable remains
+  available in both states.
+- The gate is displayed only for the local Controller engine and only for a
+  requested calibration. It does not appear merely because the user toggled
+  PrecisionDrive on.
+
+### Mount and Sensor Model
+- The stationary gravity sample identifies the dominant device-up axis and
+  selects the internal upright-landscape or flat sensor mapping. The UI does
+  not expose a mount choice.
+- A short stationary sample also establishes gyroscope drift bias.
+- The first valid moving GPS course completes calibration and establishes the
+  vehicle-forward reference. PrecisionDrive is unavailable for distance
+  assistance until this stage completes.
+
+### Low-Speed State Design
+- The stationary lock remains the authority for declaring the vehicle stopped;
+  it prevents both GPS and IMU interpolation from accumulating phantom
+  mileage.
+- In the calibrated PrecisionDrive edition, creep assist is eligible below
+  5 mph but above 0.3 m/s. GPS displacement confirmation and the stationary
+  lock continue to protect against low-speed GPS jitter.
+- Above the creep range, normal GPS-led tracking applies. PrecisionDrive also
+  bridges short periods in which GPS horizontal accuracy exceeds the configured
+  engagement threshold.
+
+### Debug Edition Preview
+- Debug builds show a Testing Edition selector in Device Settings with
+  **Free** and **PrecisionDrive** choices. Free hides PrecisionDrive controls
+  and disables the sensor-fusion engine. This is test infrastructure only;
+  production licensing will replace it with an entitlement source.
 
 ## Button Layout & Interaction (Navigator View)
 - **Control Column:** Far right column (~15% screen width)[cite: 6].

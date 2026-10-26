@@ -67,6 +67,7 @@ class _NavigatorDashboardScreenState
         case ControllerCommandOpcode.setBumpRequireDoubleTap:
         case ControllerCommandOpcode.setRallyTimeOffset:
         case ControllerCommandOpcode.setSensorFusionEnabled:
+        case ControllerCommandOpcode.setSensorFusionAccuracyThresholdMeters:
           break;
       }
       return;

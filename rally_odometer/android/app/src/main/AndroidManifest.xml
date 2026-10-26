@@ -15,7 +15,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
     <application
-        android:label="Rally Odometer"
+        android:label="RallyMaster Odometer"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
@@ -19,6 +20,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _factorController;
   late final TextEditingController _measuredController;
   late final TextEditingController _bumpController;
+  late final TextEditingController _precisionDriveAccuracyController;
   late final Future<bool> _gpsHardwareReady;
   CalibrationEntryMode _entryMode = CalibrationEntryMode.direct;
 
@@ -33,6 +35,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _bumpController = TextEditingController(
       text: settings.bumpAmount.toStringAsFixed(3),
     );
+    _precisionDriveAccuracyController = TextEditingController(
+      text: settings.sensorFusionAccuracyThresholdMeters.toStringAsFixed(0),
+    );
     _gpsHardwareReady = ref.read(locationServiceProvider).isHardwareReady();
   }
 
@@ -41,6 +46,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _factorController.dispose();
     _measuredController.dispose();
     _bumpController.dispose();
+    _precisionDriveAccuracyController.dispose();
     super.dispose();
   }
 
@@ -121,6 +127,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _entryMode = CalibrationEntryMode.measured;
       _measuredController.text = measured.toStringAsFixed(3);
     });
+  }
+
+  Future<void> _openPrecisionDriveAccuracyDialog() async {
+    final threshold = await showDialog<double>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => MileageEntryDialog(
+        initialValue: _precisionDriveAccuracyController.text,
+        title: 'PRECISIONDRIVE ENGAGEMENT ACCURACY (M)',
+        decimalPlaces: 0,
+        maxDigitsBeforeDecimal: 3,
+      ),
+    );
+    if (threshold == null) return;
+
+    if (_isRemoteDisplay) {
+      await _sendConfiguration(
+        ControllerCommandOpcode.setSensorFusionAccuracyThresholdMeters,
+        numericValue: threshold,
+      );
+    } else {
+      ref
+          .read(settingsProvider.notifier)
+          .setSensorFusionAccuracyThresholdMeters(threshold);
+    }
+    _precisionDriveAccuracyController.text =
+        threshold.clamp(1.0, 200.0).toStringAsFixed(0);
   }
 
   Future<void> _openBumpAmountDialog() async {
@@ -385,6 +418,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final isSelected = _entryMode == mode;
     return IconButton(
       onPressed: () => _setEntryMode(mode),
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+      visualDensity: VisualDensity.compact,
       icon: Icon(
         isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
       ),
@@ -400,6 +436,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required String label,
     required VoidCallback onTap,
     Widget? trailing,
+    bool showUnderline = true,
   }) {
     return Row(
       children: [
@@ -412,6 +449,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             decoration: InputDecoration(
               labelText: label,
               suffixIcon: const Icon(Icons.dialpad),
+              border: showUnderline ? null : InputBorder.none,
             ),
           ),
         ),
@@ -443,6 +481,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (_bumpController.text != bumpText) {
       _bumpController.text = bumpText;
     }
+    final precisionDriveAccuracyText =
+        settings.sensorFusionAccuracyThresholdMeters.toStringAsFixed(0);
+    if (_precisionDriveAccuracyController.text != precisionDriveAccuracyText) {
+      _precisionDriveAccuracyController.text = precisionDriveAccuracyText;
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -454,6 +497,123 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Calibration Factor',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Current app mileage: ${currentAppDistance.toStringAsFixed(3)} ${settings.isMetric ? 'KM' : 'MI'}',
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          _buildModeToggle(CalibrationEntryMode.direct),
+                          const SizedBox(width: 8),
+                          const SizedBox(
+                            width: 150,
+                            child: Text('Direct Entry'),
+                          ),
+                          Expanded(
+                            child: _buildDialogField(
+                              controller: _factorController,
+                              label: 'Calibration Factor',
+                              onTap: _openDirectFactorDialog,
+                              showUnderline: false,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          _buildModeToggle(CalibrationEntryMode.measured),
+                          const SizedBox(width: 8),
+                          const SizedBox(
+                            width: 150,
+                            child: Text('Measured Mileage Entry'),
+                          ),
+                          Expanded(
+                            child: _buildDialogField(
+                              controller: _measuredController,
+                              label:
+                                  'Measured Mileage (${settings.isMetric ? 'KM' : 'MI'})',
+                              onTap: _openMeasuredMileageDialog,
+                              showUnderline: false,
+                              trailing: ElevatedButton(
+                                onPressed:
+                                    _entryMode == CalibrationEntryMode.measured
+                                        ? _calculateFactor
+                                        : null,
+                                child: const Text('Calculate'),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Bump Increment',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildDialogField(
+                        controller: _bumpController,
+                        label:
+                            'Bump Amount (${settings.isMetric ? 'KM' : 'MI'})',
+                        onTap: _openBumpAmountDialog,
+                        showUnderline: false,
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Require Double-Tap for Bumps'),
+                        subtitle: Text(
+                          settings.bumpRequireDoubleTap
+                              ? 'Bump buttons trigger on double-tap'
+                              : 'Bump buttons trigger on single-tap',
+                        ),
+                        value: settings.bumpRequireDoubleTap,
+                        onChanged: (_) {
+                          if (_isRemoteDisplay) {
+                            _sendConfiguration(
+                              ControllerCommandOpcode.setBumpRequireDoubleTap,
+                              stringValue:
+                                  (!settings.bumpRequireDoubleTap).toString(),
+                            );
+                          } else {
+                            ref
+                                .read(settingsProvider.notifier)
+                                .toggleBumpRequireDoubleTap();
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 10),
                 const Text(
                   'Display Settings',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -507,8 +667,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   'Device Settings',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
-                const SizedBox(height: 8),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 SegmentedButton<ControllerDisplayView>(
                   segments: const [
                     ButtonSegment(
@@ -542,7 +701,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     return Column(
                       children: [
                         const SizedBox(height: 20),
-                        const Divider(),
                         ListTile(
                           title: const Text('Bluetooth'),
                           subtitle: const Text('Controller broadcast settings'),
@@ -550,143 +708,80 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           onTap: () =>
                               Navigator.pushNamed(context, '/role-selection'),
                         ),
-                        SwitchListTile(
-                          title: const Text('Sensor-Assisted GPS'),
-                          subtitle: Text(
-                            settings.sensorFusionEnabled
-                                ? 'Uses IMU and compass when GPS accuracy exceeds 30 m'
-                                : 'GPS-only distance tracking',
+                        if (kDebugMode)
+                          ListTile(
+                            title: const Text('Testing Edition'),
+                            subtitle: const Text(
+                              'Debug builds only — restart calibration after changing',
+                            ),
+                            trailing: DropdownButton<DebugEditionOverride>(
+                              value: settings.debugEditionOverride,
+                              onChanged: (edition) {
+                                if (edition != null) {
+                                  ref
+                                      .read(settingsProvider.notifier)
+                                      .setDebugEditionOverride(edition);
+                                }
+                              },
+                              items: const [
+                                DropdownMenuItem(
+                                  value: DebugEditionOverride.free,
+                                  child: Text('Free'),
+                                ),
+                                DropdownMenuItem(
+                                  value: DebugEditionOverride.precisionDrive,
+                                  child: Text('PrecisionDrive'),
+                                ),
+                              ],
+                            ),
                           ),
-                          value: settings.sensorFusionEnabled,
-                          onChanged: (value) {
-                            if (_isRemoteDisplay) {
-                              _sendConfiguration(
-                                ControllerCommandOpcode.setSensorFusionEnabled,
-                                stringValue: value.toString(),
-                              );
-                            } else {
-                              ref
-                                  .read(settingsProvider.notifier)
-                                  .setSensorFusionEnabled(value);
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                        const Divider(),
+                        if (settings.precisionDriveAvailable) ...[
+                          SwitchListTile(
+                            title: const Text('PrecisionDrive Assist'),
+                            subtitle: const Text(
+                              'Enhances distance continuity when GPS accuracy exceeds the engagement threshold',
+                            ),
+                            value: settings.sensorFusionEnabled,
+                            onChanged: (value) {
+                              if (_isRemoteDisplay) {
+                                _sendConfiguration(
+                                  ControllerCommandOpcode
+                                      .setSensorFusionEnabled,
+                                  stringValue: value.toString(),
+                                );
+                              } else {
+                                ref
+                                    .read(settingsProvider.notifier)
+                                    .setSensorFusionEnabled(value);
+                              }
+                            },
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: _buildDialogField(
+                              controller: _precisionDriveAccuracyController,
+                              label: 'Engage when GPS accuracy exceeds (m)',
+                              onTap: _openPrecisionDriveAccuracyDialog,
+                              showUnderline: false,
+                            ),
+                          ),
+                          if (settings.sensorFusionEnabled)
+                            ListTile(
+                              contentPadding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              title: const Text('Calibrate PrecisionDrive'),
+                              subtitle: const Text(
+                                'Relearn the phone mount and vehicle direction',
+                              ),
+                              trailing: const Icon(Icons.tune),
+                              onTap: () => ref
+                                  .read(sensorFusionServiceProvider)
+                                  .requestCalibration(),
+                            ),
+                        ],
                       ],
                     );
                   },
-                ),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Bump Increment',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _buildDialogField(
-                        controller: _bumpController,
-                        label:
-                            'Bump Amount (${settings.isMetric ? 'KM' : 'MI'})',
-                        onTap: _openBumpAmountDialog,
-                      ),
-                      SwitchListTile(
-                        title: const Text('Require Double-Tap for Bumps'),
-                        subtitle: Text(
-                          settings.bumpRequireDoubleTap
-                              ? 'Bump buttons trigger on double-tap'
-                              : 'Bump buttons trigger on single-tap',
-                        ),
-                        value: settings.bumpRequireDoubleTap,
-                        onChanged: (_) {
-                          if (_isRemoteDisplay) {
-                            _sendConfiguration(
-                              ControllerCommandOpcode.setBumpRequireDoubleTap,
-                              stringValue:
-                                  (!settings.bumpRequireDoubleTap).toString(),
-                            );
-                          } else {
-                            ref
-                                .read(settingsProvider.notifier)
-                                .toggleBumpRequireDoubleTap();
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Divider(),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        'Calibration Factor',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Current app mileage: ${currentAppDistance.toStringAsFixed(3)} ${settings.isMetric ? 'KM' : 'MI'}',
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          _buildModeToggle(CalibrationEntryMode.direct),
-                          const SizedBox(width: 8),
-                          const SizedBox(
-                            width: 150,
-                            child: Text('Direct Entry'),
-                          ),
-                          Expanded(
-                            child: _buildDialogField(
-                              controller: _factorController,
-                              label: 'Calibration Factor',
-                              onTap: _openDirectFactorDialog,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          _buildModeToggle(CalibrationEntryMode.measured),
-                          const SizedBox(width: 8),
-                          const SizedBox(
-                            width: 150,
-                            child: Text('Measure Mileage Entry'),
-                          ),
-                          Expanded(
-                            child: _buildDialogField(
-                              controller: _measuredController,
-                              label:
-                                  'Measured Mileage (${settings.isMetric ? 'KM' : 'MI'})',
-                              onTap: _openMeasuredMileageDialog,
-                              trailing: ElevatedButton(
-                                onPressed:
-                                    _entryMode == CalibrationEntryMode.measured
-                                        ? _calculateFactor
-                                        : null,
-                                child: const Text('Calculate'),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),

@@ -1,4 +1,4 @@
-# Implementation Plan: Rally Odometer App (`rally_odometer`)
+# Implementation Plan: RallyMaster Odometer App (`rally_odometer`)
 
 ## Technical Stack & Dependencies
 - **UI Framework:** Flutter (Forced landscape orientation)[cite: 10, 12].
@@ -132,3 +132,47 @@ Split vertically into two sub-columns[cite: 10, 11]:
 
 ### Viewport Safety
 - Secondary screens (`DetailsScreen`, `SettingsScreen`) wrapped in `SafeArea` and `SingleChildScrollView` to prevent `RenderFlex` overflow errors on landscape mobile viewports[cite: 10, 11, 12].
+
+## PrecisionDrive Implementation
+
+### Configuration and Capability Gate
+- `OdometerSettings` persists `sensorFusionEnabled` and
+  `sensorFusionAccuracyThresholdMeters` (default 30 m).
+- `DebugEditionOverride` is persisted for development builds with `free` and
+  `precisionDrive` values. `precisionDriveAvailable` gates both the UI and the
+  sensor-fusion service. Release builds currently retain the existing
+  PrecisionDrive availability until production entitlement handling is added.
+- `SettingsScreen` renders the Testing Edition selector only when `kDebugMode`
+  is true. PrecisionDrive controls are rendered only when the capability is
+  available.
+
+### Calibration Lifecycle
+- `RallyOdometerApp.initState` starts `SensorFusionService` and calls
+  `requestCalibration()` only if PrecisionDrive is already enabled and
+  available at launch.
+- `PrecisionDriveOrientationGate` observes the service `ValueNotifier` and
+  renders the calibration screen for `awaitingConfirmation`,
+  `calibratingStationary`, and `needsDriveForward` states. `idle` does not
+  render a gate.
+- `beginCalibration()` collects at least two seconds and twenty gravity
+  samples, determines the dominant gravity axis, and averages gyroscope data
+  for drift compensation. A valid moving GPS course completes the calibration
+  state.
+- The Settings **Calibrate PrecisionDrive** action calls `requestCalibration()`.
+  Toggling the enable switch does not do so.
+
+### Distance Assistance Rules
+- `SensorFusionService` requires enabled state, completed calibration, a fresh
+  sensor sample, and no stationary lock before reporting assistance.
+- GPS-degradation engagement occurs when reported horizontal accuracy exceeds
+  the configured threshold.
+- Paid creep-assist engagement additionally occurs when GPS speed is between
+  `0.3` and `2.2352` m/s (approximately 0.7–5 mph).
+- `OdometerNotifier` supplies the capability gate and
+  `GpsSyncResult.isStationaryLock` to the service; the service evaluates the
+  latest GPS speed for creep eligibility. The interpolation loop also refuses
+  to add distance while `isStationaryLock` is true.
+- `LocationService` retains its GPS low-speed safeguards: a three-position
+  displacement window, 0.2 m movement threshold, stationary lock below
+  0.8 m/s for three seconds, and unlock above 1.2 m/s or after repeated
+  confirmed low-speed movement.

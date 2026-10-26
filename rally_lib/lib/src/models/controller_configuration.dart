@@ -8,6 +8,7 @@ class ControllerConfiguration {
     required this.bumpAmount,
     required this.bumpRequireDoubleTap,
     required this.sensorFusionEnabled,
+    required this.sensorFusionAccuracyThresholdMeters,
   });
 
   final bool isMetric;
@@ -17,6 +18,7 @@ class ControllerConfiguration {
   final double bumpAmount;
   final bool bumpRequireDoubleTap;
   final bool sensorFusionEnabled;
+  final double sensorFusionAccuracyThresholdMeters;
 
   Map<String, dynamic> toJson() => {
         'isMetric': isMetric,
@@ -26,6 +28,8 @@ class ControllerConfiguration {
         'bumpAmount': bumpAmount,
         'bumpRequireDoubleTap': bumpRequireDoubleTap,
         'sensorFusionEnabled': sensorFusionEnabled,
+        'sensorFusionAccuracyThresholdMeters':
+            sensorFusionAccuracyThresholdMeters,
       };
 
   factory ControllerConfiguration.fromJson(Map<String, dynamic> json) =>
@@ -38,5 +42,8 @@ class ControllerConfiguration {
         bumpAmount: (json['bumpAmount'] as num?)?.toDouble() ?? 0.010,
         bumpRequireDoubleTap: json['bumpRequireDoubleTap'] as bool? ?? false,
         sensorFusionEnabled: json['sensorFusionEnabled'] as bool? ?? true,
+        sensorFusionAccuracyThresholdMeters:
+            (json['sensorFusionAccuracyThresholdMeters'] as num?)?.toDouble() ??
+                30.0,
       );
 }

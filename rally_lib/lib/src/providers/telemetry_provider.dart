@@ -51,6 +51,8 @@ class LiveTelemetryNotifier extends Notifier<LiveTelemetry> {
         bumpAmount: settings.bumpAmount,
         bumpRequireDoubleTap: settings.bumpRequireDoubleTap,
         sensorFusionEnabled: settings.sensorFusionEnabled,
+        sensorFusionAccuracyThresholdMeters:
+            settings.sensorFusionAccuracyThresholdMeters,
       ),
       isNavigatorDisplayHeld: navigatorHold.isHeld,
       navigatorHeldTotalDistance: navigatorHold.heldTotalDistance,

@@ -14,6 +14,7 @@ enum ControllerCommandOpcode {
   setBumpRequireDoubleTap,
   setRallyTimeOffset,
   setSensorFusionEnabled,
+  setSensorFusionAccuracyThresholdMeters,
 }
 
 /// A command issued by a Navigator for execution by the Controller.

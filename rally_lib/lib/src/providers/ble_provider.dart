@@ -62,6 +62,8 @@ final displaySettingsProvider = Provider<OdometerSettings>((ref) {
     bumpAmount: remoteSettings.bumpAmount,
     bumpRequireDoubleTap: remoteSettings.bumpRequireDoubleTap,
     sensorFusionEnabled: remoteSettings.sensorFusionEnabled,
+    sensorFusionAccuracyThresholdMeters:
+        remoteSettings.sensorFusionAccuracyThresholdMeters,
     rallyTimeOffsetSeconds: remoteSettings.rallyTimeOffsetSeconds,
   );
 });
@@ -168,6 +170,12 @@ final controllerCommandDispatcherProvider = Provider<void>((ref) {
           ref
               .read(settingsProvider.notifier)
               .setSensorFusionEnabled(command.stringValue == 'true');
+        }
+      case ControllerCommandOpcode.setSensorFusionAccuracyThresholdMeters:
+        if (command.numericValue != null) {
+          ref
+              .read(settingsProvider.notifier)
+              .setSensorFusionAccuracyThresholdMeters(command.numericValue!);
         }
     }
   });

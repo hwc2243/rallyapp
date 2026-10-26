@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+enum DebugEditionOverride { free, precisionDrive }
 
 class OdometerSettings {
   final bool isMetric;
@@ -8,6 +11,8 @@ class OdometerSettings {
   final double bumpAmount;
   final bool bumpRequireDoubleTap;
   final bool sensorFusionEnabled;
+  final DebugEditionOverride debugEditionOverride;
+  final double sensorFusionAccuracyThresholdMeters;
   final int rallyTimeOffsetSeconds;
 
   OdometerSettings({
@@ -17,6 +22,8 @@ class OdometerSettings {
     required this.bumpAmount,
     required this.bumpRequireDoubleTap,
     required this.sensorFusionEnabled,
+    required this.debugEditionOverride,
+    required this.sensorFusionAccuracyThresholdMeters,
     required this.rallyTimeOffsetSeconds,
   });
 
@@ -27,6 +34,8 @@ class OdometerSettings {
     double? bumpAmount,
     bool? bumpRequireDoubleTap,
     bool? sensorFusionEnabled,
+    DebugEditionOverride? debugEditionOverride,
+    double? sensorFusionAccuracyThresholdMeters,
     int? rallyTimeOffsetSeconds,
   }) {
     return OdometerSettings(
@@ -36,10 +45,18 @@ class OdometerSettings {
       bumpAmount: bumpAmount ?? this.bumpAmount,
       bumpRequireDoubleTap: bumpRequireDoubleTap ?? this.bumpRequireDoubleTap,
       sensorFusionEnabled: sensorFusionEnabled ?? this.sensorFusionEnabled,
+      debugEditionOverride: debugEditionOverride ?? this.debugEditionOverride,
+      sensorFusionAccuracyThresholdMeters:
+          sensorFusionAccuracyThresholdMeters ??
+              this.sensorFusionAccuracyThresholdMeters,
       rallyTimeOffsetSeconds:
           rallyTimeOffsetSeconds ?? this.rallyTimeOffsetSeconds,
     );
   }
+
+  bool get precisionDriveAvailable =>
+      !kDebugMode ||
+      debugEditionOverride == DebugEditionOverride.precisionDrive;
 }
 
 class SettingsNotifier extends Notifier<OdometerSettings> {
@@ -53,6 +70,12 @@ class SettingsNotifier extends Notifier<OdometerSettings> {
       bumpAmount: prefs.getDouble('bumpAmount') ?? 0.010,
       bumpRequireDoubleTap: prefs.getBool('bumpRequireDoubleTap') ?? false,
       sensorFusionEnabled: prefs.getBool('sensorFusionEnabled') ?? true,
+      debugEditionOverride: prefs.getString('debugEditionOverride') ==
+              DebugEditionOverride.free.name
+          ? DebugEditionOverride.free
+          : DebugEditionOverride.precisionDrive,
+      sensorFusionAccuracyThresholdMeters:
+          prefs.getDouble('sensorFusionAccuracyThresholdMeters') ?? 30.0,
       rallyTimeOffsetSeconds: prefs.getInt('rallyTimeOffsetSeconds') ?? 0,
     );
   }
@@ -110,6 +133,17 @@ class SettingsNotifier extends Notifier<OdometerSettings> {
   void setSensorFusionEnabled(bool value) {
     state = state.copyWith(sensorFusionEnabled: value);
     _prefs.setBool('sensorFusionEnabled', value);
+  }
+
+  void setDebugEditionOverride(DebugEditionOverride edition) {
+    state = state.copyWith(debugEditionOverride: edition);
+    _prefs.setString('debugEditionOverride', edition.name);
+  }
+
+  void setSensorFusionAccuracyThresholdMeters(double value) {
+    final threshold = value.clamp(1.0, 200.0).toDouble();
+    state = state.copyWith(sensorFusionAccuracyThresholdMeters: threshold);
+    _prefs.setDouble('sensorFusionAccuracyThresholdMeters', threshold);
   }
 
   void setRallyTimeOffset(Duration offset) {
