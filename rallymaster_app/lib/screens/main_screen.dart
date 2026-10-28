@@ -31,7 +31,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.session.organization.name)),
+    appBar: AppBar(title: Text(widget.session.organization.name ?? 'RallyMaster')),
     body: LayoutBuilder(
       builder: (context, constraints) {
         final portrait =

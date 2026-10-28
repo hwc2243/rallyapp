@@ -16,8 +16,10 @@ class AppSession {
   final RallyDto? rally;
 
   int get organizationId {
-    final id = organization.id;
-    if (id == null) throw StateError('The selected organization has no id.');
-    return id;
+    final serverId = organization.serverId;
+    if (serverId == null) {
+      throw StateError('The selected organization has no server id.');
+    }
+    return serverId;
   }
 }

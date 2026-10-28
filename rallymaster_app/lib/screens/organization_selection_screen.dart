@@ -76,7 +76,7 @@ class _OrganizationSelectionScreenState
                 return Card(
                   child: ListTile(
                     leading: const Icon(Icons.business),
-                    title: Text(organization.name),
+                    title: Text(organization.name ?? 'Unnamed organization'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => _selectOrganization(organization),
                   ),

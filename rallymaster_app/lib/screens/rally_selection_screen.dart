@@ -107,7 +107,7 @@ class _RallySelectionScreenState extends State<RallySelectionScreen> {
         return Card(
           child: ListTile(
             leading: const Icon(Icons.route),
-            title: Text(rally.name),
+            title: Text(rally.name ?? 'Unnamed rally'),
             subtitle: rally.description == null || rally.description!.isEmpty
                 ? null
                 : Text(rally.description!),

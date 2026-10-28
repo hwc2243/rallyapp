@@ -31,23 +31,23 @@ class RallyProvider {
   Future<RallyDto> createRally(RallyDto rally) async => _rallyFromResponse(
     await apiClient.post(
       '/api/external/rally',
-      body: rally.forOrganization(session.organizationId).toJson(),
+      body: rally.forOrganizationId(session.organizationId).toJson(),
     ),
   );
 
   Future<RallyDto> updateRally(RallyDto rally) async {
-    final id = rally.id;
-    if (id == null) {
+    final serverId = rally.serverId;
+    if (serverId == null) {
       throw ArgumentError.value(
         rally,
         'rally',
-        'An id is required to update a rally.',
+        'A server id is required to update a rally.',
       );
     }
     return _rallyFromResponse(
       await apiClient.put(
-        '/api/external/rally/$id',
-        body: rally.forOrganization(session.organizationId).toJson(),
+        '/api/external/rally/$serverId',
+        body: rally.forOrganizationId(session.organizationId).toJson(),
       ),
     );
   }

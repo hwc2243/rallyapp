@@ -24,7 +24,7 @@ class SetupScreen extends StatelessWidget {
               style: Theme.of(context).textTheme.titleSmall,
             ),
             Text(
-              session.organization.name,
+              session.organization.name ?? 'Unnamed organization',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 24),
@@ -32,7 +32,10 @@ class SetupScreen extends StatelessWidget {
               'Selected rally',
               style: Theme.of(context).textTheme.titleSmall,
             ),
-            Text(rally.name, style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              rally.name ?? 'Unnamed rally',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const Spacer(),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),

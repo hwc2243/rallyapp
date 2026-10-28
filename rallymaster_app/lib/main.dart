@@ -1,6 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_appauth/flutter_appauth.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:local_auth/local_auth.dart';
 
-void main() => runApp(const RallyMasterApp());
+import 'models/app_session.dart';
+import 'models/organization_dto.dart';
+import 'models/rally_dto.dart';
+import 'models/rally_setup_selection.dart';
+import 'models/user_dto.dart';
+import 'providers/external_api_client.dart';
+import 'providers/me_provider.dart';
+import 'screens/main_screen.dart';
+import 'screens/organization_selection_screen.dart';
+
+const _keycloakIssuer = String.fromEnvironment(
+  'KEYCLOAK_ISSUER',
+  defaultValue: 'https://login.connors.ddns.net/realms/rallymaster',
+);
+const _keycloakClientId = String.fromEnvironment(
+  'KEYCLOAK_CLIENT_ID',
+  defaultValue: 'rallymaster-mobile',
+);
+const _redirectUrl = 'com.rallyapp.rallymaster:/oauthredirect';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const RallyMasterApp());
+}
 
 class RallyMasterApp extends StatelessWidget {
   const RallyMasterApp({super.key});
@@ -10,56 +36,213 @@ class RallyMasterApp extends StatelessWidget {
     title: 'RallyMaster',
     debugShowCheckedModeBanner: false,
     theme: ThemeData(
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFFFF6B1A),
-        brightness: Brightness.dark,
-      ),
-      scaffoldBackgroundColor: const Color(0xFF071523),
+      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xffe56a24)),
       useMaterial3: true,
     ),
-    home: const WelcomeScreen(),
+    home: const AuthenticationGate(),
   );
 }
 
-class WelcomeScreen extends StatelessWidget {
-  const WelcomeScreen({super.key});
+class AuthenticationGate extends StatefulWidget {
+  const AuthenticationGate({super.key});
+
+  @override
+  State<AuthenticationGate> createState() => _AuthenticationGateState();
+}
+
+class _AuthenticationGateState extends State<AuthenticationGate> {
+  final _authentication = AuthenticationService();
+  String? _error;
+  bool _busy = true;
+  Future<void>? _authenticationAttempt;
+
+  @override
+  void initState() {
+    super.initState();
+    _authenticateAndLoadSession();
+  }
+
+  Future<void> _authenticateAndLoadSession() {
+    return _authenticationAttempt ??= _authenticateAndLoadSessionInternal()
+        .whenComplete(() => _authenticationAttempt = null);
+  }
+
+  Future<void> _authenticateAndLoadSessionInternal() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      if (!await _authentication.restoreSession()) {
+        await _authentication.signIn();
+      }
+
+      final apiClient = ExternalApiClient(
+        accessToken: _authentication.getAccessToken,
+      );
+      final meProvider = MeProvider(apiClient: apiClient);
+      final user = await meProvider.me();
+      final organizations = await meProvider.mine();
+
+      if (!mounted) return;
+      final selection = await Navigator.of(context).push<RallySetupSelection>(
+        MaterialPageRoute<RallySetupSelection>(
+          builder: (_) => OrganizationSelectionScreen(
+            user: user,
+            organizations: organizations,
+            accessToken: _authentication.getAccessToken,
+          ),
+        ),
+      );
+      if (selection != null && mounted) {
+        _openMainScreen(user, selection.organization, selection.rally);
+      }
+    } on FlutterAppAuthUserCancelledException {
+      if (mounted) {
+        setState(() => _error = 'Sign in was cancelled.');
+      }
+    } on BiometricAuthenticationCancelledException {
+      if (mounted) {
+        setState(() => _error = 'RallyMaster was not unlocked.');
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = 'Unable to start RallyMaster: $error');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  void _openMainScreen(
+    UserDto user,
+    OrganizationDto organization,
+    RallyDto rally,
+  ) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => MainScreen(
+          session: AppSession(
+            user: user,
+            organization: organization,
+            rally: rally,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     body: SafeArea(
       child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(28),
-              child: Image.asset(
-                'assets/rallymaster_logo.png',
-                width: 144,
-                height: 144,
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.route, size: 72),
+              const SizedBox(height: 16),
+              Text(
+                'RallyMaster',
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
-            ),
-            const SizedBox(height: 28),
-            const Text(
-              'RallyMaster',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 42,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Design your next road rally',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.72),
-                fontSize: 17,
-              ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              if (_busy)
+                const CircularProgressIndicator()
+              else ...[
+                Text(
+                  _error ?? 'Sign in to continue.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: _authenticateAndLoadSession,
+                  icon: const Icon(Icons.login),
+                  label: const Text('Sign in'),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     ),
   );
 }
+
+class AuthenticationService {
+  // Versioned to avoid reusing tokens created with per-Keychain-operation
+  // biometric access controls. Those legacy items can prompt repeatedly.
+  static const _refreshTokenKey = 'keycloak_refresh_token_v2';
+  final _appAuth = FlutterAppAuth();
+  final _localAuthentication = LocalAuthentication();
+  String? _accessToken;
+  final _storage = FlutterSecureStorage(
+    aOptions: const AndroidOptions(),
+    iOptions: const IOSOptions(
+      accessibility: KeychainAccessibility.unlocked_this_device,
+    ),
+  );
+
+  Future<bool> restoreSession() async {
+    if (!await _storage.containsKey(key: _refreshTokenKey)) return false;
+
+    final unlocked = await _localAuthentication.authenticate(
+      localizedReason: 'Unlock RallyMaster',
+      biometricOnly: true,
+      persistAcrossBackgrounding: true,
+    );
+    if (!unlocked) {
+      throw BiometricAuthenticationCancelledException();
+    }
+
+    final refreshToken = await _storage.read(key: _refreshTokenKey);
+    if (refreshToken == null) return false;
+    final response = await _appAuth.token(
+      TokenRequest(
+        _keycloakClientId,
+        _redirectUrl,
+        issuer: _keycloakIssuer,
+        refreshToken: refreshToken,
+        scopes: const ['openid', 'profile', 'email', 'offline_access'],
+      ),
+    );
+    await _storeRefreshToken(response.refreshToken ?? refreshToken);
+    _accessToken = response.accessToken;
+    return _accessToken != null;
+  }
+
+  Future<void> signIn() async {
+    final response = await _appAuth.authorizeAndExchangeCode(
+      AuthorizationTokenRequest(
+        _keycloakClientId,
+        _redirectUrl,
+        issuer: _keycloakIssuer,
+        scopes: const ['openid', 'profile', 'email', 'offline_access'],
+      ),
+    );
+    final refreshToken = response.refreshToken;
+    if (refreshToken == null || response.accessToken == null) {
+      throw StateError(
+        'Keycloak did not return a refresh token. Enable offline_access for the mobile client.',
+      );
+    }
+    _accessToken = response.accessToken;
+    await _storeRefreshToken(refreshToken);
+  }
+
+  Future<String> getAccessToken() async {
+    final token = _accessToken;
+    if (token == null) {
+      throw StateError('No authenticated API session is available.');
+    }
+    return token;
+  }
+
+  Future<void> _storeRefreshToken(String value) =>
+      _storage.write(key: _refreshTokenKey, value: value);
+}
+
+class BiometricAuthenticationCancelledException implements Exception {}
