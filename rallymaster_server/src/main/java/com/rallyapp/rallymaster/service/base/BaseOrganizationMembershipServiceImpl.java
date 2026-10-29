@@ -78,6 +78,12 @@ public abstract class BaseOrganizationMembershipServiceImpl<D extends Organizati
 	return toDtos(baseOrganizationMembershipPersistence.findByUserId(userId));
   }
 
+  @Override
+  public D fetchByOrganizationIdAndUserId (Long userId)
+  {
+	return toDto(baseOrganizationMembershipPersistence.findFirstByOrganizationIdAndUserId(tenantDiscriminator.getOrganizationId(),userId));
+  }
+
 
   @Override
   public D get (ID id) throws ServiceException

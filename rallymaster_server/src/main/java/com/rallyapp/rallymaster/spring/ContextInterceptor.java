@@ -126,9 +126,13 @@ public class ContextInterceptor implements HandlerInterceptor {
 	public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler,
 			ModelAndView modelAndView) throws Exception {
 		if (modelAndView != null) {
+			UserDTO currentUser = SessionContext.getCurrentUser();
+			modelAndView.addObject("currentUser", currentUser);
 			modelAndView.addObject("currentOrganization", SessionContext.getCurrentOrganization());
-			modelAndView.addObject("currentOrganizations", organizationMembershipService.findOrganizationsByUser(SessionContext.getCurrentUser()));
-			modelAndView.addObject("currentUser", SessionContext.getCurrentUser());
+			if (currentUser != null) {
+				modelAndView.addObject("currentOrganizations",
+						organizationMembershipService.findOrganizationsByUser(currentUser));
+			}
 		}
 	}
 

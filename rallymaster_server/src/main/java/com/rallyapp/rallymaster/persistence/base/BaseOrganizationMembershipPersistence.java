@@ -17,4 +17,7 @@ public interface BaseOrganizationMembershipPersistence<E extends OrganizationMem
 
     public List<E> findByUserId(Long userId);
 
+
+    public E findFirstByOrganizationIdAndUserId(Long organizationId, Long userId);
+
 }

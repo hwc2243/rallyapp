@@ -6,6 +6,7 @@ import '../providers/external_api_client.dart';
 import '../providers/rally_provider.dart';
 import '../providers/tenant_discriminator_provider.dart';
 import '../network/service_builder_http_client.dart';
+import 'create_rally_screen.dart';
 import 'setup_screen.dart';
 
 class RallySelectionScreen extends StatefulWidget {
@@ -42,12 +43,13 @@ class _RallySelectionScreenState extends State<RallySelectionScreen> {
     TenantDiscriminatorProvider? tenantProvider;
     RallyProvider? provider;
     try {
-      final accessToken = await widget.accessToken();
       tenantProvider = TenantDiscriminatorProvider()
         ..setOrganizationId(widget.session.organizationId);
       httpClient = ServiceBuilderHttpClient(
         baseUrl: ExternalApiClient.defaultApiBaseUrl,
-        defaultHeaders: {'Authorization': 'Bearer $accessToken'},
+        headersProvider: () async => {
+          'Authorization': 'Bearer ${await widget.accessToken()}',
+        },
       );
       provider = RallyProvider(
         httpClient: httpClient,
@@ -82,9 +84,32 @@ class _RallySelectionScreenState extends State<RallySelectionScreen> {
     }
   }
 
+  Future<void> _createRally() async {
+    final rally = await Navigator.of(context).push<RallyDto>(
+      MaterialPageRoute<RallyDto>(
+        builder: (_) => CreateRallyScreen(
+          session: widget.session,
+          accessToken: widget.accessToken,
+        ),
+      ),
+    );
+    if (rally != null && mounted) {
+      await _selectRally(rally);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Select rally')),
+    appBar: AppBar(
+      title: const Text('Select rally'),
+      actions: [
+        IconButton(
+          tooltip: 'Add rally',
+          onPressed: _loading ? null : _createRally,
+          icon: const Icon(Icons.add),
+        ),
+      ],
+    ),
     body: SafeArea(child: _buildBody()),
   );
 

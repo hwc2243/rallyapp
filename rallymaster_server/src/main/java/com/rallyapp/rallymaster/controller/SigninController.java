@@ -35,7 +35,7 @@ public class SigninController {
 	public String select (ModelMap model) {
 		model.put("organizations", organizationMembershipService.findOrganizationsByUser(SessionContext.getCurrentUser()));
 		
-		return "/signin/select.html";
+		return "signin/select";
 		
 	}
 	

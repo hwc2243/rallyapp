@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../models/app_session.dart';
 import '../models/organization_dto.dart';
+import '../models/organization_membership_dto.dart';
 import '../models/rally_dto.dart';
 import '../models/rally_setup_selection.dart';
 import '../models/user_dto.dart';
+import '../network/service_builder_http_client.dart';
+import '../providers/external_api_client.dart';
+import '../providers/organization_membership_provider.dart';
+import '../providers/tenant_discriminator_provider.dart';
 import 'rally_selection_screen.dart';
 
 class OrganizationSelectionScreen extends StatefulWidget {
@@ -26,6 +31,7 @@ class OrganizationSelectionScreen extends StatefulWidget {
 
 class _OrganizationSelectionScreenState
     extends State<OrganizationSelectionScreen> {
+  int? _selectingOrganizationId;
   @override
   void initState() {
     super.initState();
@@ -39,18 +45,79 @@ class _OrganizationSelectionScreenState
   }
 
   Future<void> _selectOrganization(OrganizationDto organization) async {
-    final rally = await Navigator.of(context).push<RallyDto>(
-      MaterialPageRoute<RallyDto>(
-        builder: (_) => RallySelectionScreen(
-          session: AppSession(user: widget.user, organization: organization),
-          accessToken: widget.accessToken,
-        ),
-      ),
-    );
-    if (rally != null && mounted) {
-      Navigator.of(context)
-          .pop(RallySetupSelection(organization: organization, rally: rally));
+    final organizationId = organization.serverId;
+    if (organizationId == null) {
+      _showError('The selected organization has no server id.');
+      return;
     }
+    if (_selectingOrganizationId != null) return;
+
+    setState(() => _selectingOrganizationId = organizationId);
+    try {
+      final membership = await _loadMembership(organizationId);
+      if (membership == null) {
+        _showError('You are not a member of this organization.');
+        return;
+      }
+      if (!mounted) return;
+
+      final session = AppSession(
+        user: widget.user,
+        organization: organization,
+        organizationMembership: membership,
+      );
+      final rally = await Navigator.of(context).push<RallyDto>(
+        MaterialPageRoute<RallyDto>(
+          builder: (_) => RallySelectionScreen(
+            session: session,
+            accessToken: widget.accessToken,
+          ),
+        ),
+      );
+      if (rally != null && mounted) {
+        Navigator.of(context).pop(
+          RallySetupSelection(
+            organization: organization,
+            organizationMembership: membership,
+            rally: rally,
+          ),
+        );
+      }
+    } catch (error) {
+      _showError('Unable to load your organization membership: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _selectingOrganizationId = null);
+      }
+    }
+  }
+
+  Future<OrganizationMembershipDto?> _loadMembership(int organizationId) async {
+    final tenantProvider = TenantDiscriminatorProvider()
+      ..setOrganizationId(organizationId);
+    final httpClient = ServiceBuilderHttpClient(
+      baseUrl: ExternalApiClient.defaultApiBaseUrl,
+      headersProvider: () async => {
+        'Authorization': 'Bearer ${await widget.accessToken()}',
+      },
+    );
+    final provider = OrganizationMembershipProvider(
+      httpClient: httpClient,
+      tenantProvider: tenantProvider,
+    );
+    try {
+      return await provider.me();
+    } finally {
+      provider.dispose();
+      tenantProvider.dispose();
+      httpClient.client.close();
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -78,7 +145,9 @@ class _OrganizationSelectionScreenState
                     leading: const Icon(Icons.business),
                     title: Text(organization.name ?? 'Unnamed organization'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _selectOrganization(organization),
+                    onTap: _selectingOrganizationId == null
+                        ? () => _selectOrganization(organization)
+                        : null,
                   ),
                 );
               },

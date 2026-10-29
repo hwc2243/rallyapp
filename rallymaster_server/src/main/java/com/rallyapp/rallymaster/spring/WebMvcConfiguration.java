@@ -16,6 +16,11 @@ public class WebMvcConfiguration implements WebMvcConfigurer {
 
 	@Override
 	public void addInterceptors(InterceptorRegistry registry) {
-		registry.addInterceptor(contextInterceptor);
+		// OAuth's authorization and callback endpoints must not be redirected by
+		// the application-context setup. Applying this interceptor to every
+		// request can otherwise turn an authentication failure or callback into a
+		// redirect loop.
+		registry.addInterceptor(contextInterceptor)
+				.addPathPatterns("/", "/home", "/rally/**", "/signin/**");
 	}
 }

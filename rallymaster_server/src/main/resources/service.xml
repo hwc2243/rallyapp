@@ -26,6 +26,10 @@
 			<finder-attribute name="user"/>
 		</finder>
 		
+		<finder unique="true">
+			<finder-attribute name="user"/>
+		</finder>	
+		
 		<api>
 			<external operations="CREATE READ UPDATE DELETE" />
 		</api>

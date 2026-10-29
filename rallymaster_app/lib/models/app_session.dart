@@ -1,4 +1,5 @@
 import 'organization_dto.dart';
+import 'organization_membership_dto.dart';
 import 'rally_dto.dart';
 import 'user_dto.dart';
 
@@ -8,11 +9,13 @@ class AppSession {
   const AppSession({
     required this.user,
     required this.organization,
+    required this.organizationMembership,
     this.rally,
   });
 
   final UserDto user;
   final OrganizationDto organization;
+  final OrganizationMembershipDto organizationMembership;
   final RallyDto? rally;
 
   int get organizationId {

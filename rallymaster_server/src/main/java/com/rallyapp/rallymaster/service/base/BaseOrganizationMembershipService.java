@@ -8,4 +8,6 @@ import java.util.List;
 public interface BaseOrganizationMembershipService<D extends BaseOrganizationMembershipDTO, ID> extends EntityService<D, ID> {
 
 	public List<D> findByUserId (Long userId);
+
+	public D fetchByOrganizationIdAndUserId (Long userId);
 }

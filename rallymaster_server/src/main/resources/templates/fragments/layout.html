@@ -10,7 +10,9 @@
       </button>
       <div class="collapse navbar-collapse" id="mainNavbar">
         <ul class="navbar-nav me-auto">
-          <li class="nav-item"><a class="nav-link" th:href="@{/rally/list}">Rallies</a></li>
+          <li class="nav-item" th:if="${currentUser != null and currentOrganization != null}">
+            <a class="nav-link" th:href="@{/rally/list}">Rallies</a>
+          </li>
         </ul>
         <div class="dropdown" th:if="${currentUser != null}">
           <button class="btn btn-outline-light dropdown-toggle d-flex align-items-center gap-2" type="button"

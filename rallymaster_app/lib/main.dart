@@ -5,6 +5,7 @@ import 'package:local_auth/local_auth.dart';
 
 import 'models/app_session.dart';
 import 'models/organization_dto.dart';
+import 'models/organization_membership_dto.dart';
 import 'models/rally_dto.dart';
 import 'models/rally_setup_selection.dart';
 import 'models/user_dto.dart';
@@ -123,7 +124,12 @@ class _AuthenticationGateState extends State<AuthenticationGate> {
       );
       if (selection != null && mounted) {
         widget.onOrganizationSelected();
-        _openMainScreen(user, selection.organization, selection.rally);
+        _openMainScreen(
+          user,
+          selection.organization,
+          selection.organizationMembership,
+          selection.rally,
+        );
       }
     } on FlutterAppAuthUserCancelledException {
       if (mounted) {
@@ -147,6 +153,7 @@ class _AuthenticationGateState extends State<AuthenticationGate> {
   void _openMainScreen(
     UserDto user,
     OrganizationDto organization,
+    OrganizationMembershipDto organizationMembership,
     RallyDto rally,
   ) {
     Navigator.of(context).pushReplacement(
@@ -155,6 +162,7 @@ class _AuthenticationGateState extends State<AuthenticationGate> {
           session: AppSession(
             user: user,
             organization: organization,
+            organizationMembership: organizationMembership,
             rally: rally,
           ),
         ),
