@@ -15,7 +15,7 @@ class ExternalApiClient {
     this.organizationId,
     Uri? apiBaseUri,
     this.client,
-  }) : _apiBaseUri = apiBaseUri ?? Uri.parse(_defaultApiBaseUrl);
+  }) : _apiBaseUri = apiBaseUri ?? Uri.parse(defaultApiBaseUrl);
 
   factory ExternalApiClient.forSession({
     required Future<String> Function() accessToken,
@@ -29,7 +29,7 @@ class ExternalApiClient {
     client: client,
   );
 
-  static const _defaultApiBaseUrl = String.fromEnvironment(
+  static const defaultApiBaseUrl = String.fromEnvironment(
     'RALLYMASTER_API_BASE_URL',
     defaultValue: 'https://rallymaster.connors.ddns.net',
   );

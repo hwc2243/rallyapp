@@ -4,6 +4,8 @@ import '../models/app_session.dart';
 import '../models/rally_dto.dart';
 import '../providers/external_api_client.dart';
 import '../providers/rally_provider.dart';
+import '../providers/tenant_discriminator_provider.dart';
+import '../network/service_builder_http_client.dart';
 import 'setup_screen.dart';
 
 class RallySelectionScreen extends StatefulWidget {
@@ -36,15 +38,22 @@ class _RallySelectionScreenState extends State<RallySelectionScreen> {
       _loading = true;
       _error = null;
     });
-    final provider = RallyProvider(
-      apiClient: ExternalApiClient.forSession(
-        accessToken: widget.accessToken,
-        session: widget.session,
-      ),
-      session: widget.session,
-    );
+    ServiceBuilderHttpClient? httpClient;
+    TenantDiscriminatorProvider? tenantProvider;
+    RallyProvider? provider;
     try {
-      final rallies = await provider.listRallies();
+      final accessToken = await widget.accessToken();
+      tenantProvider = TenantDiscriminatorProvider()
+        ..setOrganizationId(widget.session.organizationId);
+      httpClient = ServiceBuilderHttpClient(
+        baseUrl: ExternalApiClient.defaultApiBaseUrl,
+        defaultHeaders: {'Authorization': 'Bearer $accessToken'},
+      );
+      provider = RallyProvider(
+        httpClient: httpClient,
+        tenantProvider: tenantProvider,
+      );
+      final rallies = await provider.list();
       if (mounted) {
         setState(() => _rallies = rallies);
       }
@@ -53,6 +62,9 @@ class _RallySelectionScreenState extends State<RallySelectionScreen> {
         setState(() => _error = 'Unable to load rallies: $error');
       }
     } finally {
+      provider?.dispose();
+      tenantProvider?.dispose();
+      httpClient?.client.close();
       if (mounted) {
         setState(() => _loading = false);
       }

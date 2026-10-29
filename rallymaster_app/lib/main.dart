@@ -12,6 +12,8 @@ import 'providers/external_api_client.dart';
 import 'providers/me_provider.dart';
 import 'screens/main_screen.dart';
 import 'screens/organization_selection_screen.dart';
+import 'services/session_lock_controller.dart';
+import 'widgets/session_lock_overlay.dart';
 
 const _keycloakIssuer = String.fromEnvironment(
   'KEYCLOAK_ISSUER',
@@ -28,8 +30,27 @@ Future<void> main() async {
   runApp(const RallyMasterApp());
 }
 
-class RallyMasterApp extends StatelessWidget {
+class RallyMasterApp extends StatefulWidget {
   const RallyMasterApp({super.key});
+
+  @override
+  State<RallyMasterApp> createState() => _RallyMasterAppState();
+}
+
+class _RallyMasterAppState extends State<RallyMasterApp> {
+  late final SessionLockController _sessionLock = SessionLockController(
+    authenticate: () => LocalAuthentication().authenticate(
+      localizedReason: 'Unlock RallyMaster',
+      biometricOnly: true,
+      persistAcrossBackgrounding: true,
+    ),
+  );
+
+  @override
+  void dispose() {
+    _sessionLock.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -39,12 +60,18 @@ class RallyMasterApp extends StatelessWidget {
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xffe56a24)),
       useMaterial3: true,
     ),
-    home: const AuthenticationGate(),
+    builder: (context, child) => SessionLockOverlay(
+      controller: _sessionLock,
+      child: child ?? const SizedBox.shrink(),
+    ),
+    home: AuthenticationGate(onOrganizationSelected: _sessionLock.activate),
   );
 }
 
 class AuthenticationGate extends StatefulWidget {
-  const AuthenticationGate({super.key});
+  const AuthenticationGate({super.key, required this.onOrganizationSelected});
+
+  final VoidCallback onOrganizationSelected;
 
   @override
   State<AuthenticationGate> createState() => _AuthenticationGateState();
@@ -95,6 +122,7 @@ class _AuthenticationGateState extends State<AuthenticationGate> {
         ),
       );
       if (selection != null && mounted) {
+        widget.onOrganizationSelected();
         _openMainScreen(user, selection.organization, selection.rally);
       }
     } on FlutterAppAuthUserCancelledException {
