@@ -1,6 +1,7 @@
 package com.rallyapp.rallymaster.entity.base;
 
 
+import com.rallyapp.rallymaster.entity.RouteEntity;
 import com.rallyapp.rallymaster.entity.UserEntity;
 import com.rallyapp.rallymaster.model.base.BaseRally;
 import com.rallyapp.rallymaster.model.base.Multitenant;
@@ -32,7 +33,7 @@ import java.util.Set;
 
 @MappedSuperclass
 public abstract class BaseRallyEntity<T extends BaseRallyEntity<T>> extends AbstractBaseEntity
-    implements BaseRally, Multitenant, Serializable
+    implements BaseRally<RouteEntity>, Multitenant, Serializable
 {
   @Id
   @Column
@@ -55,6 +56,9 @@ public abstract class BaseRallyEntity<T extends BaseRallyEntity<T>> extends Abst
   @Column(name = "userId")
   protected Long userId = null;
 
+  @OneToMany(mappedBy = "rally", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
+  protected List<RouteEntity> routes;
+  
   
   public Long getId ()
   {
@@ -124,6 +128,17 @@ public abstract class BaseRallyEntity<T extends BaseRallyEntity<T>> extends Abst
   public void setUserId (Long userId)
   {
     this.userId = userId;
+  }
+
+
+  public List<RouteEntity> getRoutes ()
+  {
+    return this.routes;
+  }
+  
+  public void setRoutes (List<RouteEntity> routes)
+  {
+    this.routes = routes;
   }
 
 

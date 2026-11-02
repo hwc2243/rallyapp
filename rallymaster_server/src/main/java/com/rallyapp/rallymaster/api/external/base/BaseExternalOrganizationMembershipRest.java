@@ -1,5 +1,6 @@
 package com.rallyapp.rallymaster.api.external.base;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ public interface BaseExternalOrganizationMembershipRest
 	
 	public ResponseEntity<List<OrganizationMembershipDTO>> searchOrganizationMemberships (
 	);
+
 	
 	    public ResponseEntity<OrganizationMembershipDTO> updateOrganizationMembership (Long id, OrganizationMembershipDTO organizationMembership);
 }

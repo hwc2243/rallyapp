@@ -1,8 +1,10 @@
 package com.rallyapp.rallymaster.service;
 
 import com.rallyapp.rallymaster.dto.RallyDTO;
+import com.rallyapp.rallymaster.dto.RouteDTO;
 import com.rallyapp.rallymaster.entity.RallyEntity;
 import com.rallyapp.rallymaster.service.base.BaseRallyServiceImpl;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -30,5 +32,13 @@ public class RallyServiceImpl
   
   protected List<RallyDTO> toDtos (List<RallyEntity> entities) {
     return rallyMapper.toDtos(entities);
+  }
+
+  @Override
+  protected Collection<RouteDTO> toRoutesDtos(RallyEntity entity) {
+    if (entity.getRoutes() == null) {
+      return List.of();
+    }
+    return rallyMapper.routesToDtos(entity.getRoutes());
   }
 }

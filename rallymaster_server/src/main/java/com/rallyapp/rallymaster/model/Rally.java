@@ -5,6 +5,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-public interface Rally extends BaseRally
+public interface Rally<ROUTE> extends BaseRally<ROUTE>
 { 
 }

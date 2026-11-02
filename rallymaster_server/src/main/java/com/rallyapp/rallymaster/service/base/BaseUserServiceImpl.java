@@ -1,6 +1,7 @@
 package com.rallyapp.rallymaster.service.base;
 
 import com.rallyapp.rallymaster.dto.base.BaseUserDTO;
+import com.rallyapp.rallymaster.dto.OrganizationMembershipDTO;
 import com.rallyapp.rallymaster.dto.UserDTO;
 import com.rallyapp.rallymaster.entity.base.BaseUserEntity;
 import com.rallyapp.rallymaster.entity.UserEntity;
@@ -11,6 +12,7 @@ import com.rallyapp.rallymaster.service.event.EntityCrudEvent;
 import com.rallyapp.rallymaster.service.event.ServiceEvent;
 import com.rallyapp.rallymaster.service.event.ServiceEventBus;
 import com.rallyapp.rallymaster.service.ServiceException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,6 +74,13 @@ public abstract class BaseUserServiceImpl<D extends UserDTO, E extends UserEntit
 
     return optional.isEmpty() ? null : toDto(optional.get());
   }
+
+  @Override
+  public Collection<OrganizationMembershipDTO> getMemberships (ID id) throws ServiceException
+  {
+    Optional<E> optional = baseUserPersistence.findById(id);
+    return optional.isEmpty() ? null : toMembershipsDtos(optional.get());
+  }
   
   @Override
   @Transactional
@@ -103,4 +112,5 @@ public abstract class BaseUserServiceImpl<D extends UserDTO, E extends UserEntit
 
   protected abstract D toDto (E entity);
   protected abstract List<D> toDtos (List<E> entities);
+  protected abstract Collection<OrganizationMembershipDTO> toMembershipsDtos (E entity);
 }

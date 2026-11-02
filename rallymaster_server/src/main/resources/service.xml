@@ -1,61 +1,125 @@
-<service name="rallymaster" package="com.rallyapp.rallymaster" multitenant="true">
+<service name="rallymaster" package="com.rallyapp.rallymaster"
+	multitenant="true">
 
 	<tenant-discriminator name="organizationId" type="long" />
 
 	<entity name="organization" db-name="organization" persistence="true">
 		<attribute name="name" type="string" db-name="name" />
-		
-		<related name="memberships" relationship="one_to_many" entity="organizationMembership" collection="set" mapped-by="organization" />
-		
+
+		<related name="memberships" relationship="one_to_many"
+			entity="organizationMembership" collection="set"
+			mapped-by="organization" />
+
 		<finder unique="true">
-			<finder-attribute name="name"/>
+			<finder-attribute name="name" />
 		</finder>
-		
+
 		<api>
 			<external operations="CREATE READ UPDATE DELETE" />
 		</api>
 	</entity>
-	
-	<entity name="organizationMembership" db-name="organization_membership" persistence="true" multitenant="true">
-		<attribute name="role" type="enum" enum-values="ADMIN,RALLYMASTER,VIEWER"/>
 
-		<related name="user" relationship="many_to_one" entity="user" key-only="true"/>
-		<related name="organization" relationship="many_to_one" entity="organization" key-only="true"/>
+	<entity name="organizationMembership" db-name="organization_membership"
+		persistence="true" multitenant="true">
+		<attribute name="role" type="enum"
+			enum-values="ADMIN,RALLYMASTER,VIEWER" />
+
+		<related name="user" relationship="many_to_one" entity="user"
+			key-only="true" />
+		<related name="organization" relationship="many_to_one"
+			entity="organization" key-only="true" />
 
 		<finder tenant-scoped="false">
-			<finder-attribute name="user"/>
+			<finder-attribute name="user" />
 		</finder>
-		
+
 		<finder unique="true">
-			<finder-attribute name="user"/>
-		</finder>	
-		
+			<finder-attribute name="user" />
+		</finder>
+
 		<api>
 			<external operations="CREATE READ UPDATE DELETE" />
 		</api>
 	</entity>
-	
+
 	<entity name="rally" db-name="rally" multitenant="true">
-		<attribute name="name" type="string"/>
-		<attribute name="description" type="string"/>
-		<attribute name="date" type="date"/>
-		
+		<attribute name="name" type="string" />
+		<attribute name="description" type="string" />
+		<attribute name="date" type="date" />
+
 		<related name="user" relationship="one_to_one" entity="user" key-only="true" />
+
+		<related name="routes" entity="route" relationship="one_to_many" collection="list" mapped-by="rally" />
 		
 		<api>
 			<external operations="CREATE READ UPDATE DELETE" />
 		</api>
 	</entity>
-	
+
+	<entity name="route" db-name="route" multitenant="true">
+		<attribute name="name" type="string" />
+		<attribute name="description" type="string" />
+
+		<related name="rally" entity="rally" relationship="many_to_one" key-only="true" />
+
+		<related name="items" entity="routeItem" relationship="one_to_many" collection="list" mapped-by="route" />
+
+		<api>
+			<external operations="CREATE READ UPDATE DELETE" />
+		</api>
+	</entity>
+
+	<entity name="routeItem" db-name="route_item" abstract="true" multitenant="true">
+		<!-- Useful as a discriminator for clients and API payloads. -->
+		<attribute name="itemType" type="enum" enum-values="NRI,CHECKPOINT" />
+
+		<!-- The one canonical order across both item types. -->
+		<attribute name="position" type="long" />
+
+		<attribute name="revision" type="long" />
+		<attribute name="deleted" type="boolean" />
+
+		<related name="route" entity="route" relationship="many_to_one" key-only="true" />
+
+		<finder>
+			<finder-attribute name="route" />
+		</finder>
+
+		<api>
+			<external operations="CREATE READ UPDATE DELETE" />
+		</api>
+	</entity>
+
+	<entity name="routeInstruction" db-name="route_instruction"	parent="routeItem">
+		<attribute name="instructionText" type="string" />
+		<attribute name="notes" type="string" />
+
+		<api>
+			<external operations="CREATE READ UPDATE DELETE" />
+		</api>
+	</entity>
+
+	<entity name="checkpoint" db-name="checkpoint" parent="routeItem">
+		<attribute name="checkpointType" type="enum" enum-values="PASSAGE_CONTROL,TIMED_CONTROL,TIME_CHECK,RESTART,START,FINISH" />
+		<attribute name="name" type="string" />
+		<attribute name="notes" type="string" />
+		<attribute name="competitorVisible" type="boolean" />
+
+		<api>
+			<external operations="CREATE READ UPDATE DELETE" />
+		</api>
+	</entity>
+
 	<entity name="user" db-name="user_">
-		<attribute name="emailAddress" type="string"/>
-		<attribute name="firstName" type="string"/>
-		<attribute name="lastName" type="string"/>
-		
-		<related name="memberships" relationship="one_to_many" entity="organizationMembership" collection="set" mapped-by="user" />
-				
+		<attribute name="emailAddress" type="string" />
+		<attribute name="firstName" type="string" />
+		<attribute name="lastName" type="string" />
+
+		<related name="memberships" relationship="one_to_many"
+			entity="organizationMembership" collection="set" mapped-by="user" />
+
 		<finder unique="true">
-			<finder-attribute name="emailAddress"/>
+			<finder-attribute name="emailAddress" />
 		</finder>
 	</entity>
 

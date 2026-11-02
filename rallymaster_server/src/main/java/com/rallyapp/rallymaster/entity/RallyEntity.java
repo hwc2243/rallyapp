@@ -14,7 +14,7 @@ import java.io.Serializable;
 @Table(name="rally")
 public class RallyEntity
     extends BaseRallyEntity<RallyEntity>
-    implements Rally, Serializable
+    implements Rally<RouteEntity>, Serializable
 {
 	public RallyEntity ()
 	{

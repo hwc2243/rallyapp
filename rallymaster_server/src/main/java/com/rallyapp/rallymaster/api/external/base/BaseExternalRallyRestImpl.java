@@ -1,5 +1,6 @@
 package com.rallyapp.rallymaster.api.external.base;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import com.rallyapp.rallymaster.dto.RallyDTO;
+import com.rallyapp.rallymaster.dto.RouteDTO;
 
 import com.rallyapp.rallymaster.service.RallyService;
 import com.rallyapp.rallymaster.service.ServiceException;
@@ -121,6 +123,27 @@ public abstract class BaseExternalRallyRestImpl implements BaseExternalRallyRest
         return ResponseEntity.internalServerError().build();
 	  }
 	}
+
+    @GetMapping("/{rallyId}/routes")
+    @Override
+    public ResponseEntity<Collection<RouteDTO>> listRallyRoutes(
+        @PathVariable Long rallyId)
+    {
+      try
+      {
+        Collection<RouteDTO> values = rallyService.getRoutes(rallyId);
+        if (values == null)
+        {
+          return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(values);
+      }
+      catch (ServiceException ex)
+      {
+        ex.printStackTrace();
+        return ResponseEntity.internalServerError().build();
+      }
+    }
 	
     @PutMapping("/{id}")
     @Override

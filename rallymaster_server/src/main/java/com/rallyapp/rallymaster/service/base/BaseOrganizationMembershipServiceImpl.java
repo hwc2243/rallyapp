@@ -14,6 +14,7 @@ import com.rallyapp.rallymaster.service.event.EntityCrudEvent;
 import com.rallyapp.rallymaster.service.event.ServiceEvent;
 import com.rallyapp.rallymaster.service.event.ServiceEventBus;
 import com.rallyapp.rallymaster.service.ServiceException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -97,6 +98,7 @@ public abstract class BaseOrganizationMembershipServiceImpl<D extends Organizati
 	}
     return optional.isEmpty() ? null : toDto(optional.get());
   }
+
   
   @Override
   @Transactional

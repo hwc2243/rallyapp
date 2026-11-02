@@ -1,5 +1,6 @@
 package com.rallyapp.rallymaster.model.base;
 
+import com.rallyapp.rallymaster.model.Route;
 import com.rallyapp.rallymaster.model.User;
 import java.io.Serializable;
 import java.time.LocalDate;
@@ -7,7 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-public interface BaseRally
+public interface BaseRally<ROUTE>
  extends Multitenant, Serializable
 { 
   public Long getId ();
@@ -32,5 +33,9 @@ public interface BaseRally
 
   public Long getUserId ();
   public void setUserId (Long userId);
+
+  public List<ROUTE> getRoutes ();
+  public void setRoutes (List<ROUTE> routes);
+
 
 }

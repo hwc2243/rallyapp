@@ -2,6 +2,7 @@ package com.rallyapp.rallymaster.service.base;
 
 import com.rallyapp.rallymaster.dto.base.BaseRallyDTO;
 import com.rallyapp.rallymaster.dto.RallyDTO;
+import com.rallyapp.rallymaster.dto.RouteDTO;
 import com.rallyapp.rallymaster.entity.base.BaseRallyEntity;
 import com.rallyapp.rallymaster.entity.RallyEntity;
 import com.rallyapp.rallymaster.model.base.Multitenant;
@@ -14,6 +15,7 @@ import com.rallyapp.rallymaster.service.event.ServiceEvent;
 import com.rallyapp.rallymaster.service.event.ServiceEventBus;
 import com.rallyapp.rallymaster.service.ServiceException;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -85,6 +87,16 @@ public abstract class BaseRallyServiceImpl<D extends RallyDTO & Multitenant, E e
 	}
     return optional.isEmpty() ? null : toDto(optional.get());
   }
+
+  @Override
+  public Collection<RouteDTO> getRoutes (ID id) throws ServiceException
+  {
+    Optional<E> optional = baseRallyPersistence.findById(id);
+    if (optional.isPresent() && !hasAccess(optional.get())) {
+      throw new ServiceException("Access denied for rally with id = " + id);
+    }
+    return optional.isEmpty() ? null : toRoutesDtos(optional.get());
+  }
   
   @Override
   @Transactional
@@ -119,4 +131,5 @@ public abstract class BaseRallyServiceImpl<D extends RallyDTO & Multitenant, E e
 
   protected abstract D toDto (E entity);
   protected abstract List<D> toDtos (List<E> entities);
+  protected abstract Collection<RouteDTO> toRoutesDtos (E entity);
 }

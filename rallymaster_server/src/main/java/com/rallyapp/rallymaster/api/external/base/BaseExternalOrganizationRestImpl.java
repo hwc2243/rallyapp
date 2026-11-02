@@ -1,5 +1,6 @@
 package com.rallyapp.rallymaster.api.external.base;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import com.rallyapp.rallymaster.dto.OrganizationDTO;
+import com.rallyapp.rallymaster.dto.OrganizationMembershipDTO;
 
 import com.rallyapp.rallymaster.service.OrganizationService;
 import com.rallyapp.rallymaster.service.ServiceException;
@@ -121,6 +123,27 @@ public abstract class BaseExternalOrganizationRestImpl implements BaseExternalOr
         return ResponseEntity.internalServerError().build();
 	  }
 	}
+
+    @GetMapping("/{organizationId}/memberships")
+    @Override
+    public ResponseEntity<Collection<OrganizationMembershipDTO>> listOrganizationMemberships(
+        @PathVariable Long organizationId)
+    {
+      try
+      {
+        Collection<OrganizationMembershipDTO> values = organizationService.getMemberships(organizationId);
+        if (values == null)
+        {
+          return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(values);
+      }
+      catch (ServiceException ex)
+      {
+        ex.printStackTrace();
+        return ResponseEntity.internalServerError().build();
+      }
+    }
 	
     @PutMapping("/{id}")
     @Override
