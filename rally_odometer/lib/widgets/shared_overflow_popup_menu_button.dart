@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:rally_lib/rally_lib.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -54,6 +55,7 @@ class _AboutDialog extends StatefulWidget {
 
 class _AboutDialogState extends State<_AboutDialog> {
   late final ScrollController _scrollController = ScrollController();
+  late final Future<PackageInfo> _packageInfo = PackageInfo.fromPlatform();
 
   static final _supportUri = Uri(scheme: 'mailto', path: 'hwconnors@gmail.com');
   static final _privacyUri = Uri.parse(
@@ -67,65 +69,77 @@ class _AboutDialogState extends State<_AboutDialog> {
   @override
   Widget build(BuildContext context) {
     final maxContentHeight = MediaQuery.sizeOf(context).height * 0.55;
-    return AlertDialog(
-      title: const Text('About'),
-      content: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 360, maxHeight: maxContentHeight),
-        child: Scrollbar(
-          controller: _scrollController,
-          thumbVisibility: true,
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Image(
-                  image: AssetImage('assets/rally_odometer_logo.png'),
-                  width: 112,
-                  height: 112,
+    return FutureBuilder<PackageInfo>(
+      future: _packageInfo,
+      builder: (context, snapshot) {
+        final version = snapshot.data?.version ?? '…';
+        return AlertDialog(
+          title: const Text('About'),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 360,
+              maxHeight: maxContentHeight,
+            ),
+            child: Scrollbar(
+              controller: _scrollController,
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Image(
+                      image: AssetImage('assets/rally_odometer_logo.png'),
+                      width: 112,
+                      height: 112,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'RallyMaster Odometer',
+                      style: TextStyle(fontSize: 20),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('Version $version'),
+                    const SizedBox(height: 12),
+                    Text(
+                      widget.isPro
+                          ? 'RallyMaster Odometer Pro'
+                          : 'RallyMaster Odometer Free',
+                    ),
+                    if (widget.isPro)
+                      const Text('Includes PrecisionDrive Assist'),
+                    const SizedBox(height: 16),
+                    const Text('© 2026 H William Connors II'),
+                    TextButton(
+                      onPressed: () => _open(_supportUri),
+                      child: const Text('Contact Support'),
+                    ),
+                    TextButton(
+                      onPressed: () => _open(_privacyUri),
+                      child: const Text('Privacy Policy'),
+                    ),
+                    TextButton(
+                      onPressed: () => showLicensePage(
+                        context: context,
+                        applicationName: 'RallyMaster Odometer',
+                        applicationVersion: version,
+                      ),
+                      child: const Text('Open-Source Licenses'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                const Text('RallyMaster Odometer',
-                    style: TextStyle(fontSize: 20)),
-                const SizedBox(height: 4),
-                const Text('Version 0.1.0'),
-                const SizedBox(height: 12),
-                Text(
-                  widget.isPro
-                      ? 'RallyMaster Odometer Pro'
-                      : 'RallyMaster Odometer Free',
-                ),
-                if (widget.isPro) const Text('Includes PrecisionDrive Assist'),
-                const SizedBox(height: 16),
-                const Text('© 2026 H William Connors II'),
-                TextButton(
-                  onPressed: () => _open(_supportUri),
-                  child: const Text('Contact Support'),
-                ),
-                TextButton(
-                  onPressed: () => _open(_privacyUri),
-                  child: const Text('Privacy Policy'),
-                ),
-                TextButton(
-                  onPressed: () => showLicensePage(
-                    context: context,
-                    applicationName: 'RallyMaster Odometer',
-                    applicationVersion: '0.1.0',
-                  ),
-                  child: const Text('Open-Source Licenses'),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
-      actionsAlignment: MainAxisAlignment.center,
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
-        ),
-      ],
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 

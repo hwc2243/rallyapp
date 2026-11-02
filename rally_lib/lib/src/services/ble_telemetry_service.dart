@@ -453,7 +453,10 @@ class BleTelemetryService {
       // active. Stop it explicitly before opening the connection.
       await FlutterBluePlus.stopScan();
       await Future<void>.delayed(const Duration(milliseconds: 350));
-      await controller.connect(autoConnect: false);
+      await controller.connect(
+        license: License.commercial,
+        autoConnect: false,
+      );
       _connectionSubscription = controller.connectionState.listen((state) {
         final connected = state == BluetoothConnectionState.connected;
         _connection.add(connected);
