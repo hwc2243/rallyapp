@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,11 +18,6 @@ void main() async {
   await WakelockPlus.enable();
   final prefs = await SharedPreferences.getInstance();
 
-  // Lock to landscape as per PRD
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
-  ]);
   runApp(
     ProviderScope(
       overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],

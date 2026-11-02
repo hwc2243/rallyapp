@@ -168,11 +168,9 @@ class _NavigatorDashboardScreenState
                   Column(
                     children: [
                       Expanded(
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 3,
-                              child: _telemetryArea(
+                        child: MediaQuery.orientationOf(context) ==
+                                Orientation.portrait
+                            ? _portraitDashboard(
                                 telemetry: telemetry,
                                 totalDistance: total,
                                 totalTime: totalTime,
@@ -182,22 +180,41 @@ class _NavigatorDashboardScreenState
                                     settings.bumpRequireDoubleTap,
                                 isDecimalMinutes: settings.isDecimalMinutes,
                                 currentTime: currentTime,
+                                direction: direction,
                                 showBluetoothController:
                                     showBluetoothController,
+                              )
+                            : Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: _telemetryArea(
+                                      telemetry: telemetry,
+                                      totalDistance: total,
+                                      totalTime: totalTime,
+                                      isMetric: settings.isMetric,
+                                      bumpAmount: settings.bumpAmount,
+                                      requiresDoubleTap:
+                                          settings.bumpRequireDoubleTap,
+                                      isDecimalMinutes:
+                                          settings.isDecimalMinutes,
+                                      currentTime: currentTime,
+                                      showBluetoothController:
+                                          showBluetoothController,
+                                    ),
+                                  ),
+                                  const VerticalDivider(
+                                    color: Colors.white24,
+                                    width: 1,
+                                  ),
+                                  Expanded(
+                                    child: _controlArea(
+                                      telemetry: telemetry,
+                                      direction: direction,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            const VerticalDivider(
-                              color: Colors.white24,
-                              width: 1,
-                            ),
-                            Expanded(
-                              child: _controlArea(
-                                telemetry: telemetry,
-                                direction: direction,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                     ],
                   ),
@@ -208,6 +225,327 @@ class _NavigatorDashboardScreenState
       ),
     );
   }
+
+  /// Dedicated portrait composition. The landscape telemetry/control columns
+  /// remain unchanged in [_telemetryArea] and [_controlArea].
+  Widget _portraitDashboard({
+    required LiveTelemetry telemetry,
+    required double totalDistance,
+    required String totalTime,
+    required bool isMetric,
+    required double bumpAmount,
+    required bool requiresDoubleTap,
+    required bool isDecimalMinutes,
+    required DateTime currentTime,
+    required OdometerDirection direction,
+    required bool showBluetoothController,
+  }) {
+    final unit = isMetric ? 'km' : 'mi';
+    final distanceScale = isMetric ? 1000.0 : 1609.344;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 30,
+            child: _portraitIndicators(
+              accuracy: telemetry.gpsAccuracy,
+              isSensorFusionActive: telemetry.isSensorFusionActive,
+              showBluetoothController: showBluetoothController,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Expanded(
+            flex: 4,
+            child: _portraitOdometerSection(
+              label: 'TOTAL ($unit)',
+              value: totalDistance / distanceScale,
+              color: const Color(0xFF00FF00),
+              time: totalTime,
+              onValueTap: () => _editMileage(
+                isTotal: true,
+                meters: totalDistance,
+                isMetric: isMetric,
+              ),
+              controls: Column(
+                children: [
+                  Expanded(child: _holdButton(telemetry)),
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: _portraitActionButton(
+                      'RESET',
+                      Colors.grey[850]!,
+                      () => _send(ControllerCommandOpcode.resetTotal),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 68,
+            child: Row(
+              children: [
+                _portraitFprButton(
+                  'FORWARD',
+                  OdometerDirection.forward,
+                  direction,
+                ),
+                _portraitFprButton(
+                  'PARK',
+                  OdometerDirection.park,
+                  direction,
+                ),
+                _portraitFprButton(
+                  'REVERSE',
+                  OdometerDirection.reverse,
+                  direction,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Expanded(
+            flex: 4,
+            child: _portraitOdometerSection(
+              label: 'INTERVAL ($unit)',
+              value: telemetry.intervalDistance / distanceScale,
+              color: const Color(0xFFFFFF00),
+              time: formatRallyTime(currentTime, isDecimalMinutes),
+              onValueTap: () => _editMileage(
+                isTotal: false,
+                meters: telemetry.intervalDistance,
+                isMetric: isMetric,
+              ),
+              controls: Column(
+                children: [
+                  const Expanded(child: SizedBox()),
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: _portraitActionButton(
+                      'RESET',
+                      Colors.grey[850]!,
+                      () => _send(ControllerCommandOpcode.resetInterval),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          _speedDivider(telemetry.speed, isMetric),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 68,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _bumpButton(
+                        label: 'BUMP-',
+                        step:
+                            '${bumpAmount.toStringAsFixed(3)} ${isMetric ? 'KM' : 'MI'}',
+                        isPositive: false,
+                        requiresDoubleTap: requiresDoubleTap,
+                      ),
+                      const SizedBox(width: 8),
+                      _bumpButton(
+                        label: 'BUMP+',
+                        step:
+                            '${bumpAmount.toStringAsFixed(3)} ${isMetric ? 'KM' : 'MI'}',
+                        isPositive: true,
+                        requiresDoubleTap: requiresDoubleTap,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: 56,
+                  child: _portraitSettingsButton(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _portraitIndicators({
+    required double accuracy,
+    required bool isSensorFusionActive,
+    required bool showBluetoothController,
+  }) =>
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          GpsSatelliteIcon(
+            accuracy: accuracy,
+            isSensorFusionActive: isSensorFusionActive,
+          ),
+          if (showBluetoothController) ...[
+            const SizedBox(width: 8),
+            const Icon(Icons.bluetooth, color: Colors.lightBlueAccent),
+          ],
+        ],
+      );
+
+  Widget _portraitOdometerSection({
+    required String label,
+    required double value,
+    required Color color,
+    required String time,
+    required Widget controls,
+    VoidCallback? onValueTap,
+  }) =>
+      Container(
+        decoration: BoxDecoration(border: Border.all(color: Colors.white24)),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onValueTap,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              time,
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                color: color,
+                                fontFamily: 'Courier',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Expanded(
+                        child: Center(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              value.toStringAsFixed(3),
+                              style: TextStyle(
+                                color: color,
+                                fontFamily: 'Courier',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 100,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: 86,
+              child: Padding(
+                padding: const EdgeInsets.all(5),
+                child: controls,
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _holdButton(LiveTelemetry telemetry) => _portraitActionButton(
+        telemetry.isNavigatorDisplayHeld ? 'RELEASE' : 'HOLD',
+        Colors.green,
+        () {
+          if (widget.isControllerEngine) {
+            final notifier = ref.read(navigatorDisplayHoldProvider.notifier);
+            if (telemetry.isNavigatorDisplayHeld) {
+              notifier.release();
+            } else {
+              notifier.hold(
+                totalDistance: telemetry.totalDistance,
+                timestamp: DateTime.now(),
+              );
+            }
+          } else {
+            _send(ControllerCommandOpcode.toggleHold);
+          }
+        },
+      );
+
+  Widget _portraitActionButton(
+    String label,
+    Color color,
+    VoidCallback onPressed,
+  ) =>
+      SizedBox.expand(
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+          ),
+          onPressed: onPressed,
+          child: FittedBox(child: Text(label)),
+        ),
+      );
+
+  Widget _portraitSettingsButton() => Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[850],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Center(
+          child: SharedOverflowPopupMenuButton(
+            isControllerEngine: widget.isControllerEngine,
+            icon: Icons.settings,
+          ),
+        ),
+      );
+
+  Widget _portraitFprButton(
+    String label,
+    OdometerDirection value,
+    OdometerDirection activeDirection,
+  ) =>
+      Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: SizedBox.expand(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    activeDirection == value ? Colors.green : Colors.grey[850],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+              ),
+              onPressed: () => _send(
+                ControllerCommandOpcode.setFprState,
+                stringValue: value.name,
+              ),
+              child: FittedBox(child: Text(label)),
+            ),
+          ),
+        ),
+      );
 
   Widget _telemetryArea({
     required LiveTelemetry telemetry,
