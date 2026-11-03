@@ -167,9 +167,15 @@ final controllerCommandDispatcherProvider = Provider<void>((ref) {
         }
       case ControllerCommandOpcode.setSensorFusionEnabled:
         if (command.stringValue != null) {
+          final enabled = command.stringValue == 'true';
           ref
               .read(settingsProvider.notifier)
-              .setSensorFusionEnabled(command.stringValue == 'true');
+              .setSensorFusionEnabled(enabled);
+          final sensorFusion = ref.read(sensorFusionServiceProvider);
+          sensorFusion.setEnabled(enabled);
+          if (enabled) {
+            sensorFusion.requestCalibration();
+          }
         }
       case ControllerCommandOpcode.setSensorFusionAccuracyThresholdMeters:
         if (command.numericValue != null) {

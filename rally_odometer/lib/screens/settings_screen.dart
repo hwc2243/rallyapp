@@ -458,6 +458,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _calculateFactorButton() => ElevatedButton(
+        onPressed: _entryMode == CalibrationEntryMode.measured
+            ? _calculateFactor
+            : null,
+        child: const Text('Calculate'),
+      );
+
   @override
   Widget build(BuildContext context) {
     final role = ref.watch(deviceRoleProvider);
@@ -474,6 +481,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final bumpText = settings.bumpAmount.toStringAsFixed(3);
     final currentRallyTime = ref.watch(currentTimeProvider).value ??
         DateTime.now().add(ref.watch(rallyTimeOffsetProvider));
+    final isPortrait =
+        MediaQuery.orientationOf(context) == Orientation.portrait;
 
     if (_factorController.text != factorText) {
       _factorController.text = factorText;
@@ -542,19 +551,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             child: Text('Measured Mileage Entry'),
                           ),
                           Expanded(
-                            child: _buildDialogField(
-                              controller: _measuredController,
-                              label:
-                                  'Measured Mileage (${settings.isMetric ? 'KM' : 'MI'})',
-                              onTap: _openMeasuredMileageDialog,
-                              showUnderline: false,
-                              trailing: ElevatedButton(
-                                onPressed:
-                                    _entryMode == CalibrationEntryMode.measured
-                                        ? _calculateFactor
-                                        : null,
-                                child: const Text('Calculate'),
-                              ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildDialogField(
+                                  controller: _measuredController,
+                                  label:
+                                      'Measured Mileage (${settings.isMetric ? 'KM' : 'MI'})',
+                                  onTap: _openMeasuredMileageDialog,
+                                  showUnderline: false,
+                                  trailing: isPortrait
+                                      ? null
+                                      : _calculateFactorButton(),
+                                ),
+                                if (isPortrait) ...[
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: _calculateFactorButton(),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                         ],
@@ -750,9 +768,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   stringValue: value.toString(),
                                 );
                               } else {
+                                final sensorFusion =
+                                    ref.read(sensorFusionServiceProvider);
                                 ref
                                     .read(settingsProvider.notifier)
                                     .setSensorFusionEnabled(value);
+                                sensorFusion.setEnabled(value);
+                                if (value) {
+                                  sensorFusion.requestCalibration();
+                                }
                               }
                             },
                           ),

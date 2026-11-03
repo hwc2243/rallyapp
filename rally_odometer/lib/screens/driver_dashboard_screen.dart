@@ -70,14 +70,15 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
                       ),
               ),
             ]),
-            Positioned(
-              right: 8,
-              bottom: 8,
-              child: SharedOverflowPopupMenuButton(
-                isControllerEngine: widget.isControllerEngine,
-                icon: Icons.settings,
+            if (MediaQuery.orientationOf(context) == Orientation.landscape)
+              Positioned(
+                right: 8,
+                bottom: 8,
+                child: SharedOverflowPopupMenuButton(
+                  isControllerEngine: widget.isControllerEngine,
+                  icon: Icons.settings,
+                ),
               ),
-            ),
             if (telemetry?.isCalibrating ?? false)
               const Positioned.fill(child: CalibrationOverlay()),
           ],
@@ -117,6 +118,15 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
     bool isDecimalMinutes,
     DateTime currentTime,
   ) {
+    if (MediaQuery.orientationOf(context) == Orientation.portrait) {
+      return _portraitDashboard(
+        telemetry,
+        isMetric,
+        isDecimalMinutes,
+        currentTime,
+      );
+    }
+
     final speed = telemetry.speed * (isMetric ? 3.6 : 2.236936);
     return Padding(
       padding: const EdgeInsets.only(left: 12, top: 12, right: 60, bottom: 12),
@@ -165,6 +175,67 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Portrait uses a scan-friendly vertical stack. The landscape 2x2 grid
+  /// above is intentionally retained for landscape displays.
+  Widget _portraitDashboard(
+    LiveTelemetry telemetry,
+    bool isMetric,
+    bool isDecimalMinutes,
+    DateTime currentTime,
+  ) {
+    final speed = telemetry.speed * (isMetric ? 3.6 : 2.236936);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Column(
+        children: [
+          Expanded(
+            child: _distancePanel(
+              'TOTAL (${isMetric ? 'km' : 'mi'})',
+              telemetry.totalDistance,
+              isMetric,
+              Colors.green,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _distancePanel(
+              'INTERVAL (${isMetric ? 'km' : 'mi'})',
+              telemetry.intervalDistance,
+              isMetric,
+              Colors.yellow,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _valuePanel(
+              'SPEED (${isMetric ? 'KPH' : 'MPH'})',
+              '${speed.round()}',
+              Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _valuePanel(
+              'TIME',
+              formatRallyTime(currentTime, isDecimalMinutes),
+              Colors.white,
+            ),
+          ),
+          SizedBox(
+            height: 44,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: SharedOverflowPopupMenuButton(
+                isControllerEngine: widget.isControllerEngine,
+                icon: Icons.settings,
+              ),
             ),
           ),
         ],

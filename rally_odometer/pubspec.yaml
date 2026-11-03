@@ -3,7 +3,7 @@ description: "A precise odometer focused on TDS road rally."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
-version: 0.1.0
+version: 0.2.0
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -11,10 +11,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
   flutter_launcher_icons: ^0.14.4
   flutter_riverpod: ^3.3.1
-  geolocator: ^12.0.0
+  geolocator: ^14.1.2
   intl: ^0.20.2
   permission_handler: ^13.0.1
   shared_preferences: ^2.3.2
@@ -22,6 +22,8 @@ dependencies:
   url_launcher: ^6.3.1
   rally_lib:
     path: ../rally_lib
+  package_info_plus: ^10.2.2
+  audioplayers: ^6.8.1
 
 flutter_launcher_icons:
   android: "launcher_icon"
@@ -57,6 +59,8 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - assets/rally_odometer_logo.png
+    - assets/sounds/park_chime.wav
+    - assets/sounds/reverse_beep.wav
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

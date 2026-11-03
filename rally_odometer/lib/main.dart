@@ -1,5 +1,6 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +12,7 @@ import 'screens/driver_dashboard_screen.dart';
 import 'screens/navigator_dashboard_screen.dart';
 import 'screens/role_selection_screen.dart';
 import 'providers/controller_display_view_provider.dart';
+import 'services/direction_alert_service.dart';
 import 'widgets/precision_drive_orientation_gate.dart';
 
 void main() async {
@@ -19,11 +21,6 @@ void main() async {
   await WakelockPlus.enable();
   final prefs = await SharedPreferences.getInstance();
 
-  // Lock to landscape as per PRD
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
-  ]);
   runApp(
     ProviderScope(
       overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
@@ -73,6 +70,47 @@ class DashboardForRoleScreen extends ConsumerWidget {
   }
 }
 
+/// Keeps the Park/Reverse reminder in sync for both Controller and remote
+/// Navigator devices, regardless of which dashboard view is currently shown.
+class DirectionAlertScope extends ConsumerStatefulWidget {
+  const DirectionAlertScope({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<DirectionAlertScope> createState() =>
+      _DirectionAlertScopeState();
+}
+
+class _DirectionAlertScopeState extends ConsumerState<DirectionAlertScope> {
+  final _alerts = DirectionAlertService();
+  OdometerDirection? _lastDirection;
+
+  @override
+  Widget build(BuildContext context) {
+    final role = ref.watch(deviceRoleProvider);
+    final direction = role == DeviceRole.controller
+        ? ref.watch(odometerProvider.select((state) => state.direction))
+        : OdometerDirection.values.firstWhere(
+            (value) =>
+                value.name == ref.watch(bleTelemetryProvider).value?.direction,
+            orElse: () => OdometerDirection.forward,
+          );
+
+    if (_lastDirection != direction) {
+      _lastDirection = direction;
+      unawaited(_alerts.setDirection(direction));
+    }
+    return widget.child;
+  }
+
+  @override
+  void dispose() {
+    unawaited(_alerts.dispose());
+    super.dispose();
+  }
+}
+
 class _RallyOdometerAppState extends ConsumerState<RallyOdometerApp>
     with WidgetsBindingObserver {
   @override
@@ -115,8 +153,10 @@ class _RallyOdometerAppState extends ConsumerState<RallyOdometerApp>
       title: 'RallyMaster Odometer',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(brightness: Brightness.dark, primarySwatch: Colors.blue),
-      builder: (context, child) => PrecisionDriveOrientationGate(
-        child: child ?? const SizedBox.shrink(),
+      builder: (context, child) => DirectionAlertScope(
+        child: PrecisionDriveOrientationGate(
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
       initialRoute: '/',
       routes: {
