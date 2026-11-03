@@ -473,7 +473,7 @@ class _NavigatorDashboardScreenState
 
   Widget _holdButton(LiveTelemetry telemetry) => _portraitActionButton(
         telemetry.isNavigatorDisplayHeld ? 'RELEASE' : 'HOLD',
-        Colors.green,
+        telemetry.isNavigatorDisplayHeld ? Colors.amber : Colors.green,
         () {
           if (widget.isControllerEngine) {
             final notifier = ref.read(navigatorDisplayHoldProvider.notifier);
@@ -489,22 +489,28 @@ class _NavigatorDashboardScreenState
             _send(ControllerCommandOpcode.toggleHold);
           }
         },
+        flash: telemetry.isNavigatorDisplayHeld,
       );
 
   Widget _portraitActionButton(
     String label,
     Color color,
     VoidCallback onPressed,
-  ) =>
+    {
+    bool flash = false,
+  }) =>
       SizedBox.expand(
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: color,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: _PulsingButton(
+          pulse: flash,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: color,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+            ),
+            onPressed: onPressed,
+            child: FittedBox(child: Text(label)),
           ),
-          onPressed: onPressed,
-          child: FittedBox(child: Text(label)),
         ),
       );
 
@@ -530,18 +536,25 @@ class _NavigatorDashboardScreenState
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 2),
           child: SizedBox.expand(
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    activeDirection == value ? Colors.green : Colors.grey[850],
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: _PulsingButton(
+              pulse: activeDirection == value &&
+                  value != OdometerDirection.forward,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: activeDirection == value
+                      ? (value == OdometerDirection.forward
+                          ? Colors.green
+                          : Colors.red)
+                      : Colors.grey[850],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                ),
+                onPressed: () => _send(
+                  ControllerCommandOpcode.setFprState,
+                  stringValue: value.name,
+                ),
+                child: FittedBox(child: Text(label)),
               ),
-              onPressed: () => _send(
-                ControllerCommandOpcode.setFprState,
-                stringValue: value.name,
-              ),
-              child: FittedBox(child: Text(label)),
             ),
           ),
         ),
@@ -834,7 +847,9 @@ class _NavigatorDashboardScreenState
                     child: Column(children: [
                       _actionButton(
                         telemetry.isNavigatorDisplayHeld ? 'RELEASE' : 'HOLD',
-                        Colors.green,
+                        telemetry.isNavigatorDisplayHeld
+                            ? Colors.amber
+                            : Colors.green,
                         () {
                           if (widget.isControllerEngine) {
                             final notifier = ref.read(
@@ -852,6 +867,7 @@ class _NavigatorDashboardScreenState
                             _send(ControllerCommandOpcode.toggleHold);
                           }
                         },
+                        flash: telemetry.isNavigatorDisplayHeld,
                       ),
                       _actionButton(
                         'RESET',
@@ -902,39 +918,107 @@ class _NavigatorDashboardScreenState
           padding: const EdgeInsets.symmetric(vertical: 2),
           child: SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    activeDirection == value ? Colors.green : Colors.grey[850],
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: _PulsingButton(
+              pulse: activeDirection == value &&
+                  value != OdometerDirection.forward,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: activeDirection == value
+                      ? (value == OdometerDirection.forward
+                          ? Colors.green
+                          : Colors.red)
+                      : Colors.grey[850],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                ),
+                onPressed: () => _send(
+                  ControllerCommandOpcode.setFprState,
+                  stringValue: value.name,
+                ),
+                child: FittedBox(child: Text(label)),
               ),
-              onPressed: () => _send(
-                ControllerCommandOpcode.setFprState,
-                stringValue: value.name,
-              ),
-              child: FittedBox(child: Text(label)),
             ),
           ),
         ),
       );
 
-  Widget _actionButton(String label, Color color, VoidCallback onPressed) =>
+  Widget _actionButton(
+    String label,
+    Color color,
+    VoidCallback onPressed, {
+    bool flash = false,
+  }) =>
       Expanded(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),
           child: SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: color,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: _PulsingButton(
+              pulse: flash,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: color,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                ),
+                onPressed: onPressed,
+                child: FittedBox(child: Text(label)),
               ),
-              onPressed: onPressed,
-              child: FittedBox(child: Text(label)),
             ),
           ),
         ),
+      );
+}
+
+/// Pulses a warning control for as long as its corresponding state is active.
+class _PulsingButton extends StatefulWidget {
+  const _PulsingButton({required this.pulse, required this.child});
+
+  final bool pulse;
+  final Widget child;
+
+  @override
+  State<_PulsingButton> createState() => _PulsingButtonState();
+}
+
+class _PulsingButtonState extends State<_PulsingButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 700),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _updateAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PulsingButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.pulse != widget.pulse) _updateAnimation();
+  }
+
+  void _updateAnimation() {
+    if (widget.pulse) {
+      _controller.repeat(reverse: true);
+    } else {
+      _controller
+        ..stop()
+        ..value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+        opacity: Tween<double>(begin: 0.35, end: 1).animate(_controller),
+        child: widget.child,
       );
 }

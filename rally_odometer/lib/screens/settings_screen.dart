@@ -768,9 +768,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   stringValue: value.toString(),
                                 );
                               } else {
+                                final sensorFusion =
+                                    ref.read(sensorFusionServiceProvider);
                                 ref
                                     .read(settingsProvider.notifier)
                                     .setSensorFusionEnabled(value);
+                                sensorFusion.setEnabled(value);
+                                if (value) {
+                                  sensorFusion.requestCalibration();
+                                }
                               }
                             },
                           ),

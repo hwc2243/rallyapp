@@ -154,8 +154,8 @@ class SensorFusionService {
     _refreshAssistance();
   }
 
-  /// Opens the mount-confirmation step. This is intentionally called only at
-  /// app startup or from the user-initiated Calibrate action.
+  /// Opens the mount-confirmation step. This is called at app startup, when
+  /// PrecisionDrive is enabled, or from the user-initiated Calibrate action.
   void requestCalibration() {
     if (!_enabled) return;
     _stationaryCalibrationStartedAt = null;
