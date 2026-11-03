@@ -7,6 +7,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-public interface RouteItem extends BaseRouteItem
+public interface RouteItem<ROUTE> extends BaseRouteItem<ROUTE>
 { 
 }

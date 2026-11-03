@@ -13,4 +13,5 @@ public interface BaseRallyPersistence<E extends RallyEntity, ID> extends JpaRepo
 {
     public List<E> findByOrganizationId(Long organizationId);
 
+
 }

@@ -2,6 +2,7 @@ package com.rallyapp.rallymaster.entity;
 
 
 import com.rallyapp.rallymaster.entity.base.BaseRouteInstructionEntity;
+import com.rallyapp.rallymaster.entity.RouteEntity;
 import com.rallyapp.rallymaster.model.RouteInstruction;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Inheritance;
@@ -14,7 +15,7 @@ import java.io.Serializable;
 @Table(name="route_instruction")
 public class RouteInstructionEntity
     extends BaseRouteInstructionEntity<RouteInstructionEntity>
-    implements RouteInstruction, Serializable
+    implements RouteInstruction<RouteEntity>, Serializable
 {
 	public RouteInstructionEntity ()
 	{

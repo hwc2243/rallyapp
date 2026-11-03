@@ -1,6 +1,7 @@
 import 'organization_dto.dart';
 import 'organization_membership_dto.dart';
 import 'rally_dto.dart';
+import 'route_dto.dart';
 import 'user_dto.dart';
 
 /// The authenticated user and organization selected for the current session.
@@ -11,12 +12,14 @@ class AppSession {
     required this.organization,
     required this.organizationMembership,
     this.rally,
+    this.route,
   });
 
   final UserDto user;
   final OrganizationDto organization;
   final OrganizationMembershipDto organizationMembership;
   final RallyDto? rally;
+  final RouteDto? route;
 
   int get organizationId {
     final serverId = organization.serverId;

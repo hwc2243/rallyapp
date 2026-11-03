@@ -25,7 +25,7 @@ public interface BaseExternalOrganizationRest
 	public ResponseEntity<List<OrganizationDTO>> searchOrganizations (
 	);
 
-	public ResponseEntity<Collection<OrganizationMembershipDTO>> listOrganizationMemberships (
+	public ResponseEntity<Collection<OrganizationMembershipDTO>> listOrganizationOrganizationMemberships (
 		Long organizationId);
 	
 	    public ResponseEntity<OrganizationDTO> updateOrganization (Long id, OrganizationDTO organization);

@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-public interface BaseRally<ROUTE>
+public interface BaseRally<USER, ROUTE>
  extends Multitenant, Serializable
 { 
   public Long getId ();
@@ -31,8 +31,9 @@ public interface BaseRally<ROUTE>
   public void setOrganizationId (Long organizationId);
   
 
-  public Long getUserId ();
-  public void setUserId (Long userId);
+  public USER getUser ();
+  public void setUser (USER user);
+
 
   public List<ROUTE> getRoutes ();
   public void setRoutes (List<ROUTE> routes);

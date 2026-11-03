@@ -3,15 +3,18 @@ package com.rallyapp.rallymaster.service;
 import com.rallyapp.rallymaster.dto.OrganizationDTO;
 import com.rallyapp.rallymaster.dto.OrganizationMembershipDTO;
 import com.rallyapp.rallymaster.dto.UserDTO;
+import com.rallyapp.rallymaster.entity.OrganizationEntity;
 import com.rallyapp.rallymaster.entity.OrganizationMembershipEntity;
-import com.rallyapp.rallymaster.model.OrganizationMembershipRole;
+import com.rallyapp.rallymaster.entity.UserEntity;
 import com.rallyapp.rallymaster.persistence.OrganizationPersistence;
 import com.rallyapp.rallymaster.persistence.UserPersistence;
 import com.rallyapp.rallymaster.service.base.BaseOrganizationMembershipServiceImpl;
+import com.rallyapp.rallymaster.model.OrganizationMembershipRole;
+import java.util.Collection;
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class OrganizationMembershipServiceImpl
@@ -21,18 +24,23 @@ public class OrganizationMembershipServiceImpl
   
   @Autowired
   protected OrganizationMembershipMapper organizationMembershipMapper;
-
   @Autowired
   protected OrganizationMapper organizationMapper;
 
   @Autowired
   protected UserPersistence userPersistence;
-
   @Autowired
   protected OrganizationPersistence organizationPersistence;
   
   protected OrganizationMembershipEntity toEntity (OrganizationMembershipDTO dto) {
-    return organizationMembershipMapper.toEntity(dto);
+    OrganizationMembershipEntity entity = organizationMembershipMapper.toEntity(dto);
+    entity.setUser(dto.getUserId() == null
+        ? null
+        : userPersistence.getReferenceById(dto.getUserId()));
+    entity.setOrganization(dto.getOrganizationId() == null
+        ? null
+        : organizationPersistence.getReferenceById(dto.getOrganizationId()));
+    return entity;
   }
   
   protected List<OrganizationMembershipEntity> toEntities (List<OrganizationMembershipDTO> dtos) {
@@ -47,31 +55,34 @@ public class OrganizationMembershipServiceImpl
     return organizationMembershipMapper.toDtos(entities);
   }
 
-  /** Returns the organizations for which the supplied user has a membership. */
+  @Override
+  @Transactional(readOnly = true)
+  public List<OrganizationDTO> findOrganizationByUser(Long userId) {
+    return organizationMembershipPersistence.findByUserId(userId).stream()
+        .map(OrganizationMembershipEntity::getOrganization)
+        .filter(organization -> organization != null)
+        .map(organizationMapper::toDto)
+        .toList();
+  }
+
   @Override
   @Transactional(readOnly = true)
   public List<OrganizationDTO> findOrganizationsByUser(UserDTO user) {
     if (user == null || user.getId() == null) {
       return List.of();
     }
-
-    return organizationMembershipPersistence.findByUserId(user.getId()).stream()
-        .map(OrganizationMembershipEntity::getOrganizationId)
-        .map(organizationId -> organizationPersistence.findById(organizationId)
-            .orElseThrow(() -> new IllegalStateException(
-                "Membership references an organization that no longer exists: " + organizationId)))
-        .map(organizationMapper::toDto)
-        .toList();
+    return findOrganizationByUser(user.getId());
   }
 
   @Override
   @Transactional
   public OrganizationMembershipDTO createMembership(
       UserDTO user, OrganizationDTO organization, OrganizationMembershipRole role) {
-    if (user == null || user.getId() == null || organization == null || organization.getId() == null) {
-      throw new IllegalArgumentException("A persisted user and organization are required for a membership.");
+    if (user == null || user.getId() == null ||
+        organization == null || organization.getId() == null) {
+      throw new IllegalArgumentException(
+          "A persisted user and organization are required for a membership.");
     }
-
     if (!userPersistence.existsById(user.getId())) {
       throw new IllegalArgumentException("User was not found.");
     }
@@ -80,10 +91,11 @@ public class OrganizationMembershipServiceImpl
     }
 
     OrganizationMembershipEntity membership = new OrganizationMembershipEntity();
-    membership.setUserId(user.getId());
-    membership.setOrganizationId(organization.getId());
+    membership.setUser(userPersistence.getReferenceById(user.getId()));
+    membership.setOrganization(
+        organizationPersistence.getReferenceById(organization.getId()));
     membership.setRole(role);
-
     return toDto(organizationMembershipPersistence.save(membership));
   }
+
 }

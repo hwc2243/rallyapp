@@ -15,4 +15,5 @@ public interface BaseUserPersistence<E extends UserEntity, ID> extends JpaReposi
 
     public E findFirstByEmailAddress(String emailAddress);
 
+
 }

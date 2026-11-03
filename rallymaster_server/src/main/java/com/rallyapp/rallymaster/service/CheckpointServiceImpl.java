@@ -3,6 +3,7 @@ package com.rallyapp.rallymaster.service;
 import com.rallyapp.rallymaster.dto.CheckpointDTO;
 import com.rallyapp.rallymaster.entity.CheckpointEntity;
 import com.rallyapp.rallymaster.service.base.BaseCheckpointServiceImpl;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,9 +16,11 @@ public class CheckpointServiceImpl
   
   @Autowired
   protected CheckpointMapper checkpointMapper;
+
   
   protected CheckpointEntity toEntity (CheckpointDTO dto) {
-    return checkpointMapper.toEntity(dto);
+    CheckpointEntity entity = checkpointMapper.toEntity(dto);
+    return entity;
   }
   
   protected List<CheckpointEntity> toEntities (List<CheckpointDTO> dtos) {
@@ -31,4 +34,5 @@ public class CheckpointServiceImpl
   protected List<CheckpointDTO> toDtos (List<CheckpointEntity> entities) {
     return checkpointMapper.toDtos(entities);
   }
+
 }

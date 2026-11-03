@@ -33,7 +33,7 @@ import java.util.Set;
 
 @MappedSuperclass
 public abstract class BaseRallyEntity<T extends BaseRallyEntity<T>> extends AbstractBaseEntity
-    implements BaseRally<RouteEntity>, Multitenant, Serializable
+    implements BaseRally<UserEntity, RouteEntity>, Multitenant, Serializable
 {
   @Id
   @Column
@@ -53,9 +53,10 @@ public abstract class BaseRallyEntity<T extends BaseRallyEntity<T>> extends Abst
   protected Long organizationId = null;
   
 
-  @Column(name = "userId")
-  protected Long userId = null;
-
+  @OneToOne(cascade=CascadeType.ALL)
+  @JoinColumn(name= "user_id", nullable=true)
+  protected UserEntity user;
+  
   @OneToMany(mappedBy = "rally", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
   protected List<RouteEntity> routes;
   
@@ -120,14 +121,14 @@ public abstract class BaseRallyEntity<T extends BaseRallyEntity<T>> extends Abst
   }
   
 
-  public Long getUserId ()
+  public UserEntity getUser ()
   {
-    return this.userId;
+    return this.user;
   }
-
-  public void setUserId (Long userId)
+  
+  public void setUser (UserEntity user)
   {
-    this.userId = userId;
+    this.user = user;
   }
 
 

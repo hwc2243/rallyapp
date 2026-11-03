@@ -3,6 +3,8 @@ package com.rallyapp.rallymaster.service;
 import com.rallyapp.rallymaster.dto.RallyDTO;
 import com.rallyapp.rallymaster.dto.RouteDTO;
 import com.rallyapp.rallymaster.entity.RallyEntity;
+import com.rallyapp.rallymaster.entity.UserEntity;
+import com.rallyapp.rallymaster.persistence.UserPersistence;
 import com.rallyapp.rallymaster.service.base.BaseRallyServiceImpl;
 import java.util.Collection;
 import java.util.List;
@@ -17,9 +19,16 @@ public class RallyServiceImpl
   
   @Autowired
   protected RallyMapper rallyMapper;
+
+  @Autowired
+  protected UserPersistence userPersistence;
   
   protected RallyEntity toEntity (RallyDTO dto) {
-    return rallyMapper.toEntity(dto);
+    RallyEntity entity = rallyMapper.toEntity(dto);
+    entity.setUser(dto.getUserId() == null
+        ? null
+        : userPersistence.getReferenceById(dto.getUserId()));
+    return entity;
   }
   
   protected List<RallyEntity> toEntities (List<RallyDTO> dtos) {
@@ -34,11 +43,7 @@ public class RallyServiceImpl
     return rallyMapper.toDtos(entities);
   }
 
-  @Override
-  protected Collection<RouteDTO> toRoutesDtos(RallyEntity entity) {
-    if (entity.getRoutes() == null) {
-      return List.of();
-    }
+  protected Collection<RouteDTO> toRoutesDtos (RallyEntity entity) {
     return rallyMapper.routesToDtos(entity.getRoutes());
   }
 }

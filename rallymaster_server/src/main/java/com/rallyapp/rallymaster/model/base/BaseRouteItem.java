@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-public interface BaseRouteItem
+public interface BaseRouteItem<ROUTE>
  extends Multitenant, Serializable
 { 
   public Long getId ();
@@ -34,7 +34,8 @@ public interface BaseRouteItem
   public void setOrganizationId (Long organizationId);
   
 
-  public Long getRouteId ();
-  public void setRouteId (Long routeId);
+  public ROUTE getRoute ();
+  public void setRoute (ROUTE route);
+  
 
 }

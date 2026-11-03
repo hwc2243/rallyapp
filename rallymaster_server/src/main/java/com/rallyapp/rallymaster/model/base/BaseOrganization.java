@@ -17,8 +17,8 @@ public interface BaseOrganization<ORGANIZATIONMEMBERSHIP>
   public void setName (String name);
   
 
-  public Set<ORGANIZATIONMEMBERSHIP> getMemberships ();
-  public void setMemberships (Set<ORGANIZATIONMEMBERSHIP> memberships);
+  public Set<ORGANIZATIONMEMBERSHIP> getOrganizationMemberships ();
+  public void setOrganizationMemberships (Set<ORGANIZATIONMEMBERSHIP> organizationMemberships);
 
 
 }

@@ -16,4 +16,5 @@ public interface BaseCheckpointPersistence<E extends CheckpointEntity, ID> exten
 
     public List<E> findByRouteId(Long routeId);
 
+
 }

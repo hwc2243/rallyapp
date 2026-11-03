@@ -7,37 +7,24 @@ import com.rallyapp.rallymaster.entity.UserEntity;
 import com.rallyapp.rallymaster.model.OrganizationMembership;
 import com.rallyapp.rallymaster.model.OrganizationMembershipRole;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.io.Serializable;
 
 @Entity(name="OrganizationMembership")
-@Table(name="organization_membership")
+@Table(name="organization_membership",
+       uniqueConstraints = {
+               @UniqueConstraint(columnNames = {
+                       "user_id"
+               })
+       }
+)
 public class OrganizationMembershipEntity
     extends BaseOrganizationMembershipEntity<OrganizationMembershipEntity>
-    implements OrganizationMembership, Serializable
+    implements OrganizationMembership<UserEntity, OrganizationEntity>, Serializable
 {
-	/**
-	 * Read-only association for the inverse UserEntity.memberships mapping.
-	 * The generated userId field remains the authoritative, writable value.
-	 */
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "userId", insertable = false, updatable = false)
-	private UserEntity user;
-
-	/**
-	 * Read-only association for the inverse OrganizationEntity.memberships mapping.
-	 * The generated organizationId field remains the authoritative tenant key.
-	 */
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "organizationId", insertable = false, updatable = false)
-	private OrganizationEntity organization;
-
 	public OrganizationMembershipEntity ()
 	{
 		super();
@@ -47,14 +34,21 @@ public class OrganizationMembershipEntity
     private OrganizationMembershipEntity (Builder builder)
     {
         this.role = builder.role;
+        this.organizationId = builder.organizationId;
     }
 
     public static class Builder {
 
         private OrganizationMembershipRole role = null;
+        private Long organizationId = null;
 
         public Builder role(OrganizationMembershipRole role) {
             this.role = role;
+            return this;
+        }
+
+        public Builder organizationId(Long organizationId) {
+            this.organizationId = organizationId;
             return this;
         }
 

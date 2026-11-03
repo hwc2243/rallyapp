@@ -17,6 +17,7 @@ import org.mapstruct.Named;
 public interface CheckpointMapper {
 
   @Named("checkpointDefault")
+  @Mapping(target = "routeId", source = "route.id")
   CheckpointDTO toDto(CheckpointEntity entity);
 
   @Named("checkpointShallow")
@@ -24,6 +25,7 @@ public interface CheckpointMapper {
 
 
 
+  @Mapping(target = "route", ignore = true)
   CheckpointEntity toEntity(CheckpointDTO dto);
 
   @IterableMapping(qualifiedByName = "checkpointDefault")

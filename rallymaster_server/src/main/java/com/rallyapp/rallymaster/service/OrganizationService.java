@@ -6,6 +6,6 @@ import com.rallyapp.rallymaster.service.base.BaseOrganizationService;
 
 public interface OrganizationService extends BaseOrganizationService<OrganizationDTO,Long>
 {
-	OrganizationDTO createOrganizationFor(UserDTO creator, OrganizationDTO organization)
-			throws ServiceException;
+  OrganizationDTO createOrganizationFor(UserDTO creator, OrganizationDTO organization)
+      throws ServiceException;
 }

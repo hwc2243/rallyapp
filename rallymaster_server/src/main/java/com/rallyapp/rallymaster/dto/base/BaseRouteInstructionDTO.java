@@ -1,6 +1,5 @@
 package com.rallyapp.rallymaster.dto.base;
 
-
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.rallyapp.rallymaster.dto.base.BaseRouteItemDTO;
 import com.rallyapp.rallymaster.dto.RouteInstructionDTO;
@@ -12,7 +11,7 @@ import java.util.Set;
 
 public abstract class BaseRouteInstructionDTO
 extends BaseRouteItemDTO
-implements BaseRouteInstruction,  Serializable
+implements  Serializable
 {
   protected Long id = null;
 

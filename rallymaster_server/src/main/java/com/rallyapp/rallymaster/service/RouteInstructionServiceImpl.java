@@ -3,6 +3,7 @@ package com.rallyapp.rallymaster.service;
 import com.rallyapp.rallymaster.dto.RouteInstructionDTO;
 import com.rallyapp.rallymaster.entity.RouteInstructionEntity;
 import com.rallyapp.rallymaster.service.base.BaseRouteInstructionServiceImpl;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,9 +16,11 @@ public class RouteInstructionServiceImpl
   
   @Autowired
   protected RouteInstructionMapper routeInstructionMapper;
+
   
   protected RouteInstructionEntity toEntity (RouteInstructionDTO dto) {
-    return routeInstructionMapper.toEntity(dto);
+    RouteInstructionEntity entity = routeInstructionMapper.toEntity(dto);
+    return entity;
   }
   
   protected List<RouteInstructionEntity> toEntities (List<RouteInstructionDTO> dtos) {
@@ -31,4 +34,5 @@ public class RouteInstructionServiceImpl
   protected List<RouteInstructionDTO> toDtos (List<RouteInstructionEntity> entities) {
     return routeInstructionMapper.toDtos(entities);
   }
+
 }

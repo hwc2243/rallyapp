@@ -15,4 +15,5 @@ public interface BaseOrganizationPersistence<E extends OrganizationEntity, ID> e
 
     public E findFirstByName(String name);
 
+
 }

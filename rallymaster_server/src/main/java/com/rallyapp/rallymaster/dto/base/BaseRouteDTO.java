@@ -1,6 +1,5 @@
 package com.rallyapp.rallymaster.dto.base;
 
-
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.rallyapp.rallymaster.dto.RallyDTO;
 import com.rallyapp.rallymaster.dto.RouteDTO;
@@ -13,7 +12,7 @@ import java.util.Objects;
 import java.util.Set;
 
 public abstract class BaseRouteDTO
-implements BaseRoute<RouteItemDTO>, Multitenant,  Serializable
+implements Multitenant,  Serializable
 {
   protected Long id = null;
 
@@ -25,7 +24,6 @@ implements BaseRoute<RouteItemDTO>, Multitenant,  Serializable
   
   protected Long rallyId;
 
-  protected List<RouteItemDTO> items;
 
 
   protected BaseRouteDTO () {
@@ -39,7 +37,6 @@ implements BaseRoute<RouteItemDTO>, Multitenant,  Serializable
     this.description = builder.description;
     this.organizationId = builder.organizationId;
     this.rallyId = builder.rallyId;
-    this.items = builder.items;
   }
 
   public Long getId ()
@@ -96,15 +93,6 @@ implements BaseRoute<RouteItemDTO>, Multitenant,  Serializable
     this.rallyId = rallyId;
   }
 
-  public List<RouteItemDTO> getItems ()
-  {
-    return this.items;
-  }
-  
-  public void setItems (List<RouteItemDTO> items)
-  {
-    this.items = items;
-  }
 
 
     @Override
@@ -137,7 +125,6 @@ implements BaseRoute<RouteItemDTO>, Multitenant,  Serializable
   
 
     private Long rallyId = null;
-    private List<RouteItemDTO> items = null;
 
     public Builder id(Long id) {
       this.id = id;
@@ -161,10 +148,6 @@ implements BaseRoute<RouteItemDTO>, Multitenant,  Serializable
 
     public Builder rallyId (Long rallyId) {
       this.rallyId = rallyId;
-      return this;
-    }
-    public Builder items(List<RouteItemDTO> items) {
-      this.items = items;
       return this;
     }
     /**

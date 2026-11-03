@@ -2,13 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../models/app_session.dart';
 import '../models/rally_dto.dart';
+import '../models/route_dto.dart';
 
 /// Temporary final step. This will hold the remaining rally setup later.
 class SetupScreen extends StatelessWidget {
-  const SetupScreen({super.key, required this.session, required this.rally});
+  const SetupScreen({
+    super.key,
+    required this.session,
+    required this.rally,
+    required this.route,
+  });
 
   final AppSession session;
   final RallyDto rally;
+  final RouteDto route;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -34,6 +41,15 @@ class SetupScreen extends StatelessWidget {
             ),
             Text(
               rally.name ?? 'Unnamed rally',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Selected route',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            Text(
+              route.name ?? 'Unnamed route',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const Spacer(),

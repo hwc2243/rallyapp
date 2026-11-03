@@ -2,6 +2,7 @@ package com.rallyapp.rallymaster.entity;
 
 
 import com.rallyapp.rallymaster.entity.base.BaseOrganizationEntity;
+import com.rallyapp.rallymaster.entity.OrganizationMembershipEntity;
 import com.rallyapp.rallymaster.model.Organization;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Inheritance;

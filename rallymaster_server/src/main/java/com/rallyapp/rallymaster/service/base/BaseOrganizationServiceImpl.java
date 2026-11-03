@@ -76,10 +76,10 @@ public abstract class BaseOrganizationServiceImpl<D extends OrganizationDTO, E e
   }
 
   @Override
-  public Collection<OrganizationMembershipDTO> getMemberships (ID id) throws ServiceException
+  public Collection<OrganizationMembershipDTO> getOrganizationMemberships (ID id) throws ServiceException
   {
     Optional<E> optional = baseOrganizationPersistence.findById(id);
-    return optional.isEmpty() ? null : toMembershipsDtos(optional.get());
+    return optional.isEmpty() ? null : toOrganizationMembershipsDtos(optional.get());
   }
   
   @Override
@@ -112,5 +112,5 @@ public abstract class BaseOrganizationServiceImpl<D extends OrganizationDTO, E e
 
   protected abstract D toDto (E entity);
   protected abstract List<D> toDtos (List<E> entities);
-  protected abstract Collection<OrganizationMembershipDTO> toMembershipsDtos (E entity);
+  protected abstract Collection<OrganizationMembershipDTO> toOrganizationMembershipsDtos (E entity);
 }

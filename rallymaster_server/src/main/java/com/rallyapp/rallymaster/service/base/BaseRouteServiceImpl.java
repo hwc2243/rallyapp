@@ -88,6 +88,11 @@ public abstract class BaseRouteServiceImpl<D extends RouteDTO & Multitenant, E e
   }
 
   @Override
+  public List<D> findByRallyId (Long rallyId)
+  {
+    return toDtos(baseRoutePersistence.findByOrganizationIdAndRally_Id(tenantDiscriminator.getOrganizationId(), rallyId));
+  }
+  @Override
   public Collection<RouteItemDTO> getItems (ID id) throws ServiceException
   {
     Optional<E> optional = baseRoutePersistence.findById(id);

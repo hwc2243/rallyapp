@@ -10,5 +10,5 @@ import java.util.List;
 public interface BaseOrganizationService<D extends BaseOrganizationDTO, ID> extends EntityService<D, ID> {
 
 	public D fetchByName (String name);
-	public Collection<OrganizationMembershipDTO> getMemberships (ID id) throws ServiceException;
+	public Collection<OrganizationMembershipDTO> getOrganizationMemberships (ID id) throws ServiceException;
 }

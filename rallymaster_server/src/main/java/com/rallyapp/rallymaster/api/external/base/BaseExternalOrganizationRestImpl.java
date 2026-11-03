@@ -124,14 +124,14 @@ public abstract class BaseExternalOrganizationRestImpl implements BaseExternalOr
 	  }
 	}
 
-    @GetMapping("/{organizationId}/memberships")
+    @GetMapping("/{organizationId}/organizationMemberships")
     @Override
-    public ResponseEntity<Collection<OrganizationMembershipDTO>> listOrganizationMemberships(
+    public ResponseEntity<Collection<OrganizationMembershipDTO>> listOrganizationOrganizationMemberships(
         @PathVariable Long organizationId)
     {
       try
       {
-        Collection<OrganizationMembershipDTO> values = organizationService.getMemberships(organizationId);
+        Collection<OrganizationMembershipDTO> values = organizationService.getOrganizationMemberships(organizationId);
         if (values == null)
         {
           return ResponseEntity.notFound().build();

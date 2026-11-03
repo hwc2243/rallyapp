@@ -32,7 +32,7 @@ import java.util.Set;
 
 @MappedSuperclass
 public abstract class BaseRouteEntity<T extends BaseRouteEntity<T>> extends AbstractBaseEntity
-    implements BaseRoute<RouteItemEntity>, Multitenant, Serializable
+    implements BaseRoute<RallyEntity, RouteItemEntity>, Multitenant, Serializable
 {
   @Id
   @Column
@@ -49,8 +49,9 @@ public abstract class BaseRouteEntity<T extends BaseRouteEntity<T>> extends Abst
   protected Long organizationId = null;
   
 
-  @Column(name = "rallyId")
-  protected Long rallyId = null;
+  @ManyToOne
+  @JoinColumn(name= "rallyId", nullable=true)
+  protected RallyEntity rally;
 
   @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
   protected List<RouteItemEntity> items;
@@ -105,14 +106,14 @@ public abstract class BaseRouteEntity<T extends BaseRouteEntity<T>> extends Abst
   }
   
 
-  public Long getRallyId ()
+  public RallyEntity getRally ()
   {
-    return this.rallyId;
+    return this.rally;
   }
-
-  public void setRallyId (Long rallyId)
+  
+  public void setRally (RallyEntity rally)
   {
-    this.rallyId = rallyId;
+    this.rally = rally;
   }
 
 

@@ -32,7 +32,7 @@ import java.util.Set;
 
 @MappedSuperclass
 public abstract class BaseRouteItemEntity<T extends BaseRouteItemEntity<T>> extends AbstractBaseEntity
-    implements BaseRouteItem, Multitenant, Serializable
+    implements BaseRouteItem<RouteEntity>, Multitenant, Serializable
 {
   @Id
   @Column
@@ -56,8 +56,9 @@ public abstract class BaseRouteItemEntity<T extends BaseRouteItemEntity<T>> exte
   protected Long organizationId = null;
   
 
-  @Column(name = "routeId")
-  protected Long routeId = null;
+  @ManyToOne
+  @JoinColumn(name= "routeId", nullable=true)
+  protected RouteEntity route;
 
   
   public Long getId ()
@@ -130,14 +131,14 @@ public abstract class BaseRouteItemEntity<T extends BaseRouteItemEntity<T>> exte
   }
   
 
-  public Long getRouteId ()
+  public RouteEntity getRoute ()
   {
-    return this.routeId;
+    return this.route;
   }
-
-  public void setRouteId (Long routeId)
+  
+  public void setRoute (RouteEntity route)
   {
-    this.routeId = routeId;
+    this.route = route;
   }
 
 

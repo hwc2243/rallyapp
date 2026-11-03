@@ -17,6 +17,7 @@ import org.mapstruct.Named;
 public interface RouteInstructionMapper {
 
   @Named("routeInstructionDefault")
+  @Mapping(target = "routeId", source = "route.id")
   RouteInstructionDTO toDto(RouteInstructionEntity entity);
 
   @Named("routeInstructionShallow")
@@ -24,6 +25,7 @@ public interface RouteInstructionMapper {
 
 
 
+  @Mapping(target = "route", ignore = true)
   RouteInstructionEntity toEntity(RouteInstructionDTO dto);
 
   @IterableMapping(qualifiedByName = "routeInstructionDefault")

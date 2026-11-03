@@ -33,7 +33,7 @@ import java.util.Set;
 
 @MappedSuperclass
 public abstract class BaseOrganizationMembershipEntity<T extends BaseOrganizationMembershipEntity<T>> extends AbstractBaseEntity
-    implements BaseOrganizationMembership, Multitenant, Serializable
+    implements BaseOrganizationMembership<UserEntity, OrganizationEntity>, Multitenant, Serializable
 {
   @Id
   @Column
@@ -44,12 +44,17 @@ public abstract class BaseOrganizationMembershipEntity<T extends BaseOrganizatio
   @Enumerated(EnumType.STRING)
   protected OrganizationMembershipRole role = null;
   
-  @Column
+  @Column(insertable = false, updatable = false)
   protected Long organizationId = null;
   
 
-  @Column(name = "userId")
-  protected Long userId = null;
+  @ManyToOne
+  @JoinColumn(name= "userId", nullable=true)
+  protected UserEntity user;
+
+  @ManyToOne
+  @JoinColumn(name= "organizationId", nullable=true)
+  protected OrganizationEntity organization;
 
   
   public Long getId ()
@@ -89,16 +94,26 @@ public abstract class BaseOrganizationMembershipEntity<T extends BaseOrganizatio
   }
   
 
-  public Long getUserId ()
+  public UserEntity getUser ()
   {
-    return this.userId;
+    return this.user;
+  }
+  
+  public void setUser (UserEntity user)
+  {
+    this.user = user;
   }
 
-  public void setUserId (Long userId)
-  {
-    this.userId = userId;
-  }
 
+  public OrganizationEntity getOrganization ()
+  {
+    return this.organization;
+  }
+  
+  public void setOrganization (OrganizationEntity organization)
+  {
+    this.organization = organization;
+  }
 
 
 

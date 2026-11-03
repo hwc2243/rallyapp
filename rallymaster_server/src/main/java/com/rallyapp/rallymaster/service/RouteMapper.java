@@ -19,15 +19,10 @@ import org.mapstruct.Named;
 public interface RouteMapper {
 
   @Named("routeDefault")
-  @Mapping(target = "items", ignore = true)
+  @Mapping(target = "rallyId", source = "rally.id")
   RouteDTO toDto(RouteEntity entity);
 
   @Named("routeShallow")
-  @Mapping(
-      target = "items",
-      source = "items",
-      qualifiedByName = "routeItemDefault"
-  )
   RouteDTO toDtoShallow(RouteEntity entity);
 
 
@@ -43,7 +38,7 @@ public interface RouteMapper {
   );
 
 
-  @Mapping(target = "items", ignore = true)
+  @Mapping(target = "rally", ignore = true)
   RouteEntity toEntity(RouteDTO dto);
 
   @IterableMapping(qualifiedByName = "routeDefault")

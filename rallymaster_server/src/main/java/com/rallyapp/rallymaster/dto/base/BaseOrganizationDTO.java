@@ -1,6 +1,5 @@
 package com.rallyapp.rallymaster.dto.base;
 
-
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.rallyapp.rallymaster.dto.OrganizationDTO;
 import com.rallyapp.rallymaster.dto.OrganizationMembershipDTO;
@@ -11,13 +10,12 @@ import java.util.Objects;
 import java.util.Set;
 
 public abstract class BaseOrganizationDTO
-implements BaseOrganization<OrganizationMembershipDTO>,  Serializable
+implements  Serializable
 {
   protected Long id = null;
 
   protected String name = null;
   
-  protected Set<OrganizationMembershipDTO> memberships;
 
 
   protected BaseOrganizationDTO () {
@@ -28,7 +26,6 @@ implements BaseOrganization<OrganizationMembershipDTO>,  Serializable
   {
     this.id = builder.id;
     this.name = builder.name;
-    this.memberships = builder.memberships;
   }
 
   public Long getId ()
@@ -53,15 +50,6 @@ implements BaseOrganization<OrganizationMembershipDTO>,  Serializable
   }
   
 
-  public Set<OrganizationMembershipDTO> getMemberships ()
-  {
-    return this.memberships;
-  }
-  
-  public void setMemberships (Set<OrganizationMembershipDTO> memberships)
-  {
-    this.memberships = memberships;
-  }
 
 
     @Override
@@ -89,7 +77,6 @@ implements BaseOrganization<OrganizationMembershipDTO>,  Serializable
   private String name = null;
   
 
-    private Set<OrganizationMembershipDTO> memberships = null;
 
     public Builder id(Long id) {
       this.id = id;
@@ -101,10 +88,6 @@ implements BaseOrganization<OrganizationMembershipDTO>,  Serializable
       return this;
     }
 
-    public Builder memberships(Set<OrganizationMembershipDTO> memberships) {
-      this.memberships = memberships;
-      return this;
-    }
     /**
      * The build method creates and returns the immutable Entity object.
      */

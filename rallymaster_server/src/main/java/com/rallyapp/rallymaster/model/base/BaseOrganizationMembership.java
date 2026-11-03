@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-public interface BaseOrganizationMembership
+public interface BaseOrganizationMembership<USER, ORGANIZATION>
  extends Multitenant, Serializable
 { 
   public Long getId ();
@@ -23,7 +23,12 @@ public interface BaseOrganizationMembership
   public void setOrganizationId (Long organizationId);
   
 
-  public Long getUserId ();
-  public void setUserId (Long userId);
+  public USER getUser ();
+  public void setUser (USER user);
+  
+
+  public ORGANIZATION getOrganization ();
+  public void setOrganization (ORGANIZATION organization);
+  
 
 }

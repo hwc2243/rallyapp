@@ -6,7 +6,6 @@ import com.rallyapp.rallymaster.dto.UserDTO;
 import com.rallyapp.rallymaster.entity.OrganizationEntity;
 import com.rallyapp.rallymaster.model.OrganizationMembershipRole;
 import com.rallyapp.rallymaster.service.base.BaseOrganizationServiceImpl;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,12 +23,10 @@ public class OrganizationServiceImpl
 
   @Autowired
   protected OrganizationMembershipService organizationMembershipService;
-
-  @Autowired
-  protected OrganizationMembershipMapper organizationMembershipMapper;
   
   protected OrganizationEntity toEntity (OrganizationDTO dto) {
-    return organizationMapper.toEntity(dto);
+    OrganizationEntity entity = organizationMapper.toEntity(dto);
+    return entity;
   }
   
   protected List<OrganizationEntity> toEntities (List<OrganizationDTO> dtos) {
@@ -44,16 +41,11 @@ public class OrganizationServiceImpl
     return organizationMapper.toDtos(entities);
   }
 
-  @Override
-  protected Collection<OrganizationMembershipDTO> toMembershipsDtos(
-      OrganizationEntity entity) {
-    if (entity.getMemberships() == null) {
-      return List.of();
-    }
-    return organizationMembershipMapper.toDtos(new ArrayList<>(entity.getMemberships()));
+  protected Collection<OrganizationMembershipDTO> toOrganizationMembershipsDtos (OrganizationEntity entity) {
+    return organizationMapper.organizationMembershipsToDtos(entity.getOrganizationMemberships());
   }
-
-  /** Creates an organization and makes its creator an organization ADMIN. */
+  
+  /** Creates an organization and grants its creator the ADMIN role. */
   @Override
   @Transactional(rollbackFor = Exception.class)
   public OrganizationDTO createOrganizationFor(
@@ -61,7 +53,6 @@ public class OrganizationServiceImpl
     if (creator == null || creator.getId() == null) {
       throw new IllegalArgumentException("A persisted creator is required.");
     }
-
     OrganizationDTO createdOrganization = create(organization);
     organizationMembershipService.createMembership(
         creator, createdOrganization, OrganizationMembershipRole.ADMIN);

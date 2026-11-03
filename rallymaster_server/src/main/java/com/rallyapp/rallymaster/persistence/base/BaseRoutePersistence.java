@@ -13,4 +13,6 @@ public interface BaseRoutePersistence<E extends RouteEntity, ID> extends JpaRepo
 {
     public List<E> findByOrganizationId(Long organizationId);
 
+
+    public List<E> findByOrganizationIdAndRally_Id(Long organizationId, Long rallyId);
 }

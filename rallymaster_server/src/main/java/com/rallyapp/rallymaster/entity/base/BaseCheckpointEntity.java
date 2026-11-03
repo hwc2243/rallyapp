@@ -2,6 +2,7 @@ package com.rallyapp.rallymaster.entity.base;
 
 
 import com.rallyapp.rallymaster.entity.base.BaseRouteItemEntity;
+import com.rallyapp.rallymaster.entity.RouteEntity;
 import com.rallyapp.rallymaster.model.base.BaseCheckpoint;
 import com.rallyapp.rallymaster.model.Checkpoint;
 import com.rallyapp.rallymaster.model.CheckpointCheckpointType;
@@ -32,12 +33,8 @@ import java.util.Set;
 @MappedSuperclass
 public abstract class BaseCheckpointEntity<T extends BaseCheckpointEntity<T>>
   extends BaseRouteItemEntity<T>
-    implements BaseCheckpoint, Serializable
+    implements BaseCheckpoint<RouteEntity>, Serializable
 {
-  @Id
-  @Column
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  protected Long id = null;
 
   @Column
   @Enumerated(EnumType.STRING)
@@ -53,21 +50,6 @@ public abstract class BaseCheckpointEntity<T extends BaseCheckpointEntity<T>>
   protected Boolean competitorVisible = null;
   
 
-  
-  public Long getId ()
-  {
-    return this.id;
-  }
-  
-  public void setId (Long id)
-  {
-    this.id = id;
-  }
-
-  public Object getKey ()
-  {
-    return this.id;
-  }
   
 
   public CheckpointCheckpointType getCheckpointType ()

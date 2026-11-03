@@ -19,20 +19,14 @@ import org.mapstruct.Named;
 public interface RallyMapper {
 
   @Named("rallyDefault")
-  @Mapping(target = "routes", ignore = true)
+  @Mapping(target = "userId", source = "user.id")
   RallyDTO toDto(RallyEntity entity);
 
   @Named("rallyShallow")
-  @Mapping(
-      target = "routes",
-      source = "routes",
-      qualifiedByName = "routeDefault"
-  )
   RallyDTO toDtoShallow(RallyEntity entity);
 
 
   @Named("routeDefault")
-  @Mapping(target = "items", ignore = true)
   RouteDTO routeToDto(
       RouteEntity entity
   );
@@ -44,7 +38,7 @@ public interface RallyMapper {
   );
 
 
-  @Mapping(target = "routes", ignore = true)
+  @Mapping(target = "user", ignore = true)
   RallyEntity toEntity(RallyDTO dto);
 
   @IterableMapping(qualifiedByName = "rallyDefault")

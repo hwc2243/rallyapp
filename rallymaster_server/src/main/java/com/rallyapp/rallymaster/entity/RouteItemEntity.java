@@ -2,6 +2,7 @@ package com.rallyapp.rallymaster.entity;
 
 
 import com.rallyapp.rallymaster.entity.base.BaseRouteItemEntity;
+import com.rallyapp.rallymaster.entity.RouteEntity;
 import com.rallyapp.rallymaster.model.RouteItem;
 import com.rallyapp.rallymaster.model.RouteItemItemType;
 import jakarta.persistence.Entity;
@@ -16,7 +17,7 @@ import java.io.Serializable;
 @Inheritance(strategy = InheritanceType.JOINED)
 public abstract class RouteItemEntity<T extends BaseRouteItemEntity<T>>
     extends BaseRouteItemEntity<T>
-    implements RouteItem, Serializable
+    implements RouteItem<RouteEntity>, Serializable
 {
 	public RouteItemEntity ()
 	{

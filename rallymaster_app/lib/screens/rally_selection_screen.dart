@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../models/app_session.dart';
 import '../models/rally_dto.dart';
+import '../models/rally_setup_selection.dart';
+import '../models/route_dto.dart';
 import '../providers/external_api_client.dart';
 import '../providers/rally_provider.dart';
 import '../providers/tenant_discriminator_provider.dart';
 import '../network/service_builder_http_client.dart';
 import 'create_rally_screen.dart';
+import 'select_route_screen.dart';
 import 'setup_screen.dart';
 
 class RallySelectionScreen extends StatefulWidget {
@@ -74,13 +77,35 @@ class _RallySelectionScreenState extends State<RallySelectionScreen> {
   }
 
   Future<void> _selectRally(RallyDto rally) async {
+    final route = await Navigator.of(context).push<RouteDto>(
+      MaterialPageRoute<RouteDto>(
+        builder: (_) => SelectRouteScreen(
+          session: widget.session,
+          rally: rally,
+          accessToken: widget.accessToken,
+        ),
+      ),
+    );
+    if (route == null || !mounted) return;
+
     final completed = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
-        builder: (_) => SetupScreen(session: widget.session, rally: rally),
+        builder: (_) => SetupScreen(
+          session: widget.session,
+          rally: rally,
+          route: route,
+        ),
       ),
     );
     if (completed == true && mounted) {
-      Navigator.of(context).pop(rally);
+      Navigator.of(context).pop(
+        RallySetupSelection(
+          organization: widget.session.organization,
+          organizationMembership: widget.session.organizationMembership,
+          rally: rally,
+          route: route,
+        ),
+      );
     }
   }
 

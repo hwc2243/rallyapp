@@ -2,7 +2,9 @@ package com.rallyapp.rallymaster.service;
 
 
 
+import com.rallyapp.rallymaster.dto.OrganizationMembershipDTO;
 import com.rallyapp.rallymaster.dto.UserDTO;
+import com.rallyapp.rallymaster.entity.OrganizationMembershipEntity;
 import com.rallyapp.rallymaster.entity.UserEntity;
 import java.util.List;
 import java.util.Set;
@@ -15,16 +17,24 @@ import org.mapstruct.Named;
 public interface UserMapper {
 
   @Named("userDefault")
-  @Mapping(target = "memberships", ignore = true)
   UserDTO toDto(UserEntity entity);
 
   @Named("userShallow")
-  @Mapping(target = "memberships", ignore = true)
   UserDTO toDtoShallow(UserEntity entity);
 
 
+  @Named("organizationMembershipDefault")
+  OrganizationMembershipDTO organizationMembershipToDto(
+      OrganizationMembershipEntity entity
+  );
 
-  @Mapping(target = "memberships", ignore = true)
+
+  @IterableMapping(qualifiedByName = "organizationMembershipDefault")
+  Set<OrganizationMembershipDTO> membershipsToDtos(
+      Set<OrganizationMembershipEntity> entities
+  );
+
+
   UserEntity toEntity(UserDTO dto);
 
   @IterableMapping(qualifiedByName = "userDefault")

@@ -2,6 +2,7 @@ package com.rallyapp.rallymaster.entity;
 
 
 import com.rallyapp.rallymaster.entity.base.BaseCheckpointEntity;
+import com.rallyapp.rallymaster.entity.RouteEntity;
 import com.rallyapp.rallymaster.model.Checkpoint;
 import com.rallyapp.rallymaster.model.CheckpointCheckpointType;
 import jakarta.persistence.Entity;
@@ -15,7 +16,7 @@ import java.io.Serializable;
 @Table(name="checkpoint")
 public class CheckpointEntity
     extends BaseCheckpointEntity<CheckpointEntity>
-    implements Checkpoint, Serializable
+    implements Checkpoint<RouteEntity>, Serializable
 {
 	public CheckpointEntity ()
 	{

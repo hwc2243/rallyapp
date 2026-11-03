@@ -38,12 +38,13 @@ public abstract class BaseOrganizationEntity<T extends BaseOrganizationEntity<T>
   protected Long id = null;
 
   @Column(name="name"
+    
     )
   protected String name = null;
   
 
   @OneToMany(mappedBy = "organization", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
-  protected Set<OrganizationMembershipEntity> memberships;
+  protected Set<OrganizationMembershipEntity> organizationMemberships;
   
   
   public Long getId ()
@@ -73,14 +74,14 @@ public abstract class BaseOrganizationEntity<T extends BaseOrganizationEntity<T>
   }
   
 
-  public Set<OrganizationMembershipEntity> getMemberships ()
+  public Set<OrganizationMembershipEntity> getOrganizationMemberships ()
   {
-    return this.memberships;
+    return this.organizationMemberships;
   }
   
-  public void setMemberships (Set<OrganizationMembershipEntity> memberships)
+  public void setOrganizationMemberships (Set<OrganizationMembershipEntity> organizationMemberships)
   {
-    this.memberships = memberships;
+    this.organizationMemberships = organizationMemberships;
   }
 
 

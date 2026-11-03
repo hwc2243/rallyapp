@@ -2,6 +2,7 @@ package com.rallyapp.rallymaster.entity.base;
 
 
 import com.rallyapp.rallymaster.entity.base.BaseRouteItemEntity;
+import com.rallyapp.rallymaster.entity.RouteEntity;
 import com.rallyapp.rallymaster.model.base.BaseRouteInstruction;
 import com.rallyapp.rallymaster.model.RouteInstruction;
 import jakarta.persistence.CascadeType;
@@ -31,12 +32,8 @@ import java.util.Set;
 @MappedSuperclass
 public abstract class BaseRouteInstructionEntity<T extends BaseRouteInstructionEntity<T>>
   extends BaseRouteItemEntity<T>
-    implements BaseRouteInstruction, Serializable
+    implements BaseRouteInstruction<RouteEntity>, Serializable
 {
-  @Id
-  @Column
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  protected Long id = null;
 
   @Column
   protected String instructionText = null;
@@ -45,21 +42,6 @@ public abstract class BaseRouteInstructionEntity<T extends BaseRouteInstructionE
   protected String notes = null;
   
 
-  
-  public Long getId ()
-  {
-    return this.id;
-  }
-  
-  public void setId (Long id)
-  {
-    this.id = id;
-  }
-
-  public Object getKey ()
-  {
-    return this.id;
-  }
   
 
   public String getInstructionText ()

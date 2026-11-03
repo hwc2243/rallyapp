@@ -1,6 +1,5 @@
 package com.rallyapp.rallymaster.dto.base;
 
-
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.rallyapp.rallymaster.dto.OrganizationDTO;
 import com.rallyapp.rallymaster.dto.OrganizationMembershipDTO;
@@ -14,7 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 
 public abstract class BaseOrganizationMembershipDTO
-implements BaseOrganizationMembership, Multitenant,  Serializable
+implements Multitenant,  Serializable
 {
   protected Long id = null;
 

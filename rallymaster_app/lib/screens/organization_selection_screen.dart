@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/app_session.dart';
 import '../models/organization_dto.dart';
 import '../models/organization_membership_dto.dart';
-import '../models/rally_dto.dart';
 import '../models/rally_setup_selection.dart';
 import '../models/user_dto.dart';
 import '../network/service_builder_http_client.dart';
@@ -66,20 +65,21 @@ class _OrganizationSelectionScreenState
         organization: organization,
         organizationMembership: membership,
       );
-      final rally = await Navigator.of(context).push<RallyDto>(
-        MaterialPageRoute<RallyDto>(
+      final selection = await Navigator.of(context).push<RallySetupSelection>(
+        MaterialPageRoute<RallySetupSelection>(
           builder: (_) => RallySelectionScreen(
             session: session,
             accessToken: widget.accessToken,
           ),
         ),
       );
-      if (rally != null && mounted) {
+      if (selection != null && mounted) {
         Navigator.of(context).pop(
           RallySetupSelection(
             organization: organization,
             organizationMembership: membership,
-            rally: rally,
+            rally: selection.rally,
+            route: selection.route,
           ),
         );
       }

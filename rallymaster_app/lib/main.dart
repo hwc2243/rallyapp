@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -8,6 +10,7 @@ import 'models/organization_dto.dart';
 import 'models/organization_membership_dto.dart';
 import 'models/rally_dto.dart';
 import 'models/rally_setup_selection.dart';
+import 'models/route_dto.dart';
 import 'models/user_dto.dart';
 import 'providers/external_api_client.dart';
 import 'providers/me_provider.dart';
@@ -129,6 +132,7 @@ class _AuthenticationGateState extends State<AuthenticationGate> {
           selection.organization,
           selection.organizationMembership,
           selection.rally,
+          selection.route,
         );
       }
     } on FlutterAppAuthUserCancelledException {
@@ -155,6 +159,7 @@ class _AuthenticationGateState extends State<AuthenticationGate> {
     OrganizationDto organization,
     OrganizationMembershipDto organizationMembership,
     RallyDto rally,
+    RouteDto route,
   ) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
@@ -164,6 +169,7 @@ class _AuthenticationGateState extends State<AuthenticationGate> {
             organization: organization,
             organizationMembership: organizationMembership,
             rally: rally,
+            route: route,
           ),
         ),
       ),
@@ -215,6 +221,8 @@ class AuthenticationService {
   final _appAuth = FlutterAppAuth();
   final _localAuthentication = LocalAuthentication();
   String? _accessToken;
+  String? _refreshToken;
+  Future<void>? _refreshAttempt;
   final _storage = FlutterSecureStorage(
     aOptions: const AndroidOptions(),
     iOptions: const IOSOptions(
@@ -236,18 +244,9 @@ class AuthenticationService {
 
     final refreshToken = await _storage.read(key: _refreshTokenKey);
     if (refreshToken == null) return false;
-    final response = await _appAuth.token(
-      TokenRequest(
-        _keycloakClientId,
-        _redirectUrl,
-        issuer: _keycloakIssuer,
-        refreshToken: refreshToken,
-        scopes: const ['openid', 'profile', 'email', 'offline_access'],
-      ),
-    );
-    await _storeRefreshToken(response.refreshToken ?? refreshToken);
-    _accessToken = response.accessToken;
-    return _accessToken != null;
+    _refreshToken = refreshToken;
+    await _refreshAccessToken();
+    return true;
   }
 
   Future<void> signIn() async {
@@ -266,15 +265,79 @@ class AuthenticationService {
       );
     }
     _accessToken = response.accessToken;
+    _refreshToken = refreshToken;
     await _storeRefreshToken(refreshToken);
   }
 
   Future<String> getAccessToken() async {
-    final token = _accessToken;
+    var token = _accessToken;
     if (token == null) {
       throw StateError('No authenticated API session is available.');
     }
+    if (_isExpiring(token)) {
+      await _refreshAccessToken();
+      token = _accessToken;
+      if (token == null) {
+        throw StateError('Unable to refresh the authenticated API session.');
+      }
+    }
     return token;
+  }
+
+  /// Refreshes once for all concurrent API calls. The refresh token is already
+  /// loaded into memory after the startup biometric unlock, so this does not
+  /// prompt the user again while the app is active.
+  Future<void> _refreshAccessToken() {
+    final inFlight = _refreshAttempt;
+    if (inFlight != null) return inFlight;
+    return _refreshAttempt = _refreshAccessTokenInternal().whenComplete(
+      () => _refreshAttempt = null,
+    );
+  }
+
+  Future<void> _refreshAccessTokenInternal() async {
+    final refreshToken = _refreshToken;
+    if (refreshToken == null) {
+      throw StateError('No refresh token is available for this session.');
+    }
+    final response = await _appAuth.token(
+      TokenRequest(
+        _keycloakClientId,
+        _redirectUrl,
+        issuer: _keycloakIssuer,
+        refreshToken: refreshToken,
+        scopes: const ['openid', 'profile', 'email', 'offline_access'],
+      ),
+    );
+    final accessToken = response.accessToken;
+    if (accessToken == null) {
+      throw StateError('Keycloak did not return an access token on refresh.');
+    }
+    _accessToken = accessToken;
+    _refreshToken = response.refreshToken ?? refreshToken;
+    await _storeRefreshToken(_refreshToken!);
+  }
+
+  /// Refresh a minute before expiry so the request itself never starts with a
+  /// token that Keycloak could reject in flight.
+  bool _isExpiring(String token) {
+    try {
+      final sections = token.split('.');
+      if (sections.length != 3) return true;
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(sections[1]))),
+      ) as Map<String, dynamic>;
+      final expiration = payload['exp'];
+      if (expiration is! num) return true;
+      final expiresAt = DateTime.fromMillisecondsSinceEpoch(
+        expiration.toInt() * 1000,
+      );
+      return !expiresAt.isAfter(
+        DateTime.now().add(const Duration(minutes: 1)),
+      );
+    } catch (_) {
+      return true;
+    }
   }
 
   Future<void> _storeRefreshToken(String value) =>
