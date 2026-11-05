@@ -14,6 +14,7 @@ import org.mapstruct.IterableMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
+import org.mapstruct.SubclassMapping;
 
 @Mapper(componentModel = "spring")
 public interface RallyMapper {
@@ -27,9 +28,11 @@ public interface RallyMapper {
 
 
   @Named("routeDefault")
+  @Mapping(target = "rallyId", source = "rally.id")
   RouteDTO routeToDto(
       RouteEntity entity
   );
+
 
 
   @IterableMapping(qualifiedByName = "routeDefault")
@@ -39,6 +42,7 @@ public interface RallyMapper {
 
 
   @Mapping(target = "user", ignore = true)
+  @Mapping(target = "routes", ignore = true)
   RallyEntity toEntity(RallyDTO dto);
 
   @IterableMapping(qualifiedByName = "rallyDefault")

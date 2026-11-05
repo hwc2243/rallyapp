@@ -22,6 +22,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.io.Serializable;
 import java.util.List;
@@ -29,7 +30,7 @@ import java.util.Objects;
 import java.util.Set;
 
 @MappedSuperclass
-public abstract class BaseUserEntity<T extends BaseUserEntity<T>> extends AbstractBaseEntity
+public abstract class BaseUserEntity extends AbstractBaseEntity
     implements BaseUser<OrganizationMembershipEntity>, Serializable
 {
   @Id

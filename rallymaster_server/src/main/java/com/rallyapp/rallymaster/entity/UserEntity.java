@@ -2,6 +2,7 @@ package com.rallyapp.rallymaster.entity;
 
 
 import com.rallyapp.rallymaster.entity.base.BaseUserEntity;
+import com.rallyapp.rallymaster.entity.OrganizationMembershipEntity;
 import com.rallyapp.rallymaster.model.User;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Inheritance;
@@ -19,7 +20,7 @@ import java.io.Serializable;
        }
 )
 public class UserEntity
-    extends BaseUserEntity<UserEntity>
+    extends BaseUserEntity
     implements User<OrganizationMembershipEntity>, Serializable
 {
 	public UserEntity ()

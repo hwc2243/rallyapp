@@ -2,6 +2,7 @@ package com.rallyapp.rallymaster.service;
 
 import com.rallyapp.rallymaster.dto.CheckpointDTO;
 import com.rallyapp.rallymaster.entity.CheckpointEntity;
+import com.rallyapp.rallymaster.persistence.RoutePersistence;
 import com.rallyapp.rallymaster.service.base.BaseCheckpointServiceImpl;
 import java.util.Collection;
 import java.util.List;
@@ -17,9 +18,15 @@ public class CheckpointServiceImpl
   @Autowired
   protected CheckpointMapper checkpointMapper;
 
+  @Autowired
+  protected RoutePersistence routePersistence;
+
   
   protected CheckpointEntity toEntity (CheckpointDTO dto) {
     CheckpointEntity entity = checkpointMapper.toEntity(dto);
+    entity.setRoute(dto.getRouteId() == null
+        ? null
+        : routePersistence.getReferenceById(dto.getRouteId()));
     return entity;
   }
   

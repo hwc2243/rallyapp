@@ -15,7 +15,7 @@ import java.io.Serializable;
 @Entity(name="Checkpoint")
 @Table(name="checkpoint")
 public class CheckpointEntity
-    extends BaseCheckpointEntity<CheckpointEntity>
+    extends BaseCheckpointEntity
     implements Checkpoint<RouteEntity>, Serializable
 {
 	public CheckpointEntity ()
@@ -26,14 +26,21 @@ public class CheckpointEntity
     // Private constructor to force the use of the Builder
     private CheckpointEntity (Builder builder)
     {
+        this.checkpointNumber = builder.checkpointNumber;
         this.checkpointType = builder.checkpointType;
         this.name = builder.name;
     }
 
     public static class Builder extends RouteItemEntity.Builder<Builder> {
 
+        private Long checkpointNumber = null;
         private CheckpointCheckpointType checkpointType = null;
         private String name = null;
+
+        public Builder checkpointNumber(Long checkpointNumber) {
+            this.checkpointNumber = checkpointNumber;
+            return this;
+        }
 
         public Builder checkpointType(CheckpointCheckpointType checkpointType) {
             this.checkpointType = checkpointType;

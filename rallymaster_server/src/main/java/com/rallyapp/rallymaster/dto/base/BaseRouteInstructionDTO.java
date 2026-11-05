@@ -1,8 +1,8 @@
 package com.rallyapp.rallymaster.dto.base;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.rallyapp.rallymaster.dto.base.BaseRouteItemDTO;
 import com.rallyapp.rallymaster.dto.RouteInstructionDTO;
+import com.rallyapp.rallymaster.dto.RouteItemDTO;
 import com.rallyapp.rallymaster.model.base.BaseRouteInstruction;
 import java.io.Serializable;
 import java.util.List;
@@ -10,10 +10,9 @@ import java.util.Objects;
 import java.util.Set;
 
 public abstract class BaseRouteInstructionDTO
-extends BaseRouteItemDTO
+extends RouteItemDTO
 implements  Serializable
 {
-  protected Long id = null;
 
   protected Long instructionNumber = null;
   
@@ -26,7 +25,6 @@ implements  Serializable
   // Private constructor to force the use of the Builder
   protected BaseRouteInstructionDTO (Builder builder)
   {
-    this.id = builder.id;
     this.instructionNumber = builder.instructionNumber;
     this.instructionText = builder.instructionText;
   }
@@ -83,9 +81,8 @@ implements  Serializable
 		return id == other.id;
 	}
 
-  public abstract static class Builder {
+  public abstract static class Builder extends RouteItemDTO.Builder {
 
-  private Long id = null;
 
   private Long instructionNumber = null;
   
@@ -93,10 +90,6 @@ implements  Serializable
   
 
 
-    public Builder id(Long id) {
-      this.id = id;
-      return this;
-    }
     
     public Builder instructionNumber(Long instructionNumber) {
       this.instructionNumber = instructionNumber;

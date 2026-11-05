@@ -12,6 +12,7 @@ import org.mapstruct.IterableMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
+import org.mapstruct.SubclassMapping;
 
 @Mapper(componentModel = "spring")
 public interface RouteInstructionMapper {

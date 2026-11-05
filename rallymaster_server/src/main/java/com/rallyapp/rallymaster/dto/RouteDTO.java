@@ -1,7 +1,6 @@
 package com.rallyapp.rallymaster.dto;
 
 import com.rallyapp.rallymaster.dto.base.BaseRouteDTO;
-import com.rallyapp.rallymaster.dto.RouteItemDTO;
 
 public class RouteDTO extends BaseRouteDTO
 {

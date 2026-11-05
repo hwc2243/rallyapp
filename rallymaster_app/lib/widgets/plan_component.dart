@@ -8,14 +8,18 @@ import '../models/app_session.dart';
 import '../models/checkpoint_dto.dart';
 import '../models/route_item_display.dart';
 import '../models/route_item_dto.dart';
+import '../models/route_instruction_dto.dart';
+import '../models/route_plan_dto.dart';
 import '../network/service_builder_http_client.dart';
 import '../providers/external_api_client.dart';
 import '../providers/checkpoint_provider.dart';
 import '../providers/route_instruction_provider.dart';
+import '../providers/route_provider.dart';
 import '../providers/tenant_discriminator_provider.dart';
 import '../services/precise_location_service.dart';
 import 'checkpoint_details_dialog.dart';
 import 'plan_odometer_dialog.dart';
+import 'route_instruction_details_dialog.dart';
 import 'route_items_table.dart';
 
 /// Reusable planning pane. Planning tools are displayed above its mileage bar.
@@ -24,17 +28,29 @@ class PlanComponent extends ConsumerStatefulWidget {
     super.key,
     required this.session,
     required this.accessToken,
+    this.onSaveStateChanged,
   });
 
   final AppSession session;
   final Future<String> Function() accessToken;
+  final ValueChanged<PlanSaveState>? onSaveStateChanged;
 
   @override
-  ConsumerState<PlanComponent> createState() => _PlanComponentState();
+  ConsumerState<PlanComponent> createState() => PlanComponentState();
 }
 
-class _PlanComponentState extends ConsumerState<PlanComponent> {
+class PlanSaveState {
+  const PlanSaveState({required this.isDirty, required this.isSaving});
+
+  final bool isDirty;
+  final bool isSaving;
+}
+
+class PlanComponentState extends ConsumerState<PlanComponent> {
   bool _creating = false;
+  bool _routeItemsLoaded = false;
+  bool _isDirty = false;
+  bool _isSaving = false;
   final _tableScrollController = ScrollController();
   List<RouteItemDisplay> _routeItems = const [];
 
@@ -59,6 +75,146 @@ class _PlanComponentState extends ConsumerState<PlanComponent> {
     _tableScrollController.dispose();
     super.dispose();
   }
+
+  void _notifySaveState() => widget.onSaveStateChanged?.call(
+    PlanSaveState(isDirty: _isDirty, isSaving: _isSaving),
+  );
+
+  /// Saves the complete local plan. Returns without mutation on failure so a
+  /// user can retry after a connectivity problem.
+  Future<void> save() async {
+    if (_isSaving || !_isDirty) return;
+    final routeId = widget.session.route?.serverId;
+    if (routeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A saved route is required before saving its plan.'),
+        ),
+      );
+      return;
+    }
+
+    final instructions = <RouteInstructionDto>[];
+    final checkpoints = <CheckpointDto>[];
+    for (final display in _routeItems) {
+      if (display.item.itemType == 'NRI') {
+        final instruction = display.routeInstruction;
+        if (instruction == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Route instruction details have not finished loading.',
+              ),
+            ),
+          );
+          return;
+        }
+        instructions.add(instruction);
+      } else if (display.item.itemType == 'CHECKPOINT') {
+        final checkpoint = display.checkpoint;
+        if (checkpoint == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Checkpoint details have not finished loading.'),
+            ),
+          );
+          return;
+        }
+        checkpoints.add(checkpoint);
+      }
+    }
+
+    setState(() => _isSaving = true);
+    _notifySaveState();
+    final tenantProvider = TenantDiscriminatorProvider()
+      ..setOrganizationId(widget.session.organizationId);
+    final httpClient = ServiceBuilderHttpClient(
+      baseUrl: ExternalApiClient.defaultApiBaseUrl,
+      headersProvider: () async => {
+        'Authorization': 'Bearer ${await widget.accessToken()}',
+      },
+    );
+    final routeProvider = RouteProvider(
+      httpClient: httpClient,
+      tenantProvider: tenantProvider,
+    );
+    try {
+      final saved = await routeProvider.saveRoutePlan(
+        routeId,
+        RoutePlanDto(routeInstructions: instructions, checkpoints: checkpoints),
+      );
+      if (!mounted) return;
+      setState(() {
+        _routeItems =
+            [
+              ...saved.routeInstructions.map(_displayForInstruction),
+              ...saved.checkpoints.map(_displayForCheckpoint),
+            ]..sort(
+              (left, right) =>
+                  (left.item.position ?? 0).compareTo(right.item.position ?? 0),
+            );
+        widget.session.routeItems
+          ..clear()
+          ..addAll(_routeItems.map((display) => display.item));
+        widget.session.checkpointDrafts
+          ..clear()
+          ..addAll(saved.checkpoints);
+        _isDirty = false;
+      });
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Route saved')));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Unable to save route: $error')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        _notifySaveState();
+      }
+      routeProvider.dispose();
+      tenantProvider.dispose();
+      httpClient.client.close();
+    }
+  }
+
+  RouteItemDisplay _displayForInstruction(RouteInstructionDto instruction) =>
+      RouteItemDisplay(
+        item: RouteItemDto(
+          serverId: instruction.serverId,
+          itemType: instruction.itemType,
+          position: instruction.position,
+          latitude: instruction.latitude,
+          longitude: instruction.longitude,
+          heading: instruction.heading,
+          distance: instruction.distance,
+          notes: instruction.notes,
+          organizationId: instruction.organizationId,
+          routeId: instruction.routeId,
+        ),
+        detail: instruction.instructionText,
+        routeInstruction: instruction,
+      );
+
+  RouteItemDisplay _displayForCheckpoint(CheckpointDto checkpoint) =>
+      RouteItemDisplay(
+        item: RouteItemDto(
+          serverId: checkpoint.serverId,
+          itemType: checkpoint.itemType,
+          position: checkpoint.position,
+          latitude: checkpoint.latitude,
+          longitude: checkpoint.longitude,
+          heading: checkpoint.heading,
+          distance: checkpoint.distance,
+          notes: checkpoint.notes,
+          organizationId: checkpoint.organizationId,
+          routeId: checkpoint.routeId,
+        ),
+        detail: checkpoint.name,
+        checkpoint: checkpoint,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -127,7 +283,9 @@ class _PlanComponentState extends ConsumerState<PlanComponent> {
               FloatingActionButton.small(
                 heroTag: 'add-route-item',
                 tooltip: 'Add route item',
-                onPressed: _creating ? null : () => _addRouteItem(odometer),
+                onPressed: _creating || !_routeItemsLoaded
+                    ? null
+                    : () => _addRouteItem(odometer),
                 child: _creating
                     ? const SizedBox(
                         width: 20,
@@ -176,7 +334,7 @@ class _PlanComponentState extends ConsumerState<PlanComponent> {
       if (location == null || !mounted) return;
       final created = itemType == _RouteItemType.checkpoint
           ? await _createCheckpoint(location, odometer.totalDistance)
-          : _createLocalNri(location, odometer.totalDistance);
+          : await _createLocalNri(location, odometer.totalDistance);
       if (created == null || !mounted) return;
       if (mounted) {
         setState(() {
@@ -190,7 +348,9 @@ class _PlanComponentState extends ConsumerState<PlanComponent> {
             widget.session.checkpointDrafts.add(created.checkpoint!);
           }
           _routeItems = [...visibleItems, created];
+          _isDirty = true;
         });
+        _notifySaveState();
         _scrollTableToBottom();
       }
     } catch (error) {
@@ -246,18 +406,43 @@ class _PlanComponentState extends ConsumerState<PlanComponent> {
     );
   }
 
-  RouteItemDisplay _createLocalNri(Position location, double distanceMeters) {
+  Future<RouteItemDisplay?> _createLocalNri(
+    Position location,
+    double distanceMeters,
+  ) async {
+    final position = _nextPosition();
+    final instructionNumber = _nextInstructionNumber();
+    final instruction = await showDialog<RouteInstructionDto>(
+      context: context,
+      builder: (_) => RouteInstructionDetailsDialog(
+        latitude: location.latitude,
+        longitude: location.longitude,
+        heading: _headingFrom(location),
+        distance: distanceMeters / 1609.344,
+        position: position,
+        instructionNumber: instructionNumber,
+        organizationId: widget.session.organizationId,
+        routeId: widget.session.route?.serverId,
+      ),
+    );
+    if (instruction == null) return null;
+
     final item = RouteItemDto(
       itemType: 'NRI',
-      position: _nextPosition(),
-      latitude: location.latitude,
-      longitude: location.longitude,
-      heading: _headingFrom(location),
-      distance: distanceMeters / 1609.344,
-      organizationId: widget.session.organizationId,
-      routeId: widget.session.route?.serverId,
+      position: instruction.position,
+      latitude: instruction.latitude,
+      longitude: instruction.longitude,
+      heading: instruction.heading,
+      distance: instruction.distance,
+      notes: instruction.notes,
+      organizationId: instruction.organizationId,
+      routeId: instruction.routeId,
     );
-    return RouteItemDisplay(item: item, detail: 'NRI');
+    return RouteItemDisplay(
+      item: item,
+      detail: instruction.instructionText,
+      routeInstruction: instruction,
+    );
   }
 
   Future<RouteItemDisplay?> _createCheckpoint(
@@ -321,14 +506,26 @@ class _PlanComponentState extends ConsumerState<PlanComponent> {
         1;
   }
 
+  int _nextInstructionNumber() {
+    var highest = 0;
+    for (final item in _routeItems) {
+      final instructionNumber = item.instructionNumber;
+      if (instructionNumber != null && instructionNumber > highest) {
+        highest = instructionNumber;
+      }
+    }
+    return highest + 1;
+  }
+
   int _headingFrom(Position location) {
     if (!location.heading.isFinite || location.heading < 0) return 0;
     return location.heading.round() % 360;
   }
 
   Future<void> _loadInitialRouteItemDetails() async {
-    final items = await _loadRouteItemDetails(widget.session.routeItems);
-    if (mounted) {
+    try {
+      final items = await _loadRouteItemDetails(widget.session.routeItems);
+      if (!mounted) return;
       setState(() {
         final currentUnsaved = _routeItems
             .where((item) => item.item.serverId == null)
@@ -344,6 +541,11 @@ class _PlanComponentState extends ConsumerState<PlanComponent> {
           ),
         ];
       });
+    } finally {
+      if (mounted) {
+        setState(() => _routeItemsLoaded = true);
+        _notifySaveState();
+      }
     }
   }
 
@@ -385,6 +587,7 @@ class _PlanComponentState extends ConsumerState<PlanComponent> {
               return RouteItemDisplay(
                 item: item,
                 detail: instruction?.instructionText,
+                routeInstruction: instruction,
               );
             }
             if (item.itemType == 'CHECKPOINT') {
@@ -430,4 +633,3 @@ class _PlanComponentState extends ConsumerState<PlanComponent> {
 }
 
 enum _RouteItemType { nri, checkpoint }
-

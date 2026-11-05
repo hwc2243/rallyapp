@@ -95,12 +95,9 @@
 			<finder-attribute name="route" />
 		</finder>
 
-		<api>
-			<external operations="CREATE READ UPDATE DELETE" />
-		</api>
 	</entity>
 
-	<entity name="routeInstruction" db-name="route_instruction"	parent="routeItem">
+	<entity name="routeInstruction" db-name="route_instruction"	parent="routeItem" discriminator-value="NRI">
 	    <attribute name="instructionNumber" type="long" />
 		<attribute name="instructionText" type="string" />
 
@@ -109,7 +106,7 @@
 		</api>
 	</entity>
 
-	<entity name="checkpoint" db-name="checkpoint" parent="routeItem">
+	<entity name="checkpoint" db-name="checkpoint" parent="routeItem" discriminator-value="CHECKPOINT">
 		<attribute name="checkpointNumber" type="long" />
 		<attribute name="checkpointType" type="enum" enum-values="PASSAGE_CONTROL,TIMED_CONTROL,TIME_CHECK,RESTART,START,FINISH" />
 		<attribute name="name" type="string" />

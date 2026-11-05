@@ -24,6 +24,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.io.Serializable;
 import java.time.LocalDate;
@@ -32,7 +33,7 @@ import java.util.Objects;
 import java.util.Set;
 
 @MappedSuperclass
-public abstract class BaseRallyEntity<T extends BaseRallyEntity<T>> extends AbstractBaseEntity
+public abstract class BaseRallyEntity extends AbstractBaseEntity
     implements BaseRally<UserEntity, RouteEntity>, Multitenant, Serializable
 {
   @Id

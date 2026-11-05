@@ -1,8 +1,8 @@
 package com.rallyapp.rallymaster.dto.base;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.rallyapp.rallymaster.dto.base.BaseRouteItemDTO;
 import com.rallyapp.rallymaster.dto.CheckpointDTO;
+import com.rallyapp.rallymaster.dto.RouteItemDTO;
 import com.rallyapp.rallymaster.model.base.BaseCheckpoint;
 import com.rallyapp.rallymaster.model.CheckpointCheckpointType;
 import java.io.Serializable;
@@ -11,10 +11,9 @@ import java.util.Objects;
 import java.util.Set;
 
 public abstract class BaseCheckpointDTO
-extends BaseRouteItemDTO
+extends RouteItemDTO
 implements  Serializable
 {
-  protected Long id = null;
 
   protected Long checkpointNumber = null;
   
@@ -29,7 +28,6 @@ implements  Serializable
   // Private constructor to force the use of the Builder
   protected BaseCheckpointDTO (Builder builder)
   {
-    this.id = builder.id;
     this.checkpointNumber = builder.checkpointNumber;
     this.checkpointType = builder.checkpointType;
     this.name = builder.name;
@@ -97,9 +95,8 @@ implements  Serializable
 		return id == other.id;
 	}
 
-  public abstract static class Builder {
+  public abstract static class Builder extends RouteItemDTO.Builder {
 
-  private Long id = null;
 
   private Long checkpointNumber = null;
   
@@ -109,10 +106,6 @@ implements  Serializable
   
 
 
-    public Builder id(Long id) {
-      this.id = id;
-      return this;
-    }
     
     public Builder checkpointNumber(Long checkpointNumber) {
       this.checkpointNumber = checkpointNumber;

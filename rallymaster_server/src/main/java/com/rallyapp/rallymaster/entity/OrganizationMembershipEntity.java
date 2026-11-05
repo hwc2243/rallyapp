@@ -22,7 +22,7 @@ import java.io.Serializable;
        }
 )
 public class OrganizationMembershipEntity
-    extends BaseOrganizationMembershipEntity<OrganizationMembershipEntity>
+    extends BaseOrganizationMembershipEntity
     implements OrganizationMembership<UserEntity, OrganizationEntity>, Serializable
 {
 	public OrganizationMembershipEntity ()

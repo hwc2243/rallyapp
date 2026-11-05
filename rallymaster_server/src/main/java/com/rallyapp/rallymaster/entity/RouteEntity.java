@@ -15,7 +15,7 @@ import java.io.Serializable;
 @Entity(name="Route")
 @Table(name="route")
 public class RouteEntity
-    extends BaseRouteEntity<RouteEntity>
+    extends BaseRouteEntity
     implements Route<RallyEntity, RouteItemEntity>, Serializable
 {
 	public RouteEntity ()

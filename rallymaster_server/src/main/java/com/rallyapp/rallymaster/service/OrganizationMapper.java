@@ -12,6 +12,7 @@ import org.mapstruct.IterableMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
+import org.mapstruct.SubclassMapping;
 
 @Mapper(componentModel = "spring")
 public interface OrganizationMapper {
@@ -24,9 +25,11 @@ public interface OrganizationMapper {
 
 
   @Named("organizationMembershipDefault")
+  @Mapping(target = "userId", source = "user.id")
   OrganizationMembershipDTO organizationMembershipToDto(
       OrganizationMembershipEntity entity
   );
+
 
 
   @IterableMapping(qualifiedByName = "organizationMembershipDefault")
@@ -35,6 +38,7 @@ public interface OrganizationMapper {
   );
 
 
+  @Mapping(target = "organizationMemberships", ignore = true)
   OrganizationEntity toEntity(OrganizationDTO dto);
 
   @IterableMapping(qualifiedByName = "organizationDefault")

@@ -31,7 +31,7 @@ class RouteItemsTable extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: DataTable(
           columns: const [
-            DataColumn(label: Text('POSITION')),
+            DataColumn(label: Text('NRI'), numeric: true),
             DataColumn(label: Text('DISTANCE'), numeric: true),
             DataColumn(label: Text('TYPE')),
             DataColumn(label: Text('INSTRUCTION / CHECKPOINT')),
@@ -40,7 +40,13 @@ class RouteItemsTable extends StatelessWidget {
               .map(
                 (routeItem) => DataRow(
                   cells: [
-                    DataCell(Text('${routeItem.item.position ?? '-'}')),
+                    DataCell(
+                      Text(
+                        routeItem.item.itemType == 'NRI'
+                            ? '${routeItem.instructionNumber ?? ''}'
+                            : '',
+                      ),
+                    ),
                     DataCell(
                       Text(
                         routeItem.item.distance == null

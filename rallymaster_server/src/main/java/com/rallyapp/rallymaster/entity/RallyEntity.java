@@ -16,7 +16,7 @@ import java.time.LocalDate;
 @Entity(name="Rally")
 @Table(name="rally")
 public class RallyEntity
-    extends BaseRallyEntity<RallyEntity>
+    extends BaseRallyEntity
     implements Rally<UserEntity, RouteEntity>, Serializable
 {
 	public RallyEntity ()

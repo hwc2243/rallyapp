@@ -2,6 +2,7 @@ package com.rallyapp.rallymaster.service;
 
 import com.rallyapp.rallymaster.dto.RouteInstructionDTO;
 import com.rallyapp.rallymaster.entity.RouteInstructionEntity;
+import com.rallyapp.rallymaster.persistence.RoutePersistence;
 import com.rallyapp.rallymaster.service.base.BaseRouteInstructionServiceImpl;
 import java.util.Collection;
 import java.util.List;
@@ -17,9 +18,15 @@ public class RouteInstructionServiceImpl
   @Autowired
   protected RouteInstructionMapper routeInstructionMapper;
 
+  @Autowired
+  protected RoutePersistence routePersistence;
+
   
   protected RouteInstructionEntity toEntity (RouteInstructionDTO dto) {
     RouteInstructionEntity entity = routeInstructionMapper.toEntity(dto);
+    entity.setRoute(dto.getRouteId() == null
+        ? null
+        : routePersistence.getReferenceById(dto.getRouteId()));
     return entity;
   }
   

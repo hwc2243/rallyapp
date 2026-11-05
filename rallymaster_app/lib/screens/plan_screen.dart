@@ -24,7 +24,12 @@ class PlanScreen extends StatefulWidget {
 
 class _PlanScreenState extends State<PlanScreen> {
   static const _dividerExtent = 16.0;
+  final _planComponentKey = GlobalKey<PlanComponentState>();
   double _splitRatio = 0.5;
+  PlanSaveState _planSaveState = const PlanSaveState(
+    isDirty: false,
+    isSaving: false,
+  );
 
   @override
   void initState() {
@@ -55,6 +60,19 @@ class _PlanScreenState extends State<PlanScreen> {
       appBar: AppBar(
         title: Text(_title),
         actions: [
+          TextButton.icon(
+            onPressed: !_planSaveState.isDirty || _planSaveState.isSaving
+                ? null
+                : () => _planComponentKey.currentState?.save(),
+            icon: _planSaveState.isSaving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save_outlined),
+            label: const Text('Save'),
+          ),
           PopupMenuButton<_PlanMenuAction>(
             tooltip: 'Settings',
             icon: const Icon(Icons.settings),
@@ -127,8 +145,10 @@ class _PlanScreenState extends State<PlanScreen> {
                     SizedBox(
                       height: secondExtent,
                       child: PlanComponent(
+                        key: _planComponentKey,
                         session: widget.session,
                         accessToken: widget.accessToken,
+                        onSaveStateChanged: _onPlanSaveStateChanged,
                       ),
                     ),
                   ],
@@ -140,8 +160,10 @@ class _PlanScreenState extends State<PlanScreen> {
                     SizedBox(
                       width: secondExtent,
                       child: PlanComponent(
+                        key: _planComponentKey,
                         session: widget.session,
                         accessToken: widget.accessToken,
+                        onSaveStateChanged: _onPlanSaveStateChanged,
                       ),
                     ),
                   ],
@@ -155,6 +177,11 @@ class _PlanScreenState extends State<PlanScreen> {
     final rallyName = widget.session.rally?.name ?? 'Rally';
     final routeName = widget.session.route?.name ?? 'Route';
     return '$rallyName — $routeName';
+  }
+
+  void _onPlanSaveStateChanged(PlanSaveState state) {
+    if (!mounted) return;
+    setState(() => _planSaveState = state);
   }
 }
 

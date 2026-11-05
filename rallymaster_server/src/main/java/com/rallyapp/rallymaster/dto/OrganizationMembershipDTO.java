@@ -1,8 +1,6 @@
 package com.rallyapp.rallymaster.dto;
 
 import com.rallyapp.rallymaster.dto.base.BaseOrganizationMembershipDTO;
-import com.rallyapp.rallymaster.dto.OrganizationDTO;
-import com.rallyapp.rallymaster.dto.UserDTO;
 
 public class OrganizationMembershipDTO extends BaseOrganizationMembershipDTO
 {

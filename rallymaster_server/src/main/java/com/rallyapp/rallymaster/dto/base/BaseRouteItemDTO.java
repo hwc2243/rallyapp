@@ -1,7 +1,11 @@
 package com.rallyapp.rallymaster.dto.base;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.rallyapp.rallymaster.dto.CheckpointDTO;
 import com.rallyapp.rallymaster.dto.RouteDTO;
+import com.rallyapp.rallymaster.dto.RouteInstructionDTO;
 import com.rallyapp.rallymaster.dto.RouteItemDTO;
 import com.rallyapp.rallymaster.model.base.BaseRouteItem;
 import com.rallyapp.rallymaster.model.base.Multitenant;
@@ -11,6 +15,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "itemType", visible = true)
+@JsonSubTypes({
+  @JsonSubTypes.Type(value = CheckpointDTO.class, name = "CHECKPOINT"),
+  @JsonSubTypes.Type(value = RouteInstructionDTO.class, name = "NRI")
+})
 public abstract class BaseRouteItemDTO
 implements Multitenant,  Serializable
 {

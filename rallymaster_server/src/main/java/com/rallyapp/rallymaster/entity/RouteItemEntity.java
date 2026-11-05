@@ -15,8 +15,8 @@ import java.io.Serializable;
 @Entity(name="RouteItem")
 @Table(name="route_item")
 @Inheritance(strategy = InheritanceType.JOINED)
-public abstract class RouteItemEntity<T extends BaseRouteItemEntity<T>>
-    extends BaseRouteItemEntity<T>
+public abstract class RouteItemEntity
+    extends BaseRouteItemEntity
     implements RouteItem<RouteEntity>, Serializable
 {
 	public RouteItemEntity ()
@@ -31,7 +31,10 @@ public abstract class RouteItemEntity<T extends BaseRouteItemEntity<T>>
         this.position = builder.position;
         this.latitude = builder.latitude;
         this.longitude = builder.longitude;
+        this.heading = builder.heading;
         this.distance = builder.distance;
+        this.notes = builder.notes;
+        this.deleted = builder.deleted;
         this.organizationId = builder.organizationId;
     }
 
@@ -41,7 +44,10 @@ public abstract class RouteItemEntity<T extends BaseRouteItemEntity<T>>
         protected Long position = null;
         protected Double latitude = null;
         protected Double longitude = null;
+        protected Integer heading = null;
         protected Double distance = null;
+        protected String notes = null;
+        protected Boolean deleted = null;
         protected Long organizationId = null;
 
         public B itemType(RouteItemItemType itemType) {
@@ -64,8 +70,23 @@ public abstract class RouteItemEntity<T extends BaseRouteItemEntity<T>>
             return self();
         }
 
+        public B heading(Integer heading) {
+            this.heading = heading;
+            return self();
+        }
+
         public B distance(Double distance) {
             this.distance = distance;
+            return self();
+        }
+
+        public B notes(String notes) {
+            this.notes = notes;
+            return self();
+        }
+
+        public B deleted(Boolean deleted) {
+            this.deleted = deleted;
             return self();
         }
 

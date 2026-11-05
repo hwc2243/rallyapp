@@ -14,7 +14,7 @@ import java.io.Serializable;
 @Entity(name="RouteInstruction")
 @Table(name="route_instruction")
 public class RouteInstructionEntity
-    extends BaseRouteInstructionEntity<RouteInstructionEntity>
+    extends BaseRouteInstructionEntity
     implements RouteInstruction<RouteEntity>, Serializable
 {
 	public RouteInstructionEntity ()
@@ -25,22 +25,22 @@ public class RouteInstructionEntity
     // Private constructor to force the use of the Builder
     private RouteInstructionEntity (Builder builder)
     {
+        this.instructionNumber = builder.instructionNumber;
         this.instructionText = builder.instructionText;
-        this.notes = builder.notes;
     }
 
     public static class Builder extends RouteItemEntity.Builder<Builder> {
 
+        private Long instructionNumber = null;
         private String instructionText = null;
-        private String notes = null;
 
-        public Builder instructionText(String instructionText) {
-            this.instructionText = instructionText;
+        public Builder instructionNumber(Long instructionNumber) {
+            this.instructionNumber = instructionNumber;
             return this;
         }
 
-        public Builder notes(String notes) {
-            this.notes = notes;
+        public Builder instructionText(String instructionText) {
+            this.instructionText = instructionText;
             return this;
         }
 

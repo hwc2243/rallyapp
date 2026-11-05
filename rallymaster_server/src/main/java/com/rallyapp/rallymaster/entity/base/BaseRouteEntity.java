@@ -24,6 +24,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.io.Serializable;
 import java.util.List;
@@ -31,7 +32,7 @@ import java.util.Objects;
 import java.util.Set;
 
 @MappedSuperclass
-public abstract class BaseRouteEntity<T extends BaseRouteEntity<T>> extends AbstractBaseEntity
+public abstract class BaseRouteEntity extends AbstractBaseEntity
     implements BaseRoute<RallyEntity, RouteItemEntity>, Multitenant, Serializable
 {
   @Id
@@ -54,6 +55,7 @@ public abstract class BaseRouteEntity<T extends BaseRouteEntity<T>> extends Abst
   protected RallyEntity rally;
 
   @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
+  @OrderBy("position ASC")
   protected List<RouteItemEntity> items;
   
   
