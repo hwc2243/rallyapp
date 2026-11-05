@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
+import 'package:rallymaster_ui/rallymaster_ui.dart';
 
 /// Compact planning controls for the shared RallyLib odometer.
 class PlanOdometerDialog extends ConsumerWidget {
@@ -105,50 +106,29 @@ class PlanOdometerDialog extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 14),
-              Row(
-                children: [
-                  _DirectionButton(
-                    label: 'FORWARD',
-                    active: odometer.direction == OdometerDirection.forward,
-                    activeColor: Colors.green.shade700,
-                    onPressed: () =>
-                        notifier.setDirection(OdometerDirection.forward),
-                  ),
-                  const SizedBox(width: 8),
-                  _DirectionButton(
-                    label: 'PARK',
-                    active: odometer.direction == OdometerDirection.park,
-                    activeColor: Colors.red.shade800,
-                    onPressed: () =>
-                        notifier.setDirection(OdometerDirection.park),
-                  ),
-                  const SizedBox(width: 8),
-                  _DirectionButton(
-                    label: 'REVERSE',
-                    active: odometer.direction == OdometerDirection.reverse,
-                    activeColor: Colors.red.shade800,
-                    onPressed: () =>
-                        notifier.setDirection(OdometerDirection.reverse),
-                  ),
-                ],
+              OdometerDirectionSelector(
+                direction: odometer.direction,
+                onChanged: notifier.setDirection,
               ),
               const SizedBox(height: 14),
               Row(
                 children: [
                   Expanded(
-                    child: _BumpButton(
+                    child: OdometerBumpButton(
                       label: 'BUMP −',
                       amount: settings.bumpAmount,
                       unit: unit,
+                      requireDoubleTap: settings.bumpRequireDoubleTap,
                       onPressed: () => notifier.applyBump(false),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: _BumpButton(
+                    child: OdometerBumpButton(
                       label: 'BUMP +',
                       amount: settings.bumpAmount,
                       unit: unit,
+                      requireDoubleTap: settings.bumpRequireDoubleTap,
                       onPressed: () => notifier.applyBump(true),
                     ),
                   ),
@@ -169,7 +149,10 @@ class PlanOdometerDialog extends ConsumerWidget {
   ) async {
     final value = await showDialog<double>(
       context: context,
-      builder: (_) => _MileageEntryDialog(initialValue: currentMileage),
+      builder: (_) => MileageEntryDialog(
+        initialValue: currentMileage.toStringAsFixed(3),
+        title: 'SET TOTAL (${isMetric ? 'km' : 'mi'})',
+      ),
     );
     if (value == null) return;
     ref
@@ -220,99 +203,70 @@ class _BumpButton extends StatelessWidget {
     required this.label,
     required this.amount,
     required this.unit,
+    required this.requireDoubleTap,
     required this.onPressed,
   });
 
   final String label;
   final double amount;
   final String unit;
+  final bool requireDoubleTap;
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 56,
-    child: FilledButton(
-      style: FilledButton.styleFrom(
-        backgroundColor: Colors.blueGrey.shade800,
-        foregroundColor: Colors.white,
-      ),
-      onPressed: onPressed,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-          Text(
-            '${amount.toStringAsFixed(3)} $unit',
-            style: const TextStyle(fontFamily: 'Courier', fontSize: 11),
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: requireDoubleTap ? null : onPressed,
+    onDoubleTap: requireDoubleTap ? onPressed : null,
+    child: Stack(
+      clipBehavior: Clip.none,
+      children: [
+        AbsorbPointer(
+          child: SizedBox(
+            height: 56,
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.blueGrey.shade800,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {},
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    '${amount.toStringAsFixed(3)} $unit',
+                    style: const TextStyle(fontFamily: 'Courier', fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _MileageEntryDialog extends StatefulWidget {
-  const _MileageEntryDialog({required this.initialValue});
-
-  final double initialValue;
-
-  @override
-  State<_MileageEntryDialog> createState() => _MileageEntryDialogState();
-}
-
-class _MileageEntryDialogState extends State<_MileageEntryDialog> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(
-      text: widget.initialValue.toStringAsFixed(3),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    backgroundColor: Colors.black,
-    title: const Text(
-      'Set total mileage',
-      style: TextStyle(color: Colors.white),
-    ),
-    content: TextField(
-      controller: _controller,
-      autofocus: true,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      style: const TextStyle(
-        color: Color(0xFF00FF00),
-        fontFamily: 'Courier',
-        fontSize: 28,
-      ),
-      decoration: const InputDecoration(
-        labelText: 'Mileage',
-        labelStyle: TextStyle(color: Colors.white70),
-        enabledBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.white54),
         ),
-      ),
-      onSubmitted: (_) => _save(),
+        if (requireDoubleTap)
+          Positioned(
+            top: -6,
+            right: -6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade700,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'x2',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
     ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(onPressed: _save, child: const Text('Set')),
-    ],
   );
-
-  void _save() {
-    final value = double.tryParse(_controller.text);
-    if (value != null && value >= 0) Navigator.of(context).pop(value);
-  }
 }

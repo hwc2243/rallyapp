@@ -42,7 +42,9 @@ dependencies:
   http: ^1.6.0
   latlong2: ^0.10.1
   flutter_riverpod: ^3.3.1
+  package_info_plus: ^10.2.2
   shared_preferences: ^2.3.2
+  url_launcher: ^6.3.1
   rally_lib:
     path: ../rally_lib
   rallymaster_ui:
@@ -72,6 +74,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/rallymaster_logo.png
+    - assets/rallymaster_about_logo.png
 
 flutter_launcher_icons:
   android: "launcher_icon"

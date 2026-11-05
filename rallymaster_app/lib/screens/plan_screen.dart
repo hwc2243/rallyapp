@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../models/app_session.dart';
+import 'settings_screen.dart';
 import '../widgets/direction_alert_scope.dart';
 import '../widgets/plan_component.dart';
 import '../widgets/rally_map.dart';
+import '../widgets/rallymaster_about_dialog.dart';
 
 class PlanScreen extends StatefulWidget {
   const PlanScreen({
@@ -35,7 +37,37 @@ class _PlanScreenState extends State<PlanScreen> {
   @override
   Widget build(BuildContext context) => DirectionAlertScope(
     child: Scaffold(
-      appBar: AppBar(title: Text(_title)),
+      appBar: AppBar(
+        title: Text(_title),
+        actions: [
+          PopupMenuButton<_PlanMenuAction>(
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings),
+            onSelected: (action) {
+              switch (action) {
+                case _PlanMenuAction.settings:
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const RallyMasterSettingsScreen(),
+                    ),
+                  );
+                case _PlanMenuAction.about:
+                  showDialog<void>(
+                    context: context,
+                    builder: (_) => const RallyMasterAboutDialog(),
+                  );
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: _PlanMenuAction.settings,
+                child: Text('Settings'),
+              ),
+              PopupMenuItem(value: _PlanMenuAction.about, child: Text('About')),
+            ],
+          ),
+        ],
+      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final portrait =
@@ -110,3 +142,5 @@ class _PlanScreenState extends State<PlanScreen> {
     return '$rallyName — $routeName';
   }
 }
+
+enum _PlanMenuAction { settings, about }

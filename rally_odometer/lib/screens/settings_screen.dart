@@ -2,10 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
+import 'package:rallymaster_ui/rallymaster_ui.dart';
 
 import '../providers/rally_time_offset_provider.dart';
 import '../providers/controller_display_view_provider.dart';
-import '../widgets/mileage_entry_dialog.dart';
 
 enum CalibrationEntryMode { direct, measured }
 

@@ -70,15 +70,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
                       ),
               ),
             ]),
-            if (MediaQuery.orientationOf(context) == Orientation.landscape)
-              Positioned(
-                right: 8,
-                bottom: 8,
-                child: SharedOverflowPopupMenuButton(
-                  isControllerEngine: widget.isControllerEngine,
-                  icon: Icons.settings,
-                ),
-              ),
             if (telemetry?.isCalibrating ?? false)
               const Positioned.fill(child: CalibrationOverlay()),
           ],
@@ -97,17 +88,29 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         decoration: const BoxDecoration(
           border: Border(bottom: BorderSide(color: Colors.white24)),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            GpsSatelliteIcon(
-              accuracy: accuracy,
-              isSensorFusionActive: isSensorFusionActive,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GpsSatelliteIcon(
+                  accuracy: accuracy,
+                  isSensorFusionActive: isSensorFusionActive,
+                ),
+                if (showBluetoothController) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.bluetooth, color: Colors.lightBlueAccent),
+                ],
+              ],
             ),
-            if (showBluetoothController) ...[
-              const SizedBox(width: 8),
-              const Icon(Icons.bluetooth, color: Colors.lightBlueAccent),
-            ],
+            Align(
+              alignment: Alignment.centerRight,
+              child: SharedOverflowPopupMenuButton(
+                isControllerEngine: widget.isControllerEngine,
+                icon: Icons.settings,
+              ),
+            ),
           ],
         ),
       );
@@ -226,16 +229,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
               'TIME',
               formatRallyTime(currentTime, isDecimalMinutes),
               Colors.white,
-            ),
-          ),
-          SizedBox(
-            height: 44,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: SharedOverflowPopupMenuButton(
-                isControllerEngine: widget.isControllerEngine,
-                icon: Icons.settings,
-              ),
             ),
           ),
         ],

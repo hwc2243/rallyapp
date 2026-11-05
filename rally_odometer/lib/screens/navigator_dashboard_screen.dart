@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
+import 'package:rallymaster_ui/rallymaster_ui.dart';
 
 import '../providers/rally_time_offset_provider.dart';
 import '../widgets/ble_connection_diagnostics.dart';
 import '../widgets/connection_error_modal.dart';
-import '../widgets/mileage_entry_dialog.dart';
 import '../widgets/shared_overflow_popup_menu_button.dart';
 import 'driver_dashboard_screen.dart';
 
@@ -362,10 +362,6 @@ class _NavigatorDashboardScreenState
                     ],
                   ),
                 ),
-                SizedBox(
-                  width: 56,
-                  child: _portraitSettingsButton(),
-                ),
               ],
             ),
           ),
@@ -379,17 +375,35 @@ class _NavigatorDashboardScreenState
     required bool isSensorFusionActive,
     required bool showBluetoothController,
   }) =>
-      Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      Stack(
+        alignment: Alignment.center,
         children: [
-          GpsSatelliteIcon(
-            accuracy: accuracy,
-            isSensorFusionActive: isSensorFusionActive,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GpsSatelliteIcon(
+                accuracy: accuracy,
+                isSensorFusionActive: isSensorFusionActive,
+              ),
+              if (showBluetoothController) ...[
+                const SizedBox(width: 8),
+                const Icon(Icons.bluetooth, color: Colors.lightBlueAccent),
+              ],
+            ],
           ),
-          if (showBluetoothController) ...[
-            const SizedBox(width: 8),
-            const Icon(Icons.bluetooth, color: Colors.lightBlueAccent),
-          ],
+          Align(
+            alignment: Alignment.centerRight,
+            // PopupMenuButton retains a 48dp touch target, whose visual icon
+            // sits slightly low in this compact 30dp status header. Keep the
+            // full touch target but align the visible gear with GPS.
+            child: Transform.translate(
+              offset: const Offset(0, -6),
+              child: SharedOverflowPopupMenuButton(
+                isControllerEngine: widget.isControllerEngine,
+                icon: Icons.settings,
+              ),
+            ),
+          ),
         ],
       );
 
@@ -495,8 +509,7 @@ class _NavigatorDashboardScreenState
   Widget _portraitActionButton(
     String label,
     Color color,
-    VoidCallback onPressed,
-    {
+    VoidCallback onPressed, {
     bool flash = false,
   }) =>
       SizedBox.expand(
@@ -510,19 +523,6 @@ class _NavigatorDashboardScreenState
             ),
             onPressed: onPressed,
             child: FittedBox(child: Text(label)),
-          ),
-        ),
-      );
-
-  Widget _portraitSettingsButton() => Container(
-        decoration: BoxDecoration(
-          color: Colors.grey[850],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Center(
-          child: SharedOverflowPopupMenuButton(
-            isControllerEngine: widget.isControllerEngine,
-            icon: Icons.settings,
           ),
         ),
       );
@@ -662,6 +662,11 @@ class _NavigatorDashboardScreenState
                             color: Colors.lightBlueAccent,
                           ),
                         ],
+                        const SizedBox(width: 8),
+                        SharedOverflowPopupMenuButton(
+                          isControllerEngine: widget.isControllerEngine,
+                          icon: Icons.settings,
+                        ),
                         const SizedBox(width: 10),
                       ],
                       Text(
@@ -883,21 +888,6 @@ class _NavigatorDashboardScreenState
                         'RESET',
                         Colors.grey[850]!,
                         () => _send(ControllerCommandOpcode.resetInterval),
-                      ),
-                      Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[850],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Center(
-                            child: SharedOverflowPopupMenuButton(
-                              isControllerEngine: widget.isControllerEngine,
-                              icon: Icons.settings,
-                            ),
-                          ),
-                        ),
                       ),
                     ]),
                   ),

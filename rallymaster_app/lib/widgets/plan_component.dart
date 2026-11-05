@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:rally_lib/rally_lib.dart';
+import 'package:rallymaster_ui/rallymaster_ui.dart';
 
 import '../models/app_session.dart';
 import '../models/checkpoint_dto.dart';
@@ -91,7 +92,9 @@ class _PlanComponentState extends ConsumerState<PlanComponent> {
                       ),
                       if (odometer.direction != OdometerDirection.forward) ...[
                         const SizedBox(width: 6),
-                        _DirectionIndicator(direction: odometer.direction),
+                        OdometerDirectionIndicator(
+                          direction: odometer.direction,
+                        ),
                       ],
                     ],
                   ),
@@ -428,29 +431,3 @@ class _PlanComponentState extends ConsumerState<PlanComponent> {
 
 enum _RouteItemType { nri, checkpoint }
 
-class _DirectionIndicator extends StatelessWidget {
-  const _DirectionIndicator({required this.direction});
-
-  final OdometerDirection direction;
-
-  @override
-  Widget build(BuildContext context) {
-    final isParked = direction == OdometerDirection.park;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.red.shade800,
-        borderRadius: BorderRadius.circular(5),
-      ),
-      child: Text(
-        isParked ? 'PARK' : 'REVERSE',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 0.6,
-        ),
-      ),
-    );
-  }
-}

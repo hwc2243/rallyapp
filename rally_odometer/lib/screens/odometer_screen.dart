@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
+import 'package:rallymaster_ui/rallymaster_ui.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../providers/rally_time_offset_provider.dart';
-import '../widgets/mileage_entry_dialog.dart';
+import '../widgets/shared_overflow_popup_menu_button.dart';
 
 class OdometerScreen extends ConsumerStatefulWidget {
   const OdometerScreen({super.key});
@@ -264,10 +265,6 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                                       ),
                                     ),
                                   ),
-                                  Align(
-                                    alignment: Alignment.bottomRight,
-                                    child: _buildMenu(),
-                                  ),
                                 ],
                               ),
                             ),
@@ -278,6 +275,14 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
                   ),
                 ),
               ],
+            ),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: const SharedOverflowPopupMenuButton(
+                isControllerEngine: true,
+                icon: Icons.settings,
+              ),
             ),
             Positioned(
               top: 12,
@@ -314,26 +319,6 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildMenu() {
-    return PopupMenuButton<_MenuAction>(
-      tooltip: 'Menu',
-      color: Colors.grey[900],
-      icon: const Icon(Icons.menu, color: Colors.white70),
-      onSelected: (action) {
-        switch (action) {
-          case _MenuAction.settings:
-            Navigator.pushNamed(context, '/settings');
-          case _MenuAction.details:
-            Navigator.pushNamed(context, '/details');
-        }
-      },
-      itemBuilder: (context) => const [
-        PopupMenuItem(value: _MenuAction.settings, child: Text('Settings')),
-        PopupMenuItem(value: _MenuAction.details, child: Text('Details')),
-      ],
     );
   }
 
@@ -629,8 +614,6 @@ class _OdometerScreenState extends ConsumerState<OdometerScreen> {
     );
   }
 }
-
-enum _MenuAction { settings, details }
 
 /// The permanent, full-control Controller dashboard baseline.
 ///
