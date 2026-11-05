@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
 import 'package:rallymaster_ui/rallymaster_ui.dart';
 
-import '../widgets/rallymaster_about_dialog.dart';
-
 /// Planning preferences that apply after a rally route has been selected.
 class RallyMasterSettingsScreen extends ConsumerWidget {
   const RallyMasterSettingsScreen({super.key});
@@ -39,20 +37,6 @@ class RallyMasterSettingsScreen extends ConsumerWidget {
                     decimalPlaces: 5,
                     min: 0.00001,
                     onSaved: notifier.setCalibrationFactor,
-                  ),
-                ),
-                const RallySettingsSectionDivider(),
-                const RallySettingsSectionTitle('RallyMaster'),
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  title: const Text('About'),
-                  subtitle: const Text(
-                    'Version, support, privacy, and licenses',
-                  ),
-                  trailing: const Icon(Icons.info_outline),
-                  onTap: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => const RallyMasterAboutDialog(),
                   ),
                 ),
                 const RallySettingsSectionDivider(),

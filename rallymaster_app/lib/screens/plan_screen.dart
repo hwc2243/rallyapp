@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/app_session.dart';
 import 'settings_screen.dart';
@@ -24,6 +25,20 @@ class PlanScreen extends StatefulWidget {
 class _PlanScreenState extends State<PlanScreen> {
   static const _dividerExtent = 16.0;
   double _splitRatio = 0.5;
+
+  @override
+  void initState() {
+    super.initState();
+    // Route planning is an active in-vehicle workflow. Keep the display awake
+    // for its duration, while allowing normal timeout behavior elsewhere.
+    WakelockPlus.enable();
+  }
+
+  @override
+  void dispose() {
+    WakelockPlus.disable();
+    super.dispose();
+  }
 
   void _resize(double delta, double availableExtent) {
     if (availableExtent <= 0) return;
