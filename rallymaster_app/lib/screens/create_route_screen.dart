@@ -86,62 +86,62 @@ class _CreateRouteScreenState extends State<CreateRouteScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('New route')),
-        body: SafeArea(
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                TextFormField(
-                  controller: _nameController,
-                  autofocus: true,
-                  enabled: !_saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Route name',
-                    border: OutlineInputBorder(),
-                  ),
-                  textCapitalization: TextCapitalization.words,
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Enter a route name.'
-                      : null,
-                  onFieldSubmitted: (_) => _save(),
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _descriptionController,
-                  enabled: !_saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                  ),
-                  textCapitalization: TextCapitalization.sentences,
-                  minLines: 3,
-                  maxLines: 5,
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    _error!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
-                  ),
-                ],
-                const SizedBox(height: 32),
-                FilledButton.icon(
-                  onPressed: _saving ? null : _save,
-                  icon: _saving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.add),
-                  label: Text(_saving ? 'Creating…' : 'Create route'),
-                ),
-              ],
+    appBar: AppBar(title: const Text('New route')),
+    body: SafeArea(
+      child: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            TextFormField(
+              controller: _nameController,
+              autofocus: true,
+              enabled: !_saving,
+              decoration: const InputDecoration(
+                labelText: 'Route name',
+                border: OutlineInputBorder(),
+              ),
+              textCapitalization: TextCapitalization.words,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Enter a route name.'
+                  : null,
+              onFieldSubmitted: (_) => _save(),
             ),
-          ),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: _descriptionController,
+              enabled: !_saving,
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+              textCapitalization: TextCapitalization.sentences,
+              minLines: 3,
+              maxLines: 5,
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.add),
+              label: Text(_saving ? 'Creating…' : 'Create route'),
+            ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }

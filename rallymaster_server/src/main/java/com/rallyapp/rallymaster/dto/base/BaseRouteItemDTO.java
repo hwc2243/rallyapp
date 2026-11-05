@@ -20,7 +20,15 @@ implements Multitenant,  Serializable
   
   protected Long position = null;
   
-  protected Long revision = null;
+  protected Double latitude = null;
+  
+  protected Double longitude = null;
+  
+  protected Integer heading = null;
+  
+  protected Double distance = null;
+  
+  protected String notes = null;
   
   protected Boolean deleted = null;
   
@@ -38,7 +46,11 @@ implements Multitenant,  Serializable
     this.id = builder.id;
     this.itemType = builder.itemType;
     this.position = builder.position;
-    this.revision = builder.revision;
+    this.latitude = builder.latitude;
+    this.longitude = builder.longitude;
+    this.heading = builder.heading;
+    this.distance = builder.distance;
+    this.notes = builder.notes;
     this.deleted = builder.deleted;
     this.organizationId = builder.organizationId;
     this.routeId = builder.routeId;
@@ -76,14 +88,58 @@ implements Multitenant,  Serializable
   }
   
 
-  public Long getRevision ()
+  public Double getLatitude ()
   {
-    return this.revision;
+    return this.latitude;
   }
   
-  public void setRevision (Long revision)
+  public void setLatitude (Double latitude)
   {
-    this.revision = revision;
+    this.latitude = latitude;
+  }
+  
+
+  public Double getLongitude ()
+  {
+    return this.longitude;
+  }
+  
+  public void setLongitude (Double longitude)
+  {
+    this.longitude = longitude;
+  }
+  
+
+  public Integer getHeading ()
+  {
+    return this.heading;
+  }
+  
+  public void setHeading (Integer heading)
+  {
+    this.heading = heading;
+  }
+  
+
+  public Double getDistance ()
+  {
+    return this.distance;
+  }
+  
+  public void setDistance (Double distance)
+  {
+    this.distance = distance;
+  }
+  
+
+  public String getNotes ()
+  {
+    return this.notes;
+  }
+  
+  public void setNotes (String notes)
+  {
+    this.notes = notes;
   }
   
 
@@ -146,7 +202,15 @@ implements Multitenant,  Serializable
   
   private Long position = null;
   
-  private Long revision = null;
+  private Double latitude = null;
+  
+  private Double longitude = null;
+  
+  private Integer heading = null;
+  
+  private Double distance = null;
+  
+  private String notes = null;
   
   private Boolean deleted = null;
   
@@ -170,8 +234,28 @@ implements Multitenant,  Serializable
       return this;
     }
 
-    public Builder revision(Long revision) {
-      this.revision = revision;
+    public Builder latitude(Double latitude) {
+      this.latitude = latitude;
+      return this;
+    }
+
+    public Builder longitude(Double longitude) {
+      this.longitude = longitude;
+      return this;
+    }
+
+    public Builder heading(Integer heading) {
+      this.heading = heading;
+      return this;
+    }
+
+    public Builder distance(Double distance) {
+      this.distance = distance;
+      return this;
+    }
+
+    public Builder notes(String notes) {
+      this.notes = notes;
       return this;
     }
 

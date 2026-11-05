@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../models/app_session.dart';
 import '../models/rally_dto.dart';
 import '../models/route_dto.dart';
+import '../models/route_selection.dart';
 import '../network/service_builder_http_client.dart';
 import '../providers/external_api_client.dart';
 import '../providers/rally_provider.dart';
+import '../providers/route_provider.dart';
 import '../providers/tenant_discriminator_provider.dart';
 import 'create_route_screen.dart';
 
@@ -87,23 +89,67 @@ class _SelectRouteScreenState extends State<SelectRouteScreen> {
         ),
       ),
     );
-    if (route != null && mounted) Navigator.of(context).pop(route);
+    if (route != null && mounted) await _selectRoute(route);
+  }
+
+  Future<void> _selectRoute(RouteDto route) async {
+    final routeId = route.serverId;
+    if (routeId == null) {
+      setState(() => _error = 'The selected route has no server id.');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    ServiceBuilderHttpClient? httpClient;
+    TenantDiscriminatorProvider? tenantProvider;
+    RouteProvider? provider;
+    try {
+      tenantProvider = TenantDiscriminatorProvider()
+        ..setOrganizationId(widget.session.organizationId);
+      httpClient = ServiceBuilderHttpClient(
+        baseUrl: ExternalApiClient.defaultApiBaseUrl,
+        headersProvider: () async => {
+          'Authorization': 'Bearer ${await widget.accessToken()}',
+        },
+      );
+      provider = RouteProvider(
+        httpClient: httpClient,
+        tenantProvider: tenantProvider,
+      );
+      final routeItems = await provider.listRouteItems(routeId);
+      if (mounted) {
+        Navigator.of(context)
+            .pop(RouteSelection(route: route, routeItems: routeItems));
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = 'Unable to load route items: $error');
+      }
+    } finally {
+      provider?.dispose();
+      tenantProvider?.dispose();
+      httpClient?.client.close();
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Select route'),
-          actions: [
-            IconButton(
-              tooltip: 'Add route',
-              onPressed: _loading ? null : _createRoute,
-              icon: const Icon(Icons.add),
-            ),
-          ],
+    appBar: AppBar(
+      title: const Text('Select route'),
+      actions: [
+        IconButton(
+          tooltip: 'Add route',
+          onPressed: _loading ? null : _createRoute,
+          icon: const Icon(Icons.add),
         ),
-        body: SafeArea(child: _buildBody()),
-      );
+      ],
+    ),
+    body: SafeArea(child: _buildBody()),
+  );
 
   Widget _buildBody() {
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -141,7 +187,7 @@ class _SelectRouteScreenState extends State<SelectRouteScreen> {
                 ? null
                 : Text(route.description!),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).pop(route),
+            onTap: _loading ? null : () => _selectRoute(route),
           ),
         );
       },

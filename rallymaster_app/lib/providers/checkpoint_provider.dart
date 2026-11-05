@@ -7,5 +7,6 @@ import 'base/base_checkpoint_provider.dart';
 class CheckpointProvider extends BaseCheckpointProvider {
   CheckpointProvider({
     required super.httpClient,
+    required super.tenantProvider,
   });
 }

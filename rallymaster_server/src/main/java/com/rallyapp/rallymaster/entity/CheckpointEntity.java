@@ -28,16 +28,12 @@ public class CheckpointEntity
     {
         this.checkpointType = builder.checkpointType;
         this.name = builder.name;
-        this.notes = builder.notes;
-        this.competitorVisible = builder.competitorVisible;
     }
 
     public static class Builder extends RouteItemEntity.Builder<Builder> {
 
         private CheckpointCheckpointType checkpointType = null;
         private String name = null;
-        private String notes = null;
-        private Boolean competitorVisible = null;
 
         public Builder checkpointType(CheckpointCheckpointType checkpointType) {
             this.checkpointType = checkpointType;
@@ -46,16 +42,6 @@ public class CheckpointEntity
 
         public Builder name(String name) {
             this.name = name;
-            return this;
-        }
-
-        public Builder notes(String notes) {
-            this.notes = notes;
-            return this;
-        }
-
-        public Builder competitorVisible(Boolean competitorVisible) {
-            this.competitorVisible = competitorVisible;
             return this;
         }
 

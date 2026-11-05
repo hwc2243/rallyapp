@@ -1,0 +1,19 @@
+name: rallymaster_ui
+description: Shared RallyMaster user-interface components and assets.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  audioplayers: ^6.8.1
+  rally_lib:
+    path: ../rally_lib
+
+flutter:
+  assets:
+    - assets/sounds/park_chime.wav
+    - assets/sounds/reverse_beep.wav

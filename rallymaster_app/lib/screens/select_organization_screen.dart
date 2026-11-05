@@ -9,10 +9,10 @@ import '../network/service_builder_http_client.dart';
 import '../providers/external_api_client.dart';
 import '../providers/organization_membership_provider.dart';
 import '../providers/tenant_discriminator_provider.dart';
-import 'rally_selection_screen.dart';
+import 'select_rally_screen.dart';
 
-class OrganizationSelectionScreen extends StatefulWidget {
-  const OrganizationSelectionScreen({
+class SelectOrganizationScreen extends StatefulWidget {
+  const SelectOrganizationScreen({
     super.key,
     required this.user,
     required this.organizations,
@@ -24,12 +24,11 @@ class OrganizationSelectionScreen extends StatefulWidget {
   final Future<String> Function() accessToken;
 
   @override
-  State<OrganizationSelectionScreen> createState() =>
-      _OrganizationSelectionScreenState();
+  State<SelectOrganizationScreen> createState() =>
+      _SelectOrganizationScreenState();
 }
 
-class _OrganizationSelectionScreenState
-    extends State<OrganizationSelectionScreen> {
+class _SelectOrganizationScreenState extends State<SelectOrganizationScreen> {
   int? _selectingOrganizationId;
   @override
   void initState() {
@@ -67,7 +66,7 @@ class _OrganizationSelectionScreenState
       );
       final selection = await Navigator.of(context).push<RallySetupSelection>(
         MaterialPageRoute<RallySetupSelection>(
-          builder: (_) => RallySelectionScreen(
+          builder: (_) => SelectRallyScreen(
             session: session,
             accessToken: widget.accessToken,
           ),
@@ -80,6 +79,7 @@ class _OrganizationSelectionScreenState
             organizationMembership: membership,
             rally: selection.rally,
             route: selection.route,
+            routeItems: selection.routeItems,
           ),
         );
       }

@@ -16,13 +16,11 @@ implements  Serializable
 {
   protected Long id = null;
 
+  protected Long checkpointNumber = null;
+  
   protected CheckpointCheckpointType checkpointType = null;
   
   protected String name = null;
-  
-  protected String notes = null;
-  
-  protected Boolean competitorVisible = null;
   
 
   protected BaseCheckpointDTO () {
@@ -32,10 +30,9 @@ implements  Serializable
   protected BaseCheckpointDTO (Builder builder)
   {
     this.id = builder.id;
+    this.checkpointNumber = builder.checkpointNumber;
     this.checkpointType = builder.checkpointType;
     this.name = builder.name;
-    this.notes = builder.notes;
-    this.competitorVisible = builder.competitorVisible;
   }
 
   public Long getId ()
@@ -48,6 +45,17 @@ implements  Serializable
     this.id = id;
   }
 
+
+  public Long getCheckpointNumber ()
+  {
+    return this.checkpointNumber;
+  }
+  
+  public void setCheckpointNumber (Long checkpointNumber)
+  {
+    this.checkpointNumber = checkpointNumber;
+  }
+  
 
   public CheckpointCheckpointType getCheckpointType ()
   {
@@ -67,28 +75,6 @@ implements  Serializable
   public void setName (String name)
   {
     this.name = name;
-  }
-  
-
-  public String getNotes ()
-  {
-    return this.notes;
-  }
-  
-  public void setNotes (String notes)
-  {
-    this.notes = notes;
-  }
-  
-
-  public Boolean getCompetitorVisible ()
-  {
-    return this.competitorVisible;
-  }
-  
-  public void setCompetitorVisible (Boolean competitorVisible)
-  {
-    this.competitorVisible = competitorVisible;
   }
   
 
@@ -115,13 +101,11 @@ implements  Serializable
 
   private Long id = null;
 
+  private Long checkpointNumber = null;
+  
   private CheckpointCheckpointType checkpointType = null;
   
   private String name = null;
-  
-  private String notes = null;
-  
-  private Boolean competitorVisible = null;
   
 
 
@@ -130,6 +114,11 @@ implements  Serializable
       return this;
     }
     
+    public Builder checkpointNumber(Long checkpointNumber) {
+      this.checkpointNumber = checkpointNumber;
+      return this;
+    }
+
     public Builder checkpointType(CheckpointCheckpointType checkpointType) {
       this.checkpointType = checkpointType;
       return this;
@@ -137,16 +126,6 @@ implements  Serializable
 
     public Builder name(String name) {
       this.name = name;
-      return this;
-    }
-
-    public Builder notes(String notes) {
-      this.notes = notes;
-      return this;
-    }
-
-    public Builder competitorVisible(Boolean competitorVisible) {
-      this.competitorVisible = competitorVisible;
       return this;
     }
 

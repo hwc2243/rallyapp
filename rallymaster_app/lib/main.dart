@@ -2,8 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:rally_lib/rally_lib.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/app_session.dart';
 import 'models/organization_dto.dart';
@@ -11,11 +14,12 @@ import 'models/organization_membership_dto.dart';
 import 'models/rally_dto.dart';
 import 'models/rally_setup_selection.dart';
 import 'models/route_dto.dart';
+import 'models/route_item_dto.dart';
 import 'models/user_dto.dart';
 import 'providers/external_api_client.dart';
 import 'providers/me_provider.dart';
-import 'screens/main_screen.dart';
-import 'screens/organization_selection_screen.dart';
+import 'screens/plan_screen.dart';
+import 'screens/select_organization_screen.dart';
 import 'services/session_lock_controller.dart';
 import 'widgets/session_lock_overlay.dart';
 
@@ -31,7 +35,13 @@ const _redirectUrl = 'com.rallyapp.rallymaster:/oauthredirect';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const RallyMasterApp());
+  final preferences = await SharedPreferences.getInstance();
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(preferences)],
+      child: const RallyMasterApp(),
+    ),
+  );
 }
 
 class RallyMasterApp extends StatefulWidget {
@@ -118,7 +128,7 @@ class _AuthenticationGateState extends State<AuthenticationGate> {
       if (!mounted) return;
       final selection = await Navigator.of(context).push<RallySetupSelection>(
         MaterialPageRoute<RallySetupSelection>(
-          builder: (_) => OrganizationSelectionScreen(
+          builder: (_) => SelectOrganizationScreen(
             user: user,
             organizations: organizations,
             accessToken: _authentication.getAccessToken,
@@ -127,12 +137,13 @@ class _AuthenticationGateState extends State<AuthenticationGate> {
       );
       if (selection != null && mounted) {
         widget.onOrganizationSelected();
-        _openMainScreen(
+        _openPlanScreen(
           user,
           selection.organization,
           selection.organizationMembership,
           selection.rally,
           selection.route,
+          selection.routeItems,
         );
       }
     } on FlutterAppAuthUserCancelledException {
@@ -154,23 +165,26 @@ class _AuthenticationGateState extends State<AuthenticationGate> {
     }
   }
 
-  void _openMainScreen(
+  void _openPlanScreen(
     UserDto user,
     OrganizationDto organization,
     OrganizationMembershipDto organizationMembership,
     RallyDto rally,
     RouteDto route,
+    List<RouteItemDto> routeItems,
   ) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => MainScreen(
+        builder: (_) => PlanScreen(
           session: AppSession(
             user: user,
             organization: organization,
             organizationMembership: organizationMembership,
             rally: rally,
             route: route,
+            routeItems: routeItems,
           ),
+          accessToken: _authentication.getAccessToken,
         ),
       ),
     );
@@ -332,9 +346,7 @@ class AuthenticationService {
       final expiresAt = DateTime.fromMillisecondsSinceEpoch(
         expiration.toInt() * 1000,
       );
-      return !expiresAt.isAfter(
-        DateTime.now().add(const Duration(minutes: 1)),
-      );
+      return !expiresAt.isAfter(DateTime.now().add(const Duration(minutes: 1)));
     } catch (_) {
       return true;
     }

@@ -22,8 +22,24 @@ public interface BaseRouteItem<ROUTE>
   public void setPosition (Long position);
   
 
-  public Long getRevision ();
-  public void setRevision (Long revision);
+  public Double getLatitude ();
+  public void setLatitude (Double latitude);
+  
+
+  public Double getLongitude ();
+  public void setLongitude (Double longitude);
+  
+
+  public Integer getHeading ();
+  public void setHeading (Integer heading);
+  
+
+  public Double getDistance ();
+  public void setDistance (Double distance);
+  
+
+  public String getNotes ();
+  public void setNotes (String notes);
   
 
   public Boolean getDeleted ();

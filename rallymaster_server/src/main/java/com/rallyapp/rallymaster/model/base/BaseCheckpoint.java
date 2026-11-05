@@ -14,20 +14,16 @@ public interface BaseCheckpoint<ROUTE>
   public void setId (Long id);
 
 
+  public Long getCheckpointNumber ();
+  public void setCheckpointNumber (Long checkpointNumber);
+  
+
   public CheckpointCheckpointType getCheckpointType ();
   public void setCheckpointType (CheckpointCheckpointType checkpointType);
   
 
   public String getName ();
   public void setName (String name);
-  
-
-  public String getNotes ();
-  public void setNotes (String notes);
-  
-
-  public Boolean getCompetitorVisible ();
-  public void setCompetitorVisible (Boolean competitorVisible);
   
 
 }

@@ -29,8 +29,9 @@ public abstract class RouteItemEntity<T extends BaseRouteItemEntity<T>>
     {
         this.itemType = builder.itemType;
         this.position = builder.position;
-        this.revision = builder.revision;
-        this.deleted = builder.deleted;
+        this.latitude = builder.latitude;
+        this.longitude = builder.longitude;
+        this.distance = builder.distance;
         this.organizationId = builder.organizationId;
     }
 
@@ -38,8 +39,9 @@ public abstract class RouteItemEntity<T extends BaseRouteItemEntity<T>>
 
         protected RouteItemItemType itemType = null;
         protected Long position = null;
-        protected Long revision = null;
-        protected Boolean deleted = null;
+        protected Double latitude = null;
+        protected Double longitude = null;
+        protected Double distance = null;
         protected Long organizationId = null;
 
         public B itemType(RouteItemItemType itemType) {
@@ -52,13 +54,18 @@ public abstract class RouteItemEntity<T extends BaseRouteItemEntity<T>>
             return self();
         }
 
-        public B revision(Long revision) {
-            this.revision = revision;
+        public B latitude(Double latitude) {
+            this.latitude = latitude;
             return self();
         }
 
-        public B deleted(Boolean deleted) {
-            this.deleted = deleted;
+        public B longitude(Double longitude) {
+            this.longitude = longitude;
+            return self();
+        }
+
+        public B distance(Double distance) {
+            this.distance = distance;
             return self();
         }
 

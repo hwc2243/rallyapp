@@ -3,17 +3,17 @@ import 'package:flutter/material.dart';
 import '../models/app_session.dart';
 import '../models/rally_dto.dart';
 import '../models/rally_setup_selection.dart';
-import '../models/route_dto.dart';
+import '../models/route_selection.dart';
 import '../providers/external_api_client.dart';
 import '../providers/rally_provider.dart';
 import '../providers/tenant_discriminator_provider.dart';
 import '../network/service_builder_http_client.dart';
 import 'create_rally_screen.dart';
+import 'route_actions_screen.dart';
 import 'select_route_screen.dart';
-import 'setup_screen.dart';
 
-class RallySelectionScreen extends StatefulWidget {
-  const RallySelectionScreen({
+class SelectRallyScreen extends StatefulWidget {
+  const SelectRallyScreen({
     super.key,
     required this.session,
     required this.accessToken,
@@ -23,10 +23,10 @@ class RallySelectionScreen extends StatefulWidget {
   final Future<String> Function() accessToken;
 
   @override
-  State<RallySelectionScreen> createState() => _RallySelectionScreenState();
+  State<SelectRallyScreen> createState() => _SelectRallyScreenState();
 }
 
-class _RallySelectionScreenState extends State<RallySelectionScreen> {
+class _SelectRallyScreenState extends State<SelectRallyScreen> {
   List<RallyDto> _rallies = const [];
   String? _error;
   var _loading = true;
@@ -77,8 +77,8 @@ class _RallySelectionScreenState extends State<RallySelectionScreen> {
   }
 
   Future<void> _selectRally(RallyDto rally) async {
-    final route = await Navigator.of(context).push<RouteDto>(
-      MaterialPageRoute<RouteDto>(
+    final selection = await Navigator.of(context).push<RouteSelection>(
+      MaterialPageRoute<RouteSelection>(
         builder: (_) => SelectRouteScreen(
           session: widget.session,
           rally: rally,
@@ -86,26 +86,32 @@ class _RallySelectionScreenState extends State<RallySelectionScreen> {
         ),
       ),
     );
-    if (route == null || !mounted) return;
+    if (selection == null || !mounted) return;
 
-    final completed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => SetupScreen(
+    final action = await Navigator.of(context).push<RouteActionResult>(
+      MaterialPageRoute<RouteActionResult>(
+        builder: (_) => RouteActionsScreen(
           session: widget.session,
           rally: rally,
-          route: route,
+          route: selection.route,
+          routeItems: selection.routeItems,
+          accessToken: widget.accessToken,
         ),
       ),
     );
-    if (completed == true && mounted) {
+    if (action == RouteActionResult.plan && mounted) {
       Navigator.of(context).pop(
         RallySetupSelection(
           organization: widget.session.organization,
           organizationMembership: widget.session.organizationMembership,
           rally: rally,
-          route: route,
+          route: selection.route,
+          routeItems: selection.routeItems,
         ),
       );
+    } else if (action == RouteActionResult.deleted && mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Route deleted.')));
     }
   }
 

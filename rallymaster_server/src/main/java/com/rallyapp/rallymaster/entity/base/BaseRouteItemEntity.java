@@ -47,7 +47,19 @@ public abstract class BaseRouteItemEntity<T extends BaseRouteItemEntity<T>> exte
   protected Long position = null;
   
   @Column
-  protected Long revision = null;
+  protected Double latitude = null;
+  
+  @Column
+  protected Double longitude = null;
+  
+  @Column
+  protected Integer heading = null;
+  
+  @Column
+  protected Double distance = null;
+  
+  @Column
+  protected String notes = null;
   
   @Column
   protected Boolean deleted = null;
@@ -98,14 +110,58 @@ public abstract class BaseRouteItemEntity<T extends BaseRouteItemEntity<T>> exte
   }
   
 
-  public Long getRevision ()
+  public Double getLatitude ()
   {
-    return this.revision;
+    return this.latitude;
   }
   
-  public void setRevision (Long revision)
+  public void setLatitude (Double latitude)
   {
-    this.revision = revision;
+    this.latitude = latitude;
+  }
+  
+
+  public Double getLongitude ()
+  {
+    return this.longitude;
+  }
+  
+  public void setLongitude (Double longitude)
+  {
+    this.longitude = longitude;
+  }
+  
+
+  public Integer getHeading ()
+  {
+    return this.heading;
+  }
+  
+  public void setHeading (Integer heading)
+  {
+    this.heading = heading;
+  }
+  
+
+  public Double getDistance ()
+  {
+    return this.distance;
+  }
+  
+  public void setDistance (Double distance)
+  {
+    this.distance = distance;
+  }
+  
+
+  public String getNotes ()
+  {
+    return this.notes;
+  }
+  
+  public void setNotes (String notes)
+  {
+    this.notes = notes;
   }
   
 

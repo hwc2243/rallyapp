@@ -5,7 +5,5 @@ import 'base/base_organization_provider.dart';
 /// This file is generated only when it does not already exist and is preserved
 /// on subsequent service builds.
 class OrganizationProvider extends BaseOrganizationProvider {
-  OrganizationProvider({
-    required super.httpClient,
-  });
+  OrganizationProvider({required super.httpClient});
 }

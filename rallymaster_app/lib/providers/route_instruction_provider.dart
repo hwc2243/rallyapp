@@ -7,5 +7,6 @@ import 'base/base_route_instruction_provider.dart';
 class RouteInstructionProvider extends BaseRouteInstructionProvider {
   RouteInstructionProvider({
     required super.httpClient,
+    required super.tenantProvider,
   });
 }

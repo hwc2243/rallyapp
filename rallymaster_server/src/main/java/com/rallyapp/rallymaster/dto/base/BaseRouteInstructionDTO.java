@@ -15,9 +15,9 @@ implements  Serializable
 {
   protected Long id = null;
 
-  protected String instructionText = null;
+  protected Long instructionNumber = null;
   
-  protected String notes = null;
+  protected String instructionText = null;
   
 
   protected BaseRouteInstructionDTO () {
@@ -27,8 +27,8 @@ implements  Serializable
   protected BaseRouteInstructionDTO (Builder builder)
   {
     this.id = builder.id;
+    this.instructionNumber = builder.instructionNumber;
     this.instructionText = builder.instructionText;
-    this.notes = builder.notes;
   }
 
   public Long getId ()
@@ -42,6 +42,17 @@ implements  Serializable
   }
 
 
+  public Long getInstructionNumber ()
+  {
+    return this.instructionNumber;
+  }
+  
+  public void setInstructionNumber (Long instructionNumber)
+  {
+    this.instructionNumber = instructionNumber;
+  }
+  
+
   public String getInstructionText ()
   {
     return this.instructionText;
@@ -50,17 +61,6 @@ implements  Serializable
   public void setInstructionText (String instructionText)
   {
     this.instructionText = instructionText;
-  }
-  
-
-  public String getNotes ()
-  {
-    return this.notes;
-  }
-  
-  public void setNotes (String notes)
-  {
-    this.notes = notes;
   }
   
 
@@ -87,9 +87,9 @@ implements  Serializable
 
   private Long id = null;
 
-  private String instructionText = null;
+  private Long instructionNumber = null;
   
-  private String notes = null;
+  private String instructionText = null;
   
 
 
@@ -98,13 +98,13 @@ implements  Serializable
       return this;
     }
     
-    public Builder instructionText(String instructionText) {
-      this.instructionText = instructionText;
+    public Builder instructionNumber(Long instructionNumber) {
+      this.instructionNumber = instructionNumber;
       return this;
     }
 
-    public Builder notes(String notes) {
-      this.notes = notes;
+    public Builder instructionText(String instructionText) {
+      this.instructionText = instructionText;
       return this;
     }
 

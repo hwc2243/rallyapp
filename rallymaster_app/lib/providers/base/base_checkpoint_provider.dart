@@ -4,22 +4,28 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../../models/checkpoint_dto.dart';
 import '../../network/service_builder_http_client.dart';
+import '../tenant_discriminator_provider.dart';
 
 /// Holds Checkpoint DTOs and provides its configured external API operations.
 class BaseCheckpointProvider extends ChangeNotifier {
   final ServiceBuilderHttpClient httpClient;
+  final TenantDiscriminatorProvider tenantProvider;
   final List<CheckpointDto> _items = <CheckpointDto>[];
   bool _isLoading = false;
   Object? _error;
 
   BaseCheckpointProvider({
     required this.httpClient,
+    required this.tenantProvider,
   }) {
+    tenantProvider.addListener(_tenantChanged);
   }
 
   List<CheckpointDto> get items => List.unmodifiable(_items);
   bool get isLoading => _isLoading;
   Object? get error => _error;
+  int? get organizationId =>
+      tenantProvider.organizationId;
 
   Future<CheckpointDto> create(CheckpointDto value) async {
     return execute(() async {
@@ -143,6 +149,11 @@ class BaseCheckpointProvider extends ChangeNotifier {
 
   Map<String, String> get requestHeaders {
     final headers = <String, String>{};
+    final selectedTenant = tenantProvider.organizationId;
+    if (selectedTenant == null) {
+      throw StateError('A organizationId is required for Checkpoint requests');
+    }
+    headers['organizationId'] = selectedTenant.toString();
     return headers;
   }
 
@@ -150,4 +161,11 @@ class BaseCheckpointProvider extends ChangeNotifier {
       jsonDecode(response.body) as Map<String, dynamic>;
 
   String get resourcePath => '/api/external/checkpoint';
+  void _tenantChanged() => notifyListeners();
+
+  @override
+  void dispose() {
+    tenantProvider.removeListener(_tenantChanged);
+    super.dispose();
+  }
 }

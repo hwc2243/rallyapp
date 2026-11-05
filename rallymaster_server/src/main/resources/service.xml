@@ -80,8 +80,13 @@
 		<!-- The one canonical order across both item types. -->
 		<attribute name="position" type="long" />
 
-		<attribute name="revision" type="long" />
-		<attribute name="deleted" type="boolean" />
+	    <attribute name="latitude" type="double" />
+	    <attribute name="longitude" type="double" />
+	    <attribute name="heading" type="int" />
+	    <attribute name="distance" type="double" />
+		<attribute name="notes" type="string" />
+		
+	    <attribute name="deleted" type="boolean" />
 
 		<related name="route" entity="route" relationship="many_to_one"
 			api-reference="id" />
@@ -96,8 +101,8 @@
 	</entity>
 
 	<entity name="routeInstruction" db-name="route_instruction"	parent="routeItem">
+	    <attribute name="instructionNumber" type="long" />
 		<attribute name="instructionText" type="string" />
-		<attribute name="notes" type="string" />
 
 		<api>
 			<external operations="CREATE READ UPDATE DELETE" />
@@ -105,10 +110,9 @@
 	</entity>
 
 	<entity name="checkpoint" db-name="checkpoint" parent="routeItem">
+		<attribute name="checkpointNumber" type="long" />
 		<attribute name="checkpointType" type="enum" enum-values="PASSAGE_CONTROL,TIMED_CONTROL,TIME_CHECK,RESTART,START,FINISH" />
 		<attribute name="name" type="string" />
-		<attribute name="notes" type="string" />
-		<attribute name="competitorVisible" type="boolean" />
 
 		<api>
 			<external operations="CREATE READ UPDATE DELETE" />

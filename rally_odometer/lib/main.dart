@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
+import 'package:rallymaster_ui/rallymaster_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'screens/splash_screen.dart';
@@ -12,7 +13,6 @@ import 'screens/driver_dashboard_screen.dart';
 import 'screens/navigator_dashboard_screen.dart';
 import 'screens/role_selection_screen.dart';
 import 'providers/controller_display_view_provider.dart';
-import 'services/direction_alert_service.dart';
 import 'widgets/precision_drive_orientation_gate.dart';
 
 void main() async {

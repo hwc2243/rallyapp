@@ -4,22 +4,28 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../../models/route_instruction_dto.dart';
 import '../../network/service_builder_http_client.dart';
+import '../tenant_discriminator_provider.dart';
 
 /// Holds RouteInstruction DTOs and provides its configured external API operations.
 class BaseRouteInstructionProvider extends ChangeNotifier {
   final ServiceBuilderHttpClient httpClient;
+  final TenantDiscriminatorProvider tenantProvider;
   final List<RouteInstructionDto> _items = <RouteInstructionDto>[];
   bool _isLoading = false;
   Object? _error;
 
   BaseRouteInstructionProvider({
     required this.httpClient,
+    required this.tenantProvider,
   }) {
+    tenantProvider.addListener(_tenantChanged);
   }
 
   List<RouteInstructionDto> get items => List.unmodifiable(_items);
   bool get isLoading => _isLoading;
   Object? get error => _error;
+  int? get organizationId =>
+      tenantProvider.organizationId;
 
   Future<RouteInstructionDto> create(RouteInstructionDto value) async {
     return execute(() async {
@@ -143,6 +149,11 @@ class BaseRouteInstructionProvider extends ChangeNotifier {
 
   Map<String, String> get requestHeaders {
     final headers = <String, String>{};
+    final selectedTenant = tenantProvider.organizationId;
+    if (selectedTenant == null) {
+      throw StateError('A organizationId is required for RouteInstruction requests');
+    }
+    headers['organizationId'] = selectedTenant.toString();
     return headers;
   }
 
@@ -150,4 +161,11 @@ class BaseRouteInstructionProvider extends ChangeNotifier {
       jsonDecode(response.body) as Map<String, dynamic>;
 
   String get resourcePath => '/api/external/routeInstruction';
+  void _tenantChanged() => notifyListeners();
+
+  @override
+  void dispose() {
+    tenantProvider.removeListener(_tenantChanged);
+    super.dispose();
+  }
 }

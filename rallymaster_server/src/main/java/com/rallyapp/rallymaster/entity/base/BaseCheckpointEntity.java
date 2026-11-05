@@ -37,19 +37,27 @@ public abstract class BaseCheckpointEntity<T extends BaseCheckpointEntity<T>>
 {
 
   @Column
+  protected Long checkpointNumber = null;
+  
+  @Column
   @Enumerated(EnumType.STRING)
   protected CheckpointCheckpointType checkpointType = null;
   
   @Column
   protected String name = null;
   
-  @Column
-  protected String notes = null;
-  
-  @Column
-  protected Boolean competitorVisible = null;
+
   
 
+  public Long getCheckpointNumber ()
+  {
+    return this.checkpointNumber;
+  }
+  
+  public void setCheckpointNumber (Long checkpointNumber)
+  {
+    this.checkpointNumber = checkpointNumber;
+  }
   
 
   public CheckpointCheckpointType getCheckpointType ()
@@ -70,28 +78,6 @@ public abstract class BaseCheckpointEntity<T extends BaseCheckpointEntity<T>>
   public void setName (String name)
   {
     this.name = name;
-  }
-  
-
-  public String getNotes ()
-  {
-    return this.notes;
-  }
-  
-  public void setNotes (String notes)
-  {
-    this.notes = notes;
-  }
-  
-
-  public Boolean getCompetitorVisible ()
-  {
-    return this.competitorVisible;
-  }
-  
-  public void setCompetitorVisible (Boolean competitorVisible)
-  {
-    this.competitorVisible = competitorVisible;
   }
   
 

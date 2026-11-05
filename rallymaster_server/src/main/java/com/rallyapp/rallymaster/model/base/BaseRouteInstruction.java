@@ -13,12 +13,12 @@ public interface BaseRouteInstruction<ROUTE>
   public void setId (Long id);
 
 
-  public String getInstructionText ();
-  public void setInstructionText (String instructionText);
+  public Long getInstructionNumber ();
+  public void setInstructionNumber (Long instructionNumber);
   
 
-  public String getNotes ();
-  public void setNotes (String notes);
+  public String getInstructionText ();
+  public void setInstructionText (String instructionText);
   
 
 }

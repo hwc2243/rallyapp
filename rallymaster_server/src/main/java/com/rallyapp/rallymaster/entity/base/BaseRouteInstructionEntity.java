@@ -36,12 +36,23 @@ public abstract class BaseRouteInstructionEntity<T extends BaseRouteInstructionE
 {
 
   @Column
-  protected String instructionText = null;
+  protected Long instructionNumber = null;
   
   @Column
-  protected String notes = null;
+  protected String instructionText = null;
   
 
+  
+
+  public Long getInstructionNumber ()
+  {
+    return this.instructionNumber;
+  }
+  
+  public void setInstructionNumber (Long instructionNumber)
+  {
+    this.instructionNumber = instructionNumber;
+  }
   
 
   public String getInstructionText ()
@@ -52,17 +63,6 @@ public abstract class BaseRouteInstructionEntity<T extends BaseRouteInstructionE
   public void setInstructionText (String instructionText)
   {
     this.instructionText = instructionText;
-  }
-  
-
-  public String getNotes ()
-  {
-    return this.notes;
-  }
-  
-  public void setNotes (String notes)
-  {
-    this.notes = notes;
   }
   
 
