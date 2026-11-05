@@ -184,36 +184,19 @@ class _NavigatorDashboardScreenState
                                 showBluetoothController:
                                     showBluetoothController,
                               )
-                            : Row(
-                                children: [
-                                  Expanded(
-                                    flex: 3,
-                                    child: _telemetryArea(
-                                      telemetry: telemetry,
-                                      totalDistance: total,
-                                      totalTime: totalTime,
-                                      isMetric: settings.isMetric,
-                                      bumpAmount: settings.bumpAmount,
-                                      requiresDoubleTap:
-                                          settings.bumpRequireDoubleTap,
-                                      isDecimalMinutes:
-                                          settings.isDecimalMinutes,
-                                      currentTime: currentTime,
-                                      showBluetoothController:
-                                          showBluetoothController,
-                                    ),
-                                  ),
-                                  const VerticalDivider(
-                                    color: Colors.white24,
-                                    width: 1,
-                                  ),
-                                  Expanded(
-                                    child: _controlArea(
-                                      telemetry: telemetry,
-                                      direction: direction,
-                                    ),
-                                  ),
-                                ],
+                            : _landscapeDashboard(
+                                telemetry: telemetry,
+                                totalDistance: total,
+                                totalTime: totalTime,
+                                isMetric: settings.isMetric,
+                                bumpAmount: settings.bumpAmount,
+                                requiresDoubleTap:
+                                    settings.bumpRequireDoubleTap,
+                                isDecimalMinutes: settings.isDecimalMinutes,
+                                currentTime: currentTime,
+                                direction: direction,
+                                showBluetoothController:
+                                    showBluetoothController,
                               ),
                       ),
                     ],
@@ -560,6 +543,111 @@ class _NavigatorDashboardScreenState
         ),
       );
 
+  /// Landscape keeps the Navigator's familiar telemetry/control columns while
+  /// reserving an unshared status row for GPS and the app menu. This prevents
+  /// the top-right menu from competing with the Hold control.
+  Widget _landscapeDashboard({
+    required LiveTelemetry telemetry,
+    required double totalDistance,
+    required String totalTime,
+    required bool isMetric,
+    required double bumpAmount,
+    required bool requiresDoubleTap,
+    required bool isDecimalMinutes,
+    required DateTime currentTime,
+    required OdometerDirection direction,
+    required bool showBluetoothController,
+  }) =>
+      Column(
+        children: [
+          _landscapeStatusHeader(
+            accuracy: telemetry.gpsAccuracy,
+            isSensorFusionActive: telemetry.isSensorFusionActive,
+            showBluetoothController: showBluetoothController,
+            time: totalTime,
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: _telemetryArea(
+                    telemetry: telemetry,
+                    totalDistance: totalDistance,
+                    totalTime: totalTime,
+                    isMetric: isMetric,
+                    bumpAmount: bumpAmount,
+                    requiresDoubleTap: requiresDoubleTap,
+                    isDecimalMinutes: isDecimalMinutes,
+                    currentTime: currentTime,
+                    showBluetoothController: showBluetoothController,
+                    showOdometerHeaders: false,
+                    showSpeedDivider: false,
+                  ),
+                ),
+                const VerticalDivider(color: Colors.white24, width: 1),
+                Expanded(
+                  child: _controlArea(
+                    telemetry: telemetry,
+                    direction: direction,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _speedDivider(telemetry.speed, isMetric),
+        ],
+      );
+
+  Widget _landscapeStatusHeader({
+    required double accuracy,
+    required bool isSensorFusionActive,
+    required bool showBluetoothController,
+    required String time,
+  }) =>
+      Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Colors.white24)),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GpsSatelliteIcon(
+                  accuracy: accuracy,
+                  isSensorFusionActive: isSensorFusionActive,
+                ),
+                if (showBluetoothController) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.bluetooth, color: Colors.lightBlueAccent),
+                ],
+                const SizedBox(width: 12),
+                Text(
+                  time,
+                  style: const TextStyle(
+                    color: Color(0xFF00FF00),
+                    fontFamily: 'Courier',
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: SharedOverflowPopupMenuButton(
+                isControllerEngine: widget.isControllerEngine,
+                icon: Icons.settings,
+              ),
+            ),
+          ],
+        ),
+      );
+
   Widget _telemetryArea({
     required LiveTelemetry telemetry,
     required double totalDistance,
@@ -570,6 +658,8 @@ class _NavigatorDashboardScreenState
     required bool isDecimalMinutes,
     required DateTime currentTime,
     required bool showBluetoothController,
+    bool showOdometerHeaders = true,
+    bool showSpeedDivider = true,
   }) {
     final unit = isMetric ? 'km' : 'mi';
     final distanceScale = isMetric ? 1000.0 : 1609.344;
@@ -582,10 +672,12 @@ class _NavigatorDashboardScreenState
             label: 'TOTAL ($unit)',
             value: totalDistance / distanceScale,
             color: color,
-            time: totalTime,
-            accuracy: telemetry.gpsAccuracy,
-            isSensorFusionActive: telemetry.isSensorFusionActive,
-            showBluetoothController: showBluetoothController,
+            time: showOdometerHeaders ? totalTime : null,
+            accuracy: showOdometerHeaders ? telemetry.gpsAccuracy : null,
+            isSensorFusionActive:
+                showOdometerHeaders && telemetry.isSensorFusionActive,
+            showBluetoothController:
+                showOdometerHeaders && showBluetoothController,
             trailing: _bumpButton(
               label: 'BUMP+',
               step:
@@ -601,13 +693,18 @@ class _NavigatorDashboardScreenState
             ),
           ),
         ),
-        _speedDivider(telemetry.speed, isMetric),
+        if (showSpeedDivider)
+          _speedDivider(telemetry.speed, isMetric)
+        else
+          const Divider(color: Colors.white24, height: 1),
         Expanded(
           child: _odometerSection(
             label: 'INTERVAL ($unit)',
             value: telemetry.intervalDistance / distanceScale,
             color: intervalColor,
-            time: formatRallyTime(currentTime, isDecimalMinutes),
+            time: showOdometerHeaders
+                ? formatRallyTime(currentTime, isDecimalMinutes)
+                : null,
             trailing: _bumpButton(
               label: 'BUMP-',
               step:
@@ -631,7 +728,7 @@ class _NavigatorDashboardScreenState
     required String label,
     required double value,
     required Color color,
-    required String time,
+    String? time,
     double? accuracy,
     bool isSensorFusionActive = false,
     bool showBluetoothController = false,
@@ -645,42 +742,43 @@ class _NavigatorDashboardScreenState
           children: [
             Column(
               children: [
-                SizedBox(
-                  height: 40,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (accuracy != null) ...[
-                        GpsSatelliteIcon(
-                          accuracy: accuracy,
-                          isSensorFusionActive: isSensorFusionActive,
-                        ),
-                        if (showBluetoothController) ...[
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.bluetooth,
-                            color: Colors.lightBlueAccent,
+                if (time != null)
+                  SizedBox(
+                    height: 40,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (accuracy != null) ...[
+                          GpsSatelliteIcon(
+                            accuracy: accuracy,
+                            isSensorFusionActive: isSensorFusionActive,
                           ),
+                          if (showBluetoothController) ...[
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.bluetooth,
+                              color: Colors.lightBlueAccent,
+                            ),
+                          ],
+                          const SizedBox(width: 8),
+                          SharedOverflowPopupMenuButton(
+                            isControllerEngine: widget.isControllerEngine,
+                            icon: Icons.settings,
+                          ),
+                          const SizedBox(width: 10),
                         ],
-                        const SizedBox(width: 8),
-                        SharedOverflowPopupMenuButton(
-                          isControllerEngine: widget.isControllerEngine,
-                          icon: Icons.settings,
+                        Text(
+                          time,
+                          style: TextStyle(
+                            color: color,
+                            fontFamily: 'Courier',
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        const SizedBox(width: 10),
                       ],
-                      Text(
-                        time,
-                        style: TextStyle(
-                          color: color,
-                          fontFamily: 'Courier',
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
                 Expanded(
                   child: Row(
                     children: [
@@ -688,20 +786,18 @@ class _NavigatorDashboardScreenState
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: onValueTap,
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  label,
-                                  style: TextStyle(
-                                    color: color,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                label,
+                                style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                const SizedBox(width: 8),
-                                Flexible(
+                              ),
+                              Expanded(
+                                child: Center(
                                   child: FittedBox(
                                     fit: BoxFit.scaleDown,
                                     child: Text(
@@ -715,8 +811,8 @@ class _NavigatorDashboardScreenState
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -884,6 +980,7 @@ class _NavigatorDashboardScreenState
                   const Divider(color: Colors.white24, height: 1),
                   Expanded(
                     child: Column(children: [
+                      const Spacer(),
                       _actionButton(
                         'RESET',
                         Colors.grey[850]!,

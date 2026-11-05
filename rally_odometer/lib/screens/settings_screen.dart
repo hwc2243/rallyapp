@@ -481,8 +481,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final bumpText = settings.bumpAmount.toStringAsFixed(3);
     final currentRallyTime = ref.watch(currentTimeProvider).value ??
         DateTime.now().add(ref.watch(rallyTimeOffsetProvider));
-    final isPortrait =
-        MediaQuery.orientationOf(context) == Orientation.portrait;
 
     if (_factorController.text != factorText) {
       _factorController.text = factorText;
@@ -561,17 +559,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                       'Measured Mileage (${settings.isMetric ? 'KM' : 'MI'})',
                                   onTap: _openMeasuredMileageDialog,
                                   showUnderline: false,
-                                  trailing: isPortrait
-                                      ? null
-                                      : _calculateFactorButton(),
                                 ),
-                                if (isPortrait) ...[
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: _calculateFactorButton(),
-                                  ),
-                                ],
+                                const SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: _calculateFactorButton(),
+                                ),
                               ],
                             ),
                           ),
