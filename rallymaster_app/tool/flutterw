@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+# Generates the ServiceBuilder Flutter DTOs before delegating to Flutter.
+set -eu
+
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+app_dir=$(CDPATH= cd -- "$script_dir/.." && pwd)
+server_dir=$(CDPATH= cd -- "$app_dir/../rallymaster_server" && pwd)
+
+"$server_dir/mvnw" -q -f "$server_dir/pom.xml" \
+  -Pflutter-client-generation \
+  servicebuilder:buildservice@generate-flutter
+
+exec flutter "$@"

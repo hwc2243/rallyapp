@@ -1,0 +1,133 @@
+<service name="rallymaster" package="com.rallyapp.rallymaster"
+	multitenant="true">
+
+	<tenant-discriminator name="organizationId" type="long" />
+
+	<entity name="organization" db-name="organization" persistence="true">
+		<attribute name="name" type="string" db-name="name" />
+
+		<related name="organizationMemberships" relationship="one_to_many"
+			entity="organizationMembership" collection="set"
+			mapped-by="organization" api-reference="none" />
+
+		<finder unique="true">
+			<finder-attribute name="name" />
+		</finder>
+
+		<api>
+			<external operations="CREATE READ UPDATE DELETE" />
+		</api>
+	</entity>
+
+	<entity name="organizationMembership" db-name="organization_membership"
+		persistence="true" multitenant="true">
+		<attribute name="role" type="enum"
+			enum-values="ADMIN,RALLYMASTER,VIEWER" />
+
+		<related name="user" relationship="many_to_one" entity="user"
+			api-reference="id" />
+		<related name="organization" relationship="many_to_one"
+			entity="organization" api-reference="id" />
+
+		<finder tenant-scoped="false">
+			<finder-attribute name="user" />
+		</finder>
+
+		<finder unique="true">
+			<finder-attribute name="user" />
+		</finder>
+
+		<api>
+			<external operations="CREATE READ UPDATE DELETE" />
+		</api>
+	</entity>
+
+	<entity name="rally" db-name="rally" multitenant="true">
+		<attribute name="name" type="string" />
+		<attribute name="description" type="string" />
+		<attribute name="date" type="date" />
+
+		<related name="user" relationship="one_to_one" entity="user"
+			api-reference="id" />
+
+		<related name="routes" entity="route" relationship="one_to_many"
+			collection="list" mapped-by="rally" api-reference="none" />
+		
+		<api>
+			<external operations="CREATE READ UPDATE DELETE" />
+		</api>
+	</entity>
+
+	<entity name="route" db-name="route" multitenant="true">
+		<attribute name="name" type="string" />
+		<attribute name="description" type="string" />
+
+		<related name="rally" entity="rally" relationship="many_to_one"
+			api-reference="id" />
+
+		<related name="items" entity="routeItem" relationship="one_to_many"
+			collection="list" mapped-by="route" api-reference="none" />
+
+		<api>
+			<external operations="CREATE READ UPDATE DELETE" />
+		</api>
+	</entity>
+
+	<entity name="routeItem" db-name="route_item" abstract="true" multitenant="true">
+		<!-- Useful as a discriminator for clients and API payloads. -->
+		<attribute name="itemType" type="enum" enum-values="NRI,CHECKPOINT" />
+
+		<!-- The one canonical order across both item types. -->
+		<attribute name="position" type="long" />
+
+	    <attribute name="latitude" type="double" />
+	    <attribute name="longitude" type="double" />
+	    <attribute name="heading" type="int" />
+	    <attribute name="distance" type="double" />
+		<attribute name="notes" type="string" />
+		
+	    <attribute name="deleted" type="boolean" />
+
+		<related name="route" entity="route" relationship="many_to_one"
+			api-reference="id" />
+
+		<finder>
+			<finder-attribute name="route" />
+		</finder>
+
+	</entity>
+
+	<entity name="routeInstruction" db-name="route_instruction"	parent="routeItem" discriminator-value="NRI">
+	    <attribute name="instructionNumber" type="long" />
+		<attribute name="instructionText" type="string" />
+
+		<api>
+			<external operations="CREATE READ UPDATE DELETE" />
+		</api>
+	</entity>
+
+	<entity name="checkpoint" db-name="checkpoint" parent="routeItem" discriminator-value="CHECKPOINT">
+		<attribute name="checkpointNumber" type="long" />
+		<attribute name="checkpointType" type="enum" enum-values="PASSAGE_CONTROL,TIMED_CONTROL,TIME_CHECK,RESTART,START,FINISH" />
+		<attribute name="name" type="string" />
+
+		<api>
+			<external operations="CREATE READ UPDATE DELETE" />
+		</api>
+	</entity>
+
+	<entity name="user" db-name="user_">
+		<attribute name="emailAddress" type="string" />
+		<attribute name="firstName" type="string" />
+		<attribute name="lastName" type="string" />
+
+		<related name="memberships" relationship="one_to_many"
+			entity="organizationMembership" collection="set" mapped-by="user"
+			api-reference="none" />
+
+		<finder unique="true">
+			<finder-attribute name="emailAddress" />
+		</finder>
+	</entity>
+
+</service>

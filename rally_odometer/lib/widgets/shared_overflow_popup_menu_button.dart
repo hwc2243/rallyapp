@@ -10,15 +10,17 @@ class SharedOverflowPopupMenuButton extends ConsumerWidget {
     super.key,
     required this.isControllerEngine,
     this.icon = Icons.menu,
+    this.iconColor = Colors.grey,
   });
 
   final bool isControllerEngine;
   final IconData icon;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return PopupMenuButton<String>(
-      icon: Icon(icon, color: Colors.white, size: 28),
+      icon: Icon(icon, color: iconColor, size: 28),
       onSelected: (action) {
         switch (action) {
           case 'details':

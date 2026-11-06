@@ -1,0 +1,104 @@
+package com.rallyapp.rallymaster.entity.base;
+
+
+import com.rallyapp.rallymaster.entity.RouteEntity;
+import com.rallyapp.rallymaster.entity.RouteItemEntity;
+import com.rallyapp.rallymaster.model.base.BaseCheckpoint;
+import com.rallyapp.rallymaster.model.Checkpoint;
+import com.rallyapp.rallymaster.model.CheckpointCheckpointType;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.OrderBy;
+import jakarta.persistence.Table;
+import java.io.Serializable;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+
+@MappedSuperclass
+public abstract class BaseCheckpointEntity
+  extends RouteItemEntity
+    implements BaseCheckpoint<RouteEntity>, Serializable
+{
+
+  @Column
+  protected Long checkpointNumber = null;
+  
+  @Column
+  @Enumerated(EnumType.STRING)
+  protected CheckpointCheckpointType checkpointType = null;
+  
+  @Column
+  protected String name = null;
+  
+
+  
+
+  public Long getCheckpointNumber ()
+  {
+    return this.checkpointNumber;
+  }
+  
+  public void setCheckpointNumber (Long checkpointNumber)
+  {
+    this.checkpointNumber = checkpointNumber;
+  }
+  
+
+  public CheckpointCheckpointType getCheckpointType ()
+  {
+    return this.checkpointType;
+  }
+  
+  public void setCheckpointType (CheckpointCheckpointType checkpointType)
+  {
+    this.checkpointType = checkpointType;
+  }
+
+  public String getName ()
+  {
+    return this.name;
+  }
+  
+  public void setName (String name)
+  {
+    this.name = name;
+  }
+  
+
+
+    @Override
+	public int hashCode() {
+		return Objects.hash(this.getId());
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+			
+		BaseCheckpointEntity other = (BaseCheckpointEntity) obj;
+		return Objects.equals(getId(), other.getId());
+	}
+
+}

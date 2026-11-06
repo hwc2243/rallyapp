@@ -23,7 +23,8 @@ dependencies:
   rally_lib:
     path: ../rally_lib
   package_info_plus: ^10.2.2
-  audioplayers: ^6.8.1
+  rallymaster_ui:
+    path: ../rallymaster_ui
 
 flutter_launcher_icons:
   android: "launcher_icon"
@@ -59,8 +60,6 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - assets/rally_odometer_logo.png
-    - assets/sounds/park_chime.wav
-    - assets/sounds/reverse_beep.wav
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
