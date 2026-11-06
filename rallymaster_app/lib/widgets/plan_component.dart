@@ -12,8 +12,6 @@ import '../models/route_instruction_dto.dart';
 import '../models/route_plan_dto.dart';
 import '../network/service_builder_http_client.dart';
 import '../providers/external_api_client.dart';
-import '../providers/checkpoint_provider.dart';
-import '../providers/route_instruction_provider.dart';
 import '../providers/route_provider.dart';
 import '../providers/tenant_discriminator_provider.dart';
 import '../services/precise_location_service.dart';
@@ -29,11 +27,15 @@ class PlanComponent extends ConsumerStatefulWidget {
     required this.session,
     required this.accessToken,
     this.onSaveStateChanged,
+    this.onRouteItemsChanged,
+    this.onRouteItemSelected,
   });
 
   final AppSession session;
   final Future<String> Function() accessToken;
   final ValueChanged<PlanSaveState>? onSaveStateChanged;
+  final ValueChanged<List<RouteItemDisplay>>? onRouteItemsChanged;
+  final ValueChanged<RouteItemDisplay>? onRouteItemSelected;
 
   @override
   ConsumerState<PlanComponent> createState() => PlanComponentState();
@@ -53,6 +55,7 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
   bool _isSaving = false;
   final _tableScrollController = ScrollController();
   List<RouteItemDisplay> _routeItems = const [];
+  RouteItemDisplay? _selectedRouteItem;
 
   @override
   void initState() {
@@ -79,6 +82,36 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
   void _notifySaveState() => widget.onSaveStateChanged?.call(
     PlanSaveState(isDirty: _isDirty, isSaving: _isSaving),
   );
+
+  void _notifyRouteItemsChanged() =>
+      widget.onRouteItemsChanged?.call(List.unmodifiable(_routeItems));
+
+  /// Scrolls the route-item table to a marker selected on the map.
+  void scrollToRouteItem(RouteItemDisplay item) {
+    final ordered = [..._routeItems]
+      ..sort(
+        (left, right) =>
+            (left.item.position ?? 0).compareTo(right.item.position ?? 0),
+      );
+    final index = ordered.indexWhere((current) => identical(current, item));
+    if (index < 0 || !_tableScrollController.hasClients) return;
+    final offset = (index * 56.0).clamp(
+      0.0,
+      _tableScrollController.position.maxScrollExtent,
+    );
+    _tableScrollController.animateTo(
+      offset,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+  }
+
+  /// Selects a route item from the map and brings its row into view.
+  void selectRouteItem(RouteItemDisplay item) {
+    if (!mounted) return;
+    setState(() => _selectedRouteItem = item);
+    scrollToRouteItem(item);
+  }
 
   /// Saves the complete local plan. Returns without mutation on failure so a
   /// user can retry after a connectivity problem.
@@ -155,7 +188,7 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
             );
         widget.session.routeItems
           ..clear()
-          ..addAll(_routeItems.map((display) => display.item));
+          ..addAll(_routeItems);
         widget.session.checkpointDrafts
           ..clear()
           ..addAll(saved.checkpoints);
@@ -163,6 +196,7 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
       });
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Route saved')));
+      _notifyRouteItemsChanged();
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -230,6 +264,9 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
             child: RouteItemsTable(
               items: _routeItems,
               controller: _tableScrollController,
+              selectedItem: _selectedRouteItem,
+              onItemTap: _selectRouteItem,
+              onItemEdit: _editRouteItem,
             ),
           ),
           const SizedBox(height: 12),
@@ -340,10 +377,8 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
         setState(() {
           final visibleItems = _routeItems.isEmpty
               ? widget.session.routeItems
-                    .map((item) => RouteItemDisplay(item: item))
-                    .toList()
               : _routeItems;
-          widget.session.routeItems.add(created.item);
+          widget.session.routeItems.add(created);
           if (created.checkpoint != null) {
             widget.session.checkpointDrafts.add(created.checkpoint!);
           }
@@ -351,6 +386,7 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
           _isDirty = true;
         });
         _notifySaveState();
+        _notifyRouteItemsChanged();
         _scrollTableToBottom();
       }
     } catch (error) {
@@ -445,6 +481,201 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
     );
   }
 
+  Future<void> _editRouteItem(RouteItemDisplay display) async {
+    if (_creating || _isSaving) return;
+
+    final item = display.item;
+    RouteItemDisplay? updated;
+    if (item.itemType == 'NRI') {
+      final instruction = display.routeInstruction;
+      if (instruction == null) {
+        _showDetailsUnavailable('Route instruction');
+        return;
+      }
+      final edited = await showDialog<RouteInstructionDto>(
+        context: context,
+        builder: (_) => RouteInstructionDetailsDialog(
+          latitude: item.latitude ?? 0,
+          longitude: item.longitude ?? 0,
+          heading: item.heading ?? 0,
+          distance: item.distance ?? 0,
+          position: item.position ?? 0,
+          instructionNumber: instruction.instructionNumber ?? 0,
+          organizationId: item.organizationId ?? widget.session.organizationId,
+          routeId: item.routeId ?? widget.session.route?.serverId,
+          initialValue: instruction,
+          onDelete: () => _deleteRouteItem(display),
+        ),
+      );
+      if (edited == null) return;
+      updated = _displayForInstruction(edited);
+    } else if (item.itemType == 'CHECKPOINT') {
+      final checkpoint = display.checkpoint;
+      if (checkpoint == null) {
+        _showDetailsUnavailable('Checkpoint');
+        return;
+      }
+      final edited = await showDialog<CheckpointDto>(
+        context: context,
+        builder: (_) => CheckpointDetailsDialog(
+          latitude: item.latitude ?? 0,
+          longitude: item.longitude ?? 0,
+          heading: item.heading ?? 0,
+          distance: item.distance ?? 0,
+          position: item.position ?? 0,
+          checkpointNumber: checkpoint.checkpointNumber ?? 0,
+          organizationId: item.organizationId ?? widget.session.organizationId,
+          routeId: item.routeId ?? widget.session.route?.serverId,
+          initialValue: checkpoint,
+          onDelete: () => _deleteRouteItem(display),
+        ),
+      );
+      if (edited == null) return;
+      updated = _displayForCheckpoint(edited);
+    }
+
+    if (updated == null || !mounted) return;
+    setState(() {
+      _routeItems = _routeItems
+          .map((current) => identical(current, display) ? updated! : current)
+          .toList();
+      if (identical(_selectedRouteItem, display)) {
+        _selectedRouteItem = updated;
+      }
+      widget.session.routeItems
+        ..clear()
+        ..addAll(_routeItems);
+      if (updated!.checkpoint != null) {
+        final checkpoint = updated.checkpoint!;
+        final index = widget.session.checkpointDrafts.indexWhere(
+          (current) =>
+              current.serverId == checkpoint.serverId ||
+              (current.serverId == null &&
+                  current.position == checkpoint.position),
+        );
+        if (index >= 0) {
+          widget.session.checkpointDrafts[index] = checkpoint;
+        } else {
+          widget.session.checkpointDrafts.add(checkpoint);
+        }
+      }
+      _isDirty = true;
+    });
+    _notifySaveState();
+    _notifyRouteItemsChanged();
+  }
+
+  void _selectRouteItem(RouteItemDisplay display) {
+    setState(() => _selectedRouteItem = display);
+    widget.onRouteItemSelected?.call(display);
+  }
+
+  void _showDetailsUnavailable(String itemName) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$itemName details are still loading.')),
+    );
+  }
+
+  void _deleteRouteItem(RouteItemDisplay display) {
+    final remaining = _routeItems
+        .where((current) => !identical(current, display))
+        .toList();
+    final renumbered = _renumberRouteItems(remaining);
+    setState(() {
+      _routeItems = renumbered;
+      _selectedRouteItem = null;
+      widget.session.routeItems
+        ..clear()
+        ..addAll(renumbered);
+      widget.session.checkpointDrafts
+        ..clear()
+        ..addAll(
+          renumbered
+              .map((current) => current.checkpoint)
+              .whereType<CheckpointDto>(),
+        );
+      _isDirty = true;
+    });
+    _notifySaveState();
+    _notifyRouteItemsChanged();
+  }
+
+  List<RouteItemDisplay> _renumberRouteItems(List<RouteItemDisplay> items) {
+    final ordered = [...items]
+      ..sort(
+        (left, right) =>
+            (left.item.position ?? 0).compareTo(right.item.position ?? 0),
+      );
+    var instructionNumber = 0;
+    var checkpointNumber = 0;
+    return [
+      for (var index = 0; index < ordered.length; index++)
+        _renumberRouteItem(
+          ordered[index],
+          position: index + 1,
+          instructionNumber: ordered[index].item.itemType == 'NRI'
+              ? ++instructionNumber
+              : null,
+          checkpointNumber: ordered[index].item.itemType == 'CHECKPOINT'
+              ? ++checkpointNumber
+              : null,
+        ),
+    ];
+  }
+
+  RouteItemDisplay _renumberRouteItem(
+    RouteItemDisplay display, {
+    required int position,
+    int? instructionNumber,
+    int? checkpointNumber,
+  }) {
+    final instruction = display.routeInstruction;
+    if (instruction != null) {
+      return _displayForInstruction(
+        RouteInstructionDto(
+          id: instruction.id,
+          serverId: instruction.serverId,
+          itemType: instruction.itemType,
+          position: position,
+          latitude: instruction.latitude,
+          longitude: instruction.longitude,
+          heading: instruction.heading,
+          distance: instruction.distance,
+          notes: instruction.notes,
+          deleted: instruction.deleted,
+          organizationId: instruction.organizationId,
+          routeId: instruction.routeId,
+          instructionNumber: instructionNumber,
+          instructionText: instruction.instructionText,
+        ),
+      );
+    }
+
+    final checkpoint = display.checkpoint;
+    if (checkpoint != null) {
+      return _displayForCheckpoint(
+        CheckpointDto(
+          id: checkpoint.id,
+          serverId: checkpoint.serverId,
+          itemType: checkpoint.itemType,
+          position: position,
+          latitude: checkpoint.latitude,
+          longitude: checkpoint.longitude,
+          heading: checkpoint.heading,
+          distance: checkpoint.distance,
+          notes: checkpoint.notes,
+          deleted: checkpoint.deleted,
+          organizationId: checkpoint.organizationId,
+          routeId: checkpoint.routeId,
+          checkpointNumber: checkpointNumber,
+          checkpointType: checkpoint.checkpointType,
+          name: checkpoint.name,
+        ),
+      );
+    }
+    return display;
+  }
+
   Future<RouteItemDisplay?> _createCheckpoint(
     Position location,
     double distanceMeters,
@@ -482,7 +713,7 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
 
   int _nextPosition() {
     final existingItems = _routeItems.isEmpty
-        ? widget.session.routeItems
+        ? widget.session.routeItems.map((display) => display.item)
         : _routeItems.map((planItem) => planItem.item);
     return existingItems
             .map((item) => item.position ?? 0)
@@ -500,7 +731,7 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
     }
     if (highest > 0) return highest + 1;
     final existingItems = _routeItems.isEmpty
-        ? widget.session.routeItems
+        ? widget.session.routeItems.map((display) => display.item)
         : _routeItems.map((item) => item.item);
     return existingItems.where((item) => item.itemType == 'CHECKPOINT').length +
         1;
@@ -523,101 +754,13 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
   }
 
   Future<void> _loadInitialRouteItemDetails() async {
-    try {
-      final items = await _loadRouteItemDetails(widget.session.routeItems);
-      if (!mounted) return;
-      setState(() {
-        final currentUnsaved = _routeItems
-            .where((item) => item.item.serverId == null)
-            .toList();
-        final loadedPositions = items
-            .map((item) => item.item.position)
-            .whereType<int>()
-            .toSet();
-        _routeItems = [
-          ...items,
-          ...currentUnsaved.where(
-            (item) => !loadedPositions.contains(item.item.position),
-          ),
-        ];
-      });
-    } finally {
-      if (mounted) {
-        setState(() => _routeItemsLoaded = true);
-        _notifySaveState();
-      }
-    }
-  }
-
-  Future<List<RouteItemDisplay>> _loadRouteItemDetails(
-    List<RouteItemDto> items,
-  ) async {
-    if (items.isEmpty) return const [];
-    final tenantProvider = TenantDiscriminatorProvider()
-      ..setOrganizationId(widget.session.organizationId);
-    final httpClient = ServiceBuilderHttpClient(
-      baseUrl: ExternalApiClient.defaultApiBaseUrl,
-      headersProvider: () async => {
-        'Authorization': 'Bearer ${await widget.accessToken()}',
-      },
-    );
-    final routeInstructionProvider = RouteInstructionProvider(
-      httpClient: httpClient,
-      tenantProvider: tenantProvider,
-    );
-    final checkpointProvider = CheckpointProvider(
-      httpClient: httpClient,
-      tenantProvider: tenantProvider,
-    );
-    try {
-      return await Future.wait(
-        items.map((item) async {
-          final itemId = item.serverId;
-          if (itemId == null) {
-            final checkpoint = _checkpointDraftFor(item);
-            return RouteItemDisplay(
-              item: item,
-              detail: checkpoint?.name,
-              checkpoint: checkpoint,
-            );
-          }
-          try {
-            if (item.itemType == 'NRI') {
-              final instruction = await routeInstructionProvider.get(itemId);
-              return RouteItemDisplay(
-                item: item,
-                detail: instruction?.instructionText,
-                routeInstruction: instruction,
-              );
-            }
-            if (item.itemType == 'CHECKPOINT') {
-              final checkpoint = await checkpointProvider.get(itemId);
-              return RouteItemDisplay(
-                item: item,
-                detail: checkpoint?.name,
-                checkpoint: checkpoint,
-              );
-            }
-          } catch (_) {
-            // Keep the shared route-item data visible if a detail fetch fails.
-          }
-          return RouteItemDisplay(item: item);
-        }),
-      );
-    } finally {
-      routeInstructionProvider.dispose();
-      checkpointProvider.dispose();
-      tenantProvider.dispose();
-      httpClient.client.close();
-    }
-  }
-
-  CheckpointDto? _checkpointDraftFor(RouteItemDto item) {
-    if (item.itemType != 'CHECKPOINT') return null;
-    for (final checkpoint in widget.session.checkpointDrafts) {
-      if (checkpoint.position == item.position) return checkpoint;
-    }
-    return null;
+    if (!mounted) return;
+    setState(() {
+      _routeItems = List.of(widget.session.routeItems);
+      _routeItemsLoaded = true;
+    });
+    _notifySaveState();
+    _notifyRouteItemsChanged();
   }
 
   void _scrollTableToBottom() {

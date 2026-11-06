@@ -2,7 +2,7 @@ import 'organization_dto.dart';
 import 'organization_membership_dto.dart';
 import 'rally_dto.dart';
 import 'route_dto.dart';
-import 'route_item_dto.dart';
+import 'route_item_display.dart';
 
 class RallySetupSelection {
   const RallySetupSelection({
@@ -17,5 +17,5 @@ class RallySetupSelection {
   final OrganizationMembershipDto organizationMembership;
   final RallyDto rally;
   final RouteDto route;
-  final List<RouteItemDto> routeItems;
+  final List<RouteItemDisplay> routeItems;
 }

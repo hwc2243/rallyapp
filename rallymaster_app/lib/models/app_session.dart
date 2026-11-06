@@ -3,7 +3,7 @@ import 'organization_dto.dart';
 import 'organization_membership_dto.dart';
 import 'rally_dto.dart';
 import 'route_dto.dart';
-import 'route_item_dto.dart';
+import 'route_item_display.dart';
 import 'user_dto.dart';
 
 /// The authenticated user and organization selected for the current session.
@@ -15,7 +15,7 @@ class AppSession {
     required this.organizationMembership,
     this.rally,
     this.route,
-    List<RouteItemDto>? routeItems,
+    List<RouteItemDisplay>? routeItems,
     List<CheckpointDto>? checkpointDrafts,
   }) : routeItems = List.of(routeItems ?? const []),
        checkpointDrafts = List.of(checkpointDrafts ?? const []);
@@ -25,7 +25,10 @@ class AppSession {
   final OrganizationMembershipDto organizationMembership;
   final RallyDto? rally;
   final RouteDto? route;
-  final List<RouteItemDto> routeItems;
+
+  /// Complete polymorphic route-item data loaded with the selected route.
+  /// Editing reads only from this in-memory model.
+  final List<RouteItemDisplay> routeItems;
 
   /// Checkpoints added while planning that have not been saved to the server.
   final List<CheckpointDto> checkpointDrafts;

@@ -16,6 +16,26 @@ class RouteItemDisplay {
   final CheckpointDto? checkpoint;
   final RouteInstructionDto? routeInstruction;
 
+  /// Builds the concrete display model from the polymorphic route-items API
+  /// response. This keeps the subtype fields available for table editing.
+  factory RouteItemDisplay.fromJson(Map<String, dynamic> json) {
+    final item = RouteItemDto.fromJson(json);
+    return RouteItemDisplay(
+      item: item,
+      detail: switch (item.itemType) {
+        'NRI' => RouteInstructionDto.fromJson(json).instructionText,
+        'CHECKPOINT' => CheckpointDto.fromJson(json).name,
+        _ => null,
+      },
+      routeInstruction: item.itemType == 'NRI'
+          ? RouteInstructionDto.fromJson(json)
+          : null,
+      checkpoint: item.itemType == 'CHECKPOINT'
+          ? CheckpointDto.fromJson(json)
+          : null,
+    );
+  }
+
   /// NRI numbers belong exclusively to route instructions; checkpoints do
   /// not participate in this sequence.
   int? get instructionNumber => routeInstruction?.instructionNumber;

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/app_session.dart';
 import '../models/rally_dto.dart';
 import '../models/route_dto.dart';
-import '../models/route_item_dto.dart';
+import '../models/route_item_display.dart';
 import '../network/service_builder_http_client.dart';
 import '../providers/external_api_client.dart';
 import '../providers/route_provider.dart';
@@ -25,7 +25,7 @@ class RouteActionsScreen extends StatefulWidget {
   final AppSession session;
   final RallyDto rally;
   final RouteDto route;
-  final List<RouteItemDto> routeItems;
+  final List<RouteItemDisplay> routeItems;
   final Future<String> Function() accessToken;
 
   @override

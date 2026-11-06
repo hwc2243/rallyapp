@@ -10,11 +10,17 @@ class RouteItemsTable extends StatelessWidget {
     required this.items,
     this.controller,
     this.emptyMessage = 'No route items yet.',
+    this.onItemTap,
+    this.onItemEdit,
+    this.selectedItem,
   });
 
   final List<RouteItemDisplay> items;
   final ScrollController? controller;
   final String emptyMessage;
+  final ValueChanged<RouteItemDisplay>? onItemTap;
+  final ValueChanged<RouteItemDisplay>? onItemEdit;
+  final RouteItemDisplay? selectedItem;
 
   @override
   Widget build(BuildContext context) {
@@ -30,15 +36,21 @@ class RouteItemsTable extends StatelessWidget {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
+          showCheckboxColumn: false,
           columns: const [
             DataColumn(label: Text('NRI'), numeric: true),
             DataColumn(label: Text('DISTANCE'), numeric: true),
             DataColumn(label: Text('TYPE')),
             DataColumn(label: Text('INSTRUCTION / CHECKPOINT')),
+            DataColumn(label: SizedBox.shrink()),
           ],
           rows: sortedItems
               .map(
                 (routeItem) => DataRow(
+                  selected: identical(routeItem, selectedItem),
+                  onSelectChanged: onItemTap == null
+                      ? null
+                      : (_) => onItemTap!(routeItem),
                   cells: [
                     DataCell(
                       Text(
@@ -56,6 +68,15 @@ class RouteItemsTable extends StatelessWidget {
                     ),
                     DataCell(Text(routeItem.item.itemType ?? 'Route item')),
                     DataCell(Text(routeItem.detail ?? '-')),
+                    DataCell(
+                      IconButton(
+                        tooltip: 'Edit route item',
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: onItemEdit == null
+                            ? null
+                            : () => onItemEdit!(routeItem),
+                      ),
+                    ),
                   ],
                 ),
               )

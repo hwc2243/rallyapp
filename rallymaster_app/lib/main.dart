@@ -14,7 +14,7 @@ import 'models/organization_membership_dto.dart';
 import 'models/rally_dto.dart';
 import 'models/rally_setup_selection.dart';
 import 'models/route_dto.dart';
-import 'models/route_item_dto.dart';
+import 'models/route_item_display.dart';
 import 'models/user_dto.dart';
 import 'providers/external_api_client.dart';
 import 'providers/me_provider.dart';
@@ -171,7 +171,7 @@ class _AuthenticationGateState extends State<AuthenticationGate> {
     OrganizationMembershipDto organizationMembership,
     RallyDto rally,
     RouteDto route,
-    List<RouteItemDto> routeItems,
+    List<RouteItemDisplay> routeItems,
   ) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(

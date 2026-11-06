@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/app_session.dart';
+import '../models/route_item_display.dart';
 import 'settings_screen.dart';
 import '../widgets/direction_alert_scope.dart';
 import '../widgets/plan_component.dart';
@@ -25,11 +26,13 @@ class PlanScreen extends StatefulWidget {
 class _PlanScreenState extends State<PlanScreen> {
   static const _dividerExtent = 16.0;
   final _planComponentKey = GlobalKey<PlanComponentState>();
+  final _mapKey = GlobalKey<RallyMapState>();
   double _splitRatio = 0.5;
   PlanSaveState _planSaveState = const PlanSaveState(
     isDirty: false,
     isSaving: false,
   );
+  List<RouteItemDisplay> _mapRouteItems = const [];
 
   @override
   void initState() {
@@ -140,7 +143,14 @@ class _PlanScreenState extends State<PlanScreen> {
           return portrait
               ? Column(
                   children: [
-                    SizedBox(height: firstExtent, child: const RallyMap()),
+                    SizedBox(
+                      height: firstExtent,
+                      child: RallyMap(
+                        key: _mapKey,
+                        routeItems: _mapRouteItems,
+                        onRouteItemTap: _onMapRouteItemTap,
+                      ),
+                    ),
                     divider,
                     SizedBox(
                       height: secondExtent,
@@ -149,13 +159,22 @@ class _PlanScreenState extends State<PlanScreen> {
                         session: widget.session,
                         accessToken: widget.accessToken,
                         onSaveStateChanged: _onPlanSaveStateChanged,
+                        onRouteItemsChanged: _onRouteItemsChanged,
+                        onRouteItemSelected: _onTableRouteItemTap,
                       ),
                     ),
                   ],
                 )
               : Row(
                   children: [
-                    SizedBox(width: firstExtent, child: const RallyMap()),
+                    SizedBox(
+                      width: firstExtent,
+                      child: RallyMap(
+                        key: _mapKey,
+                        routeItems: _mapRouteItems,
+                        onRouteItemTap: _onMapRouteItemTap,
+                      ),
+                    ),
                     divider,
                     SizedBox(
                       width: secondExtent,
@@ -164,6 +183,8 @@ class _PlanScreenState extends State<PlanScreen> {
                         session: widget.session,
                         accessToken: widget.accessToken,
                         onSaveStateChanged: _onPlanSaveStateChanged,
+                        onRouteItemsChanged: _onRouteItemsChanged,
+                        onRouteItemSelected: _onTableRouteItemTap,
                       ),
                     ),
                   ],
@@ -182,6 +203,19 @@ class _PlanScreenState extends State<PlanScreen> {
   void _onPlanSaveStateChanged(PlanSaveState state) {
     if (!mounted) return;
     setState(() => _planSaveState = state);
+  }
+
+  void _onRouteItemsChanged(List<RouteItemDisplay> routeItems) {
+    if (!mounted) return;
+    setState(() => _mapRouteItems = routeItems);
+  }
+
+  void _onTableRouteItemTap(RouteItemDisplay routeItem) {
+    _mapKey.currentState?.centerOnRouteItem(routeItem);
+  }
+
+  void _onMapRouteItemTap(RouteItemDisplay routeItem) {
+    _planComponentKey.currentState?.selectRouteItem(routeItem);
   }
 }
 

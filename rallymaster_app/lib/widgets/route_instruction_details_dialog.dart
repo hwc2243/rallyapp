@@ -15,6 +15,8 @@ class RouteInstructionDetailsDialog extends StatefulWidget {
     required this.instructionNumber,
     required this.organizationId,
     required this.routeId,
+    this.initialValue,
+    this.onDelete,
   });
 
   final double latitude;
@@ -25,6 +27,8 @@ class RouteInstructionDetailsDialog extends StatefulWidget {
   final int instructionNumber;
   final int organizationId;
   final int? routeId;
+  final RouteInstructionDto? initialValue;
+  final VoidCallback? onDelete;
 
   @override
   State<RouteInstructionDetailsDialog> createState() =>
@@ -41,20 +45,27 @@ class _RouteInstructionDetailsDialogState
   late final TextEditingController _headingController;
   late final TextEditingController _distanceController;
 
+  bool get _isEditing => widget.initialValue != null;
+
   @override
   void initState() {
     super.initState();
-    _instructionsController = TextEditingController();
-    _notesController = TextEditingController();
+    final initial = widget.initialValue;
+    _instructionsController = TextEditingController(
+      text: initial?.instructionText ?? '',
+    );
+    _notesController = TextEditingController(text: initial?.notes ?? '');
     _latitudeController = TextEditingController(
-      text: widget.latitude.toStringAsFixed(6),
+      text: (initial?.latitude ?? widget.latitude).toStringAsFixed(6),
     );
     _longitudeController = TextEditingController(
-      text: widget.longitude.toStringAsFixed(6),
+      text: (initial?.longitude ?? widget.longitude).toStringAsFixed(6),
     );
-    _headingController = TextEditingController(text: '${widget.heading}');
+    _headingController = TextEditingController(
+      text: '${initial?.heading ?? widget.heading}',
+    );
     _distanceController = TextEditingController(
-      text: widget.distance.toStringAsFixed(3),
+      text: (initial?.distance ?? widget.distance).toStringAsFixed(3),
     );
   }
 
@@ -71,7 +82,9 @@ class _RouteInstructionDetailsDialogState
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Route instruction details'),
+    title: Text(
+      _isEditing ? 'Edit route instruction' : 'Route instruction details',
+    ),
     content: SizedBox(
       width: 480,
       child: SingleChildScrollView(
@@ -84,9 +97,6 @@ class _RouteInstructionDetailsDialogState
                 _instructionsController,
                 'Instructions',
                 maxLines: 3,
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Enter instructions'
-                    : null,
               ),
               _textField(_notesController, 'Notes', maxLines: 3),
               _numberField(
@@ -116,11 +126,22 @@ class _RouteInstructionDetailsDialogState
       ),
     ),
     actions: [
+      if (_isEditing && widget.onDelete != null)
+        TextButton(
+          onPressed: _delete,
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.error,
+          ),
+          child: const Text('Delete'),
+        ),
       TextButton(
         onPressed: () => Navigator.of(context).pop(),
         child: const Text('Cancel'),
       ),
-      FilledButton(onPressed: _save, child: const Text('Add instruction')),
+      FilledButton(
+        onPressed: _save,
+        child: Text(_isEditing ? 'Save instruction' : 'Add instruction'),
+      ),
     ],
   );
 
@@ -168,6 +189,8 @@ class _RouteInstructionDetailsDialogState
     if (!_formKey.currentState!.validate()) return;
     Navigator.of(context).pop(
       RouteInstructionDto(
+        id: widget.initialValue?.id,
+        serverId: widget.initialValue?.serverId,
         itemType: 'NRI',
         position: widget.position,
         latitude: double.parse(_latitudeController.text),
@@ -179,8 +202,38 @@ class _RouteInstructionDetailsDialogState
         instructionNumber: widget.instructionNumber,
         instructionText: _nullable(_instructionsController.text),
         routeId: widget.routeId,
+        deleted: widget.initialValue?.deleted,
       ),
     );
+  }
+
+  Future<void> _delete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete route instruction?'),
+        content: const Text(
+          'This route instruction will be removed when you save the route.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    Navigator.of(context).pop();
+    widget.onDelete?.call();
   }
 
   String? _nullable(String value) {
