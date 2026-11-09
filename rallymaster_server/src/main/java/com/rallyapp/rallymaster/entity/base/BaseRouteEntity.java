@@ -6,6 +6,7 @@ import com.rallyapp.rallymaster.entity.RouteItemEntity;
 import com.rallyapp.rallymaster.model.base.BaseRoute;
 import com.rallyapp.rallymaster.model.base.Multitenant;
 import com.rallyapp.rallymaster.model.Route;
+import com.rallyapp.rallymaster.model.RouteStatus;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -45,6 +46,10 @@ public abstract class BaseRouteEntity extends AbstractBaseEntity
   
   @Column
   protected String description = null;
+  
+  @Column
+  @Enumerated(EnumType.STRING)
+  protected RouteStatus status = null;
   
   @Column
   protected Long organizationId = null;
@@ -96,6 +101,16 @@ public abstract class BaseRouteEntity extends AbstractBaseEntity
     this.description = description;
   }
   
+
+  public RouteStatus getStatus ()
+  {
+    return this.status;
+  }
+  
+  public void setStatus (RouteStatus status)
+  {
+    this.status = status;
+  }
 
   public Long getOrganizationId ()
   {

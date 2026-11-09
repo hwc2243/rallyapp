@@ -2,6 +2,7 @@ package com.rallyapp.rallymaster.api.external;
 
 import com.rallyapp.rallymaster.dto.RoutePlanDTO;
 import com.rallyapp.rallymaster.dto.RouteDTO;
+import com.rallyapp.rallymaster.competition.CompetitionAuthenticationService;
 import com.rallyapp.rallymaster.service.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +23,25 @@ public class ExternalRouteRestImpl
    implements ExternalRouteRest
 {
   private static final Logger logger = LoggerFactory.getLogger(ExternalRouteRestImpl.class);
+
+  private final CompetitionAuthenticationService competitionAuthenticationService;
+
+  public ExternalRouteRestImpl(CompetitionAuthenticationService competitionAuthenticationService) {
+    this.competitionAuthenticationService = competitionAuthenticationService;
+  }
+
+  @PutMapping("/{routeId}/publish")
+  public ResponseEntity<RouteDTO> publishRoute(
+      @PathVariable Long routeId,
+      @RequestBody PublishRouteRequest request) {
+    try {
+      return ResponseEntity.ok(
+          competitionAuthenticationService.publish(routeId, request.eventPassword()));
+    } catch (ServiceException ex) {
+      logger.warn("Unable to publish route {}: {}", routeId, ex.getMessage());
+      return ResponseEntity.badRequest().build();
+    }
+  }
 
   @PutMapping("/{routeId}/items")
   @Override

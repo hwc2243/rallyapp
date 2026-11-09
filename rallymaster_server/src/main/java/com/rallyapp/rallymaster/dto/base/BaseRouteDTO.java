@@ -6,6 +6,7 @@ import com.rallyapp.rallymaster.dto.RouteDTO;
 import com.rallyapp.rallymaster.dto.RouteItemDTO;
 import com.rallyapp.rallymaster.model.base.BaseRoute;
 import com.rallyapp.rallymaster.model.base.Multitenant;
+import com.rallyapp.rallymaster.model.RouteStatus;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
@@ -19,6 +20,8 @@ implements Multitenant,  Serializable
   protected String name = null;
   
   protected String description = null;
+  
+  protected RouteStatus status = null;
   
   protected Long organizationId = null;
   
@@ -35,6 +38,7 @@ implements Multitenant,  Serializable
     this.id = builder.id;
     this.name = builder.name;
     this.description = builder.description;
+    this.status = builder.status;
     this.organizationId = builder.organizationId;
     this.rallyId = builder.rallyId;
   }
@@ -71,6 +75,16 @@ implements Multitenant,  Serializable
     this.description = description;
   }
   
+
+  public RouteStatus getStatus ()
+  {
+    return this.status;
+  }
+  
+  public void setStatus (RouteStatus status)
+  {
+    this.status = status;
+  }
 
   public Long getOrganizationId ()
   {
@@ -121,6 +135,8 @@ implements Multitenant,  Serializable
   
   private String description = null;
   
+  private RouteStatus status = null;
+  
   private Long organizationId = null;
   
 
@@ -138,6 +154,11 @@ implements Multitenant,  Serializable
 
     public Builder description(String description) {
       this.description = description;
+      return this;
+    }
+
+    public Builder status(RouteStatus status) {
+      this.status = status;
       return this;
     }
 

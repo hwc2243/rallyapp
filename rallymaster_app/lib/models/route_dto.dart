@@ -6,6 +6,7 @@ class RouteDto {
     this.serverId,
     this.name,
     this.description,
+    this.status,
     this.organizationId,
     this.rallyId,
   });
@@ -14,6 +15,7 @@ class RouteDto {
     serverId: json['id'] as int?,
     name: json['name'] as String?,
     description: json['description'] as String?,
+    status: json['status'] as String?,
     organizationId: json['organizationId'] as int?,
     rallyId: json['rallyId'] as int?,
   );
@@ -22,6 +24,7 @@ class RouteDto {
   final int? serverId;
   final String? name;
   final String? description;
+  final String? status;
   final int? organizationId;
   final int? rallyId;
 
@@ -30,6 +33,7 @@ class RouteDto {
     serverId: serverId,
     name: name,
     description: description,
+    status: status,
     organizationId: selectedOrganizationId,
     rallyId: rallyId,
   );
@@ -39,6 +43,7 @@ class RouteDto {
     if (serverId != null) 'id': serverId,
     if (name != null) 'name': name,
     if (description != null) 'description': description,
+    if (status != null) 'status': status,
     if (organizationId != null) 'organizationId': organizationId,
     if (rallyId != null) 'rallyId': rallyId,
   };

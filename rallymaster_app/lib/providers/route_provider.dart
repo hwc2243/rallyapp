@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import '../models/route_item_display.dart';
 import '../models/route_plan_dto.dart';
+import '../models/route_dto.dart';
 
 /// Application extension point for Route API operations.
 ///
@@ -42,5 +43,24 @@ class RouteProvider extends BaseRouteProvider {
         return RoutePlanDto.fromJson(
           jsonDecode(response.body) as Map<String, dynamic>,
         );
+      });
+
+  /// Publishes a route and records the shared password used by competitors
+  /// later during registration. The password is never retained by the app.
+  Future<RouteDto> publishRoute(int routeId, String? eventPassword) =>
+      execute(() async {
+        final response = await httpClient.put(
+          '$resourcePath/$routeId/publish',
+          headers: requestHeaders,
+          body: {
+            if (eventPassword != null && eventPassword.isNotEmpty)
+              'eventPassword': eventPassword,
+          },
+        );
+        httpClient.ensureSuccess(response);
+        final published = RouteDto.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>,
+        );
+        return published;
       });
 }

@@ -22,4 +22,16 @@ class RallyProvider extends BaseRallyProvider {
         .map((value) => RouteDto.fromJson(value as Map<String, dynamic>))
         .toList();
   });
+
+  /// Whether a shared competitor password has already been configured for a
+  /// rally. The endpoint deliberately returns no password or configuration.
+  Future<bool> hasEventPassword(int rallyId) => execute(() async {
+    final response = await httpClient.get(
+      '$resourcePath/$rallyId/publish-status',
+      headers: requestHeaders,
+    );
+    httpClient.ensureSuccess(response);
+    final value = jsonDecode(response.body) as Map<String, dynamic>;
+    return value['eventPasswordConfigured'] == true;
+  });
 }

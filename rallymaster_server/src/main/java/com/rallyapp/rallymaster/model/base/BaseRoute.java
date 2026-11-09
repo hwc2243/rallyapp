@@ -2,6 +2,7 @@ package com.rallyapp.rallymaster.model.base;
 
 import com.rallyapp.rallymaster.model.Rally;
 import com.rallyapp.rallymaster.model.RouteItem;
+import com.rallyapp.rallymaster.model.RouteStatus;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
@@ -20,6 +21,10 @@ public interface BaseRoute<RALLY, ROUTEITEM>
 
   public String getDescription ();
   public void setDescription (String description);
+  
+
+  public RouteStatus getStatus ();
+  public void setStatus (RouteStatus status);
   
 
   public Long getOrganizationId ();

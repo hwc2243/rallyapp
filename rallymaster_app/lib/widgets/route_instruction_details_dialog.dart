@@ -16,7 +16,6 @@ class RouteInstructionDetailsDialog extends StatefulWidget {
     required this.organizationId,
     required this.routeId,
     this.initialValue,
-    this.onDelete,
   });
 
   final double latitude;
@@ -28,7 +27,6 @@ class RouteInstructionDetailsDialog extends StatefulWidget {
   final int organizationId;
   final int? routeId;
   final RouteInstructionDto? initialValue;
-  final VoidCallback? onDelete;
 
   @override
   State<RouteInstructionDetailsDialog> createState() =>
@@ -93,11 +91,7 @@ class _RouteInstructionDetailsDialogState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _textField(
-                _instructionsController,
-                'Instructions',
-                maxLines: 3,
-              ),
+              _textField(_instructionsController, 'Instructions', maxLines: 3),
               _textField(_notesController, 'Notes', maxLines: 3),
               _numberField(
                 _latitudeController,
@@ -126,14 +120,6 @@ class _RouteInstructionDetailsDialogState
       ),
     ),
     actions: [
-      if (_isEditing && widget.onDelete != null)
-        TextButton(
-          onPressed: _delete,
-          style: TextButton.styleFrom(
-            foregroundColor: Theme.of(context).colorScheme.error,
-          ),
-          child: const Text('Delete'),
-        ),
       TextButton(
         onPressed: () => Navigator.of(context).pop(),
         child: const Text('Cancel'),
@@ -205,35 +191,6 @@ class _RouteInstructionDetailsDialogState
         deleted: widget.initialValue?.deleted,
       ),
     );
-  }
-
-  Future<void> _delete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete route instruction?'),
-        content: const Text(
-          'This route instruction will be removed when you save the route.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    Navigator.of(context).pop();
-    widget.onDelete?.call();
   }
 
   String? _nullable(String value) {

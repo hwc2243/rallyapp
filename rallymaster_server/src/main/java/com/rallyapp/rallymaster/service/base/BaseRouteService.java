@@ -3,6 +3,7 @@ package com.rallyapp.rallymaster.service.base;
 
 import com.rallyapp.rallymaster.dto.base.BaseRouteDTO;
 import com.rallyapp.rallymaster.dto.RouteItemDTO;
+import com.rallyapp.rallymaster.model.RouteStatus;
 import com.rallyapp.rallymaster.service.ServiceException;
 import java.util.Collection;
 import java.util.List;

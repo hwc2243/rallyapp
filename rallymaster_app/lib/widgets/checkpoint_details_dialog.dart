@@ -16,7 +16,6 @@ class CheckpointDetailsDialog extends StatefulWidget {
     required this.organizationId,
     required this.routeId,
     this.initialValue,
-    this.onDelete,
   });
 
   final double latitude;
@@ -28,7 +27,6 @@ class CheckpointDetailsDialog extends StatefulWidget {
   final int organizationId;
   final int? routeId;
   final CheckpointDto? initialValue;
-  final VoidCallback? onDelete;
 
   @override
   State<CheckpointDetailsDialog> createState() =>
@@ -141,14 +139,6 @@ class _CheckpointDetailsDialogState extends State<CheckpointDetailsDialog> {
       ),
     ),
     actions: [
-      if (_isEditing && widget.onDelete != null)
-        TextButton(
-          onPressed: _delete,
-          style: TextButton.styleFrom(
-            foregroundColor: Theme.of(context).colorScheme.error,
-          ),
-          child: const Text('Delete'),
-        ),
       TextButton(
         onPressed: () => Navigator.of(context).pop(),
         child: const Text('Cancel'),
@@ -219,35 +209,6 @@ class _CheckpointDetailsDialogState extends State<CheckpointDetailsDialog> {
         deleted: widget.initialValue?.deleted,
       ),
     );
-  }
-
-  Future<void> _delete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete checkpoint?'),
-        content: const Text(
-          'This checkpoint will be removed when you save the route.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    Navigator.of(context).pop();
-    widget.onDelete?.call();
   }
 
   String? _nullable(String value) {

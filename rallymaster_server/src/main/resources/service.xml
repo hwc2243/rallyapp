@@ -61,6 +61,7 @@
 	<entity name="route" db-name="route" multitenant="true">
 		<attribute name="name" type="string" />
 		<attribute name="description" type="string" />
+		<attribute name="status" type="enum" enum-values="PLANNING,ACTIVE,COMPLETED" />
 
 		<related name="rally" entity="rally" relationship="many_to_one"
 			api-reference="id" />
@@ -71,6 +72,55 @@
 		<api>
 			<external operations="CREATE READ UPDATE DELETE" />
 		</api>
+	</entity>
+
+	<!--
+		Private event configuration shared by every route in a rally. This entity
+		has no external API: eventPasswordHash must never be returned to a client.
+	-->
+	<entity name="rallyConfiguration" db-name="rally_configuration"
+		multitenant="true">
+		<attribute name="scoringUnit" type="enum" enum-values="SECONDS,CENTS" />
+		<attribute name="eventPasswordHash" type="string" />
+		<attribute name="timeZone" type="string" />
+		<attribute name="officialStartTime" type="datetime" />
+		<attribute name="checkpointAcquisitionRadiusMeters" type="double" />
+		<attribute name="maximumCheckpointScore" type="long" />
+		<attribute name="startIntervalSeconds" type="long" />
+
+		<related name="rally" entity="rally" relationship="one_to_one"
+			api-reference="id" />
+
+		<finder unique="true">
+			<finder-attribute name="rally" />
+		</finder>
+	</entity>
+
+	<!-- A registered competitor team for one selected rally route. The public
+		competition API creates these records after password authentication. -->
+	<entity name="rallyEntry" db-name="rally_entry" multitenant="true">
+		<attribute name="driverFirstName" type="string" />
+		<attribute name="driverLastName" type="string" />
+		<attribute name="navigatorFirstName" type="string" />
+		<attribute name="navigatorLastName" type="string" />
+		<attribute name="carNumber" type="long" />
+		<attribute name="primaryDeviceId" type="string" />
+		<attribute name="backupDeviceId" type="string" />
+
+		<related name="rally" entity="rally" relationship="many_to_one"
+			api-reference="id" />
+		<related name="route" entity="route" relationship="many_to_one"
+			api-reference="id" />
+
+		<finder unique="true">
+			<finder-attribute name="rally" />
+			<finder-attribute name="carNumber" />
+		</finder>
+
+		<finder unique="true">
+			<finder-attribute name="rally" />
+			<finder-attribute name="primaryDeviceId" />
+		</finder>
 	</entity>
 
 	<entity name="routeItem" db-name="route_item" abstract="true" multitenant="true">

@@ -5,7 +5,10 @@ import com.rallyapp.rallymaster.dto.RouteItemDTO;
 import com.rallyapp.rallymaster.dto.RoutePlanDTO;
 import com.rallyapp.rallymaster.entity.RallyEntity;
 import com.rallyapp.rallymaster.entity.RouteEntity;
+import com.rallyapp.rallymaster.entity.RouteItemEntity;
+import com.rallyapp.rallymaster.persistence.CheckpointPersistence;
 import com.rallyapp.rallymaster.persistence.RallyPersistence;
+import com.rallyapp.rallymaster.persistence.RouteInstructionPersistence;
 import com.rallyapp.rallymaster.service.base.BaseRouteServiceImpl;
 import java.util.Collection;
 import java.util.HashSet;
@@ -32,6 +35,12 @@ public class RouteServiceImpl
 
   @Autowired
   protected CheckpointService checkpointService;
+
+  @Autowired
+  protected RouteInstructionPersistence routeInstructionPersistence;
+
+  @Autowired
+  protected CheckpointPersistence checkpointPersistence;
   
   protected RouteEntity toEntity (RouteDTO dto) {
     RouteEntity entity = routeMapper.toEntity(dto);
@@ -65,6 +74,8 @@ public class RouteServiceImpl
     if (route == null) {
       throw new ServiceException("Route " + routeId + " was not found.");
     }
+    RouteEntity managedRoute = routePersistence.findById(routeId)
+        .orElseThrow(() -> new ServiceException("Route " + routeId + " was not found."));
 
     RoutePlanDTO savedPlan = new RoutePlanDTO();
     Set<Long> instructionIds = new HashSet<>();
@@ -85,12 +96,6 @@ public class RouteServiceImpl
       savedPlan.getRouteInstructions().add(savedInstruction);
       instructionIds.add(savedInstruction.getId());
     }
-    for (var existing : routeInstructionService.findByRouteId(routeId)) {
-      if (!instructionIds.contains(existing.getId())) {
-        routeInstructionService.delete(existing.getId());
-      }
-    }
-
     Set<Long> checkpointIds = new HashSet<>();
     for (var checkpoint : plan.getCheckpoints()) {
       if (checkpoint.getId() != null) {
@@ -109,11 +114,28 @@ public class RouteServiceImpl
       savedPlan.getCheckpoints().add(savedCheckpoint);
       checkpointIds.add(savedCheckpoint.getId());
     }
-    for (var existing : checkpointService.findByRouteId(routeId)) {
+    // Explicit JPQL is used here rather than the generated derived finder.
+    // The latter is ambiguous for the inherited route relationship and could
+    // return no records, leaving items that the app omitted from its plan.
+    for (var existing : routeInstructionPersistence.findAllForRoute(routeId)) {
+      if (!instructionIds.contains(existing.getId())) {
+        detachFromRoute(managedRoute, existing);
+        routeInstructionService.delete(existing.getId());
+      }
+    }
+    for (var existing : checkpointPersistence.findAllForRoute(routeId)) {
       if (!checkpointIds.contains(existing.getId())) {
+        detachFromRoute(managedRoute, existing);
         checkpointService.delete(existing.getId());
       }
     }
     return savedPlan;
+  }
+
+  private static void detachFromRoute(RouteEntity route, RouteItemEntity item) {
+    if (route.getItems() != null) {
+      route.getItems().removeIf(existing -> item.getId().equals(existing.getId()));
+    }
+    item.setRoute(null);
   }
 }

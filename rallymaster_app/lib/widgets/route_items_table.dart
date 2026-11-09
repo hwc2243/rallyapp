@@ -12,6 +12,7 @@ class RouteItemsTable extends StatelessWidget {
     this.emptyMessage = 'No route items yet.',
     this.onItemTap,
     this.onItemEdit,
+    this.onItemDelete,
     this.selectedItem,
   });
 
@@ -20,6 +21,7 @@ class RouteItemsTable extends StatelessWidget {
   final String emptyMessage;
   final ValueChanged<RouteItemDisplay>? onItemTap;
   final ValueChanged<RouteItemDisplay>? onItemEdit;
+  final ValueChanged<RouteItemDisplay>? onItemDelete;
   final RouteItemDisplay? selectedItem;
 
   @override
@@ -69,12 +71,27 @@ class RouteItemsTable extends StatelessWidget {
                     DataCell(Text(routeItem.item.itemType ?? 'Route item')),
                     DataCell(Text(routeItem.detail ?? '-')),
                     DataCell(
-                      IconButton(
-                        tooltip: 'Edit route item',
-                        icon: const Icon(Icons.edit_outlined),
-                        onPressed: onItemEdit == null
-                            ? null
-                            : () => onItemEdit!(routeItem),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: 'Edit route item',
+                            icon: const Icon(Icons.edit_outlined),
+                            onPressed: onItemEdit == null
+                                ? null
+                                : () => onItemEdit!(routeItem),
+                          ),
+                          IconButton(
+                            tooltip: 'Delete route item',
+                            icon: Icon(
+                              Icons.delete_outline,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                            onPressed: onItemDelete == null
+                                ? null
+                                : () => onItemDelete!(routeItem),
+                          ),
+                        ],
                       ),
                     ),
                   ],

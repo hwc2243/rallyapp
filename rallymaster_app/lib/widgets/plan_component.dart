@@ -267,6 +267,7 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
               selectedItem: _selectedRouteItem,
               onItemTap: _selectRouteItem,
               onItemEdit: _editRouteItem,
+              onItemDelete: _confirmDeleteRouteItem,
             ),
           ),
           const SizedBox(height: 12),
@@ -504,7 +505,6 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
           organizationId: item.organizationId ?? widget.session.organizationId,
           routeId: item.routeId ?? widget.session.route?.serverId,
           initialValue: instruction,
-          onDelete: () => _deleteRouteItem(display),
         ),
       );
       if (edited == null) return;
@@ -527,7 +527,6 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
           organizationId: item.organizationId ?? widget.session.organizationId,
           routeId: item.routeId ?? widget.session.route?.serverId,
           initialValue: checkpoint,
-          onDelete: () => _deleteRouteItem(display),
         ),
       );
       if (edited == null) return;
@@ -574,6 +573,39 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$itemName details are still loading.')),
     );
+  }
+
+  Future<void> _confirmDeleteRouteItem(RouteItemDisplay display) async {
+    if (_creating || _isSaving) return;
+    final isInstruction = display.item.itemType == 'NRI';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          isInstruction ? 'Delete route instruction?' : 'Delete checkpoint?',
+        ),
+        content: Text(
+          'This ${isInstruction ? 'route instruction' : 'checkpoint'} will be removed when you save the route.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      _deleteRouteItem(display);
+    }
   }
 
   void _deleteRouteItem(RouteItemDisplay display) {
