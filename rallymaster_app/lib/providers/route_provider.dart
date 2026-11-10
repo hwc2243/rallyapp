@@ -2,6 +2,7 @@ import 'base/base_route_provider.dart';
 
 import 'dart:convert';
 
+import '../models/competitor_entry.dart';
 import '../models/route_item_display.dart';
 import '../models/route_plan_dto.dart';
 import '../models/route_dto.dart';
@@ -63,4 +64,30 @@ class RouteProvider extends BaseRouteProvider {
         );
         return published;
       });
+
+  /// Lists the registered competitor teams for a route in the active organization.
+  Future<List<CompetitorEntry>> listCompetitors(int routeId) =>
+      execute(() async {
+        final response = await httpClient.get(
+          '$resourcePath/$routeId/competitors',
+          headers: requestHeaders,
+        );
+        httpClient.ensureSuccess(response);
+        final values = jsonDecode(response.body) as List<dynamic>;
+        return values
+            .map(
+              (value) =>
+                  CompetitorEntry.fromJson(value as Map<String, dynamic>),
+            )
+            .toList();
+      });
+
+  /// Deletes a competitor registration from a route in the active organization.
+  Future<void> deleteCompetitor(int routeId, int entryId) => execute(() async {
+    final response = await httpClient.delete(
+      '$resourcePath/$routeId/competitors/$entryId',
+      headers: requestHeaders,
+    );
+    httpClient.ensureSuccess(response);
+  });
 }

@@ -20,19 +20,20 @@ class RouteItemDisplay {
   /// response. This keeps the subtype fields available for table editing.
   factory RouteItemDisplay.fromJson(Map<String, dynamic> json) {
     final item = RouteItemDto.fromJson(json);
+    final checkpoint = item.itemType == 'CHECKPOINT'
+        ? CheckpointDto.fromJson(json)
+        : null;
     return RouteItemDisplay(
       item: item,
       detail: switch (item.itemType) {
         'NRI' => RouteInstructionDto.fromJson(json).instructionText,
-        'CHECKPOINT' => CheckpointDto.fromJson(json).name,
+        'CHECKPOINT' => checkpoint?.routeItemDetail,
         _ => null,
       },
       routeInstruction: item.itemType == 'NRI'
           ? RouteInstructionDto.fromJson(json)
           : null,
-      checkpoint: item.itemType == 'CHECKPOINT'
-          ? CheckpointDto.fromJson(json)
-          : null,
+      checkpoint: checkpoint,
     );
   }
 

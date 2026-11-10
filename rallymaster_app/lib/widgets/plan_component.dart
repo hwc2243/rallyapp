@@ -246,7 +246,7 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
           organizationId: checkpoint.organizationId,
           routeId: checkpoint.routeId,
         ),
-        detail: checkpoint.name,
+        detail: checkpoint.routeItemDetail,
         checkpoint: checkpoint,
       );
 
@@ -738,7 +738,7 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
         organizationId: checkpoint.organizationId,
         routeId: checkpoint.routeId,
       ),
-      detail: checkpoint.name ?? 'Checkpoint ${checkpoint.checkpointNumber}',
+      detail: checkpoint.routeItemDetail,
       checkpoint: checkpoint,
     );
   }

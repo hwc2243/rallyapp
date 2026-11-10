@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rally_lib/rally_lib.dart';
 import 'package:rallymaster_ui/rallymaster_ui.dart';
 
+import '../widgets/precision_drive_calibration_gate.dart';
+
 /// Planning preferences that apply after a rally route has been selected.
 class RallyMasterSettingsScreen extends ConsumerWidget {
   const RallyMasterSettingsScreen({super.key});
@@ -104,6 +106,20 @@ class RallyMasterSettingsScreen extends ConsumerWidget {
                     max: 200,
                     onSaved: notifier.setSensorFusionAccuracyThresholdMeters,
                   ),
+                ),
+                const RallySettingsSectionDivider(),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  title: const Text('Recalibrate PrecisionDrive'),
+                  subtitle: const Text(
+                    'Use this after moving the phone to a different vehicle mount',
+                  ),
+                  trailing: const Icon(Icons.tune),
+                  onTap: () async {
+                    await clearPrecisionDriveCalibration(ref);
+                    ref.read(sensorFusionServiceProvider).requestCalibration();
+                    if (context.mounted) Navigator.of(context).pop();
+                  },
                 ),
               ],
             ),

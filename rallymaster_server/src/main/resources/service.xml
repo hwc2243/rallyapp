@@ -123,6 +123,49 @@
 		</finder>
 	</entity>
 
+	<!-- Immutable diagnostic evidence for a competitor's completed checkpoint intercept. -->
+	<entity name="competitorTelemetry" db-name="competitor_telemetry"
+		multitenant="true">
+		<attribute name="occurredAt" type="datetime" />
+		<attribute name="interceptLatitude" type="double" />
+		<attribute name="interceptLongitude" type="double" />
+		<attribute name="interceptHeading" type="double" />
+		<attribute name="interceptSpeed" type="double" />
+		<attribute name="interceptAccuracy" type="double" />
+		<attribute name="closestDistanceMeters" type="double" />
+
+		<related name="rallyEntry" entity="rallyEntry" relationship="many_to_one"
+			api-reference="none" />
+		<related name="route" entity="route" relationship="many_to_one"
+			api-reference="none" />
+		<related name="checkpoint" entity="checkpoint" relationship="many_to_one"
+			api-reference="none" />
+		<related name="data" entity="competitorTelemetryData" relationship="one_to_many"
+			collection="list" mapped-by="competitorTelemetry" api-reference="none" />
+
+		<!-- Makes one primary-device intercept upload idempotent. -->
+		<finder unique="true">
+			<finder-attribute name="rallyEntry" />
+			<finder-attribute name="checkpoint" />
+			<finder-attribute name="occurredAt" />
+		</finder>
+	</entity>
+
+	<!-- One raw GPS/sensor reading captured inside a checkpoint acquisition radius. -->
+	<entity name="competitorTelemetryData" db-name="competitor_telemetry_data"
+		multitenant="true">
+		<attribute name="capturedAt" type="datetime" />
+		<attribute name="latitude" type="double" />
+		<attribute name="longitude" type="double" />
+		<attribute name="heading" type="double" />
+		<attribute name="speed" type="double" />
+		<attribute name="accuracy" type="double" />
+		<attribute name="distanceToCheckpointMeters" type="double" />
+
+		<related name="competitorTelemetry" entity="competitorTelemetry"
+			relationship="many_to_one" api-reference="none" />
+	</entity>
+
 	<entity name="routeItem" db-name="route_item" abstract="true" multitenant="true">
 		<!-- Useful as a discriminator for clients and API payloads. -->
 		<attribute name="itemType" type="enum" enum-values="NRI,CHECKPOINT" />

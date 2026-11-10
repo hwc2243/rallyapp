@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en" xmlns:th="https://www.thymeleaf.org"><head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Checkpoint · RallyMaster</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head><body class="bg-body-tertiary"><div th:replace="~{fragments/layout :: navbar}"></div>
+<main class="container py-4"><div class="row justify-content-center"><div class="col-lg-8">
+  <a class="small text-decoration-none" th:href="@{/rally/{rallyId}/routes/{routeId}(rallyId=${rally.id},routeId=${route.id})}">← Route items</a>
+  <h1 class="h2 mt-2" th:text="${checkpoint.id == null ? 'Add checkpoint' : 'Edit checkpoint'}">Checkpoint</h1><p class="text-body-secondary" th:text="${route.name}">Route</p>
+  <section class="card border-0 shadow-sm"><div class="card-body p-4">
+    <form th:action="@{/rally/{rallyId}/routes/{routeId}/items/checkpoint(rallyId=${rally.id},routeId=${route.id})}" th:object="${checkpoint}" method="post" novalidate>
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+      <input type="hidden" th:field="*{id}">
+      <div class="row g-3"><div class="col-md-6"><label class="form-label" for="checkpointType">Checkpoint type</label><select id="checkpointType" class="form-select" th:field="*{checkpointType}" required th:classappend="${#fields.hasErrors('checkpointType')} ? ' is-invalid'"><option value="">Choose type</option><option th:each="type : ${checkpointTypes}" th:value="${type}" th:text="${type}">TIMED_CONTROL</option></select><div class="invalid-feedback" th:errors="*{checkpointType}">Type error</div></div><div class="col-md-6"><label class="form-label" for="name">Name</label><input id="name" class="form-control" th:field="*{name}" placeholder="Optional checkpoint name"></div>
+        <div class="col-md-6"><label class="form-label" for="distance">Mileage</label><input id="distance" type="number" step="0.001" min="0" class="form-control" th:field="*{distance}" required th:classappend="${#fields.hasErrors('distance')} ? ' is-invalid'"><div class="invalid-feedback" th:errors="*{distance}">Mileage error</div></div><div class="col-md-6"><label class="form-label" for="heading">Heading</label><input id="heading" type="number" min="0" max="360" class="form-control" th:field="*{heading}"></div>
+        <div class="col-md-6"><label class="form-label" for="latitude">Latitude</label><input id="latitude" type="number" step="any" class="form-control" th:field="*{latitude}" required th:classappend="${#fields.hasErrors('latitude')} ? ' is-invalid'"><div class="invalid-feedback" th:errors="*{latitude}">Latitude error</div></div><div class="col-md-6"><label class="form-label" for="longitude">Longitude</label><input id="longitude" type="number" step="any" class="form-control" th:field="*{longitude}" required th:classappend="${#fields.hasErrors('longitude')} ? ' is-invalid'"><div class="invalid-feedback" th:errors="*{longitude}">Longitude error</div></div>
+        <div class="col-12"><label class="form-label" for="notes">Notes</label><textarea id="notes" class="form-control" rows="3" th:field="*{notes}" placeholder="Optional planner notes"></textarea></div>
+      </div>
+      <div class="d-flex justify-content-end gap-2 mt-4"><a class="btn btn-outline-secondary" th:href="@{/rally/{rallyId}/routes/{routeId}(rallyId=${rally.id},routeId=${route.id})}">Cancel</a><button class="btn btn-primary" type="submit" th:text="${checkpoint.id == null ? 'Add checkpoint' : 'Save changes'}">Save</button></div>
+    </form>
+  </div></section>
+</div></div></main></body></html>

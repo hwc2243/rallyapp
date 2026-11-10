@@ -5,6 +5,8 @@ import java.util.stream.Stream;
 public enum CheckpointCheckpointType {
   PASSAGE_CONTROL("PASSAGE_CONTROL"),
   TIMED_CONTROL("TIMED_CONTROL"),
+  TIME_CHECK("TIME_CHECK"),
+  RESTART("RESTART"),
   START("START"),
   FINISH("FINISH");
 

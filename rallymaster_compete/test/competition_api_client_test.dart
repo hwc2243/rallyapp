@@ -72,4 +72,48 @@ void main() {
     expect(registration.carNumber, 9);
     api.dispose();
   });
+
+  test('downloads checkpoints for the registered primary device', () async {
+    final client = MockClient((request) async {
+      expect(request.url.path, '/api/compete/routes/12/checkpoints');
+      expect(request.headers['x-competition-device-id'], 'device-1');
+      return http.Response(
+        '[{"checkpointId":31,"checkpointNumber":2,"checkpointType":"TIMED_CONTROL",'
+        '"name":"Control 2","latitude":40.1,"longitude":-75.2,'
+        '"heading":90,"distance":1.5,"notes":"Test"}]',
+        200,
+      );
+    });
+    final api = CompetitionApiClient(client: client);
+
+    final checkpoints = await api.downloadCheckpoints(
+      routeId: 12,
+      deviceId: 'device-1',
+    );
+
+    expect(checkpoints.single.number, 2);
+    expect(checkpoints.single.type, 'TIMED_CONTROL');
+    api.dispose();
+  });
+
+  test('finds an existing registration for the primary device', () async {
+    final client = MockClient((request) async {
+      expect(request.url.path, '/api/compete/registrations/routes/12');
+      expect(request.headers['x-competition-device-id'], 'device-1');
+      return http.Response(
+        '{"entryId":55,"rallyId":7,"routeId":12,"carNumber":9}',
+        200,
+      );
+    });
+    final api = CompetitionApiClient(client: client);
+
+    final registration = await api.existingRegistration(
+      routeId: 12,
+      deviceId: 'device-1',
+    );
+
+    expect(registration?.entryId, 55);
+    expect(registration?.carNumber, 9);
+    api.dispose();
+  });
 }

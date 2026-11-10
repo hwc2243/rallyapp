@@ -9,6 +9,7 @@ import '../providers/external_api_client.dart';
 import '../providers/rally_provider.dart';
 import '../providers/route_provider.dart';
 import '../providers/tenant_discriminator_provider.dart';
+import 'competitors_screen.dart';
 import 'plan_screen.dart';
 
 enum RouteActionResult { plan, deleted }
@@ -70,6 +71,16 @@ class _RouteActionsScreenState extends State<RouteActionsScreen> {
           route: _route,
           routeItems: widget.routeItems,
         ),
+        accessToken: widget.accessToken,
+      ),
+    ),
+  );
+
+  Future<void> _openCompetitors() => Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (_) => CompetitorsScreen(
+        session: widget.session,
+        route: _route,
         accessToken: widget.accessToken,
       ),
     ),
@@ -285,6 +296,12 @@ class _RouteActionsScreenState extends State<RouteActionsScreen> {
                 onPressed: _deleting || _publishing ? null : _openPlan,
                 icon: const Icon(Icons.edit_road),
                 label: const Text('Plan'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _deleting || _publishing ? null : _openCompetitors,
+                icon: const Icon(Icons.groups_outlined),
+                label: const Text('Competitors'),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(

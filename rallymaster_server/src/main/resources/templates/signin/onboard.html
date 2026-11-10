@@ -18,6 +18,7 @@
             </p>
 
             <form th:action="@{/signin/onboard}" th:object="${organization}" method="post">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
               <div class="mb-4">
                 <label class="form-label" for="name">Organization name</label>
                 <input id="name" name="name" class="form-control"

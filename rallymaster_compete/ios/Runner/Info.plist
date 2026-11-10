@@ -27,7 +27,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>RallyMaster Compete uses your location to find rallies starting near you.</string>
+	<string>RallyMaster Compete uses your location to find rallies and recognize route checkpoints.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

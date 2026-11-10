@@ -17,6 +17,58 @@ enum PrecisionDriveOrientationStatus {
 /// How the phone is mounted in the vehicle for PrecisionDrive Assist.
 enum PrecisionDriveMountOrientation { upright, flat }
 
+/// The stable parts of a completed PrecisionDrive calibration.
+///
+/// GPS position and EKF state are deliberately not persisted: they are
+/// re-established from the next live GPS fix. The mount axes and gyro bias are
+/// safe to reuse while the phone remains in the same vehicle mount.
+class PrecisionDriveCalibrationProfile {
+  const PrecisionDriveCalibrationProfile({
+    required this.mountOrientation,
+    required this.gyroBiasX,
+    required this.gyroBiasZ,
+    required this.gravityX,
+  });
+
+  final PrecisionDriveMountOrientation mountOrientation;
+  final double gyroBiasX;
+  final double gyroBiasZ;
+  final double gravityX;
+
+  Map<String, Object> toJson() => {
+        'mountOrientation': mountOrientation.name,
+        'gyroBiasX': gyroBiasX,
+        'gyroBiasZ': gyroBiasZ,
+        'gravityX': gravityX,
+      };
+
+  static PrecisionDriveCalibrationProfile? fromJson(Map<String, dynamic> json) {
+    final orientation = switch (json['mountOrientation']) {
+      'upright' => PrecisionDriveMountOrientation.upright,
+      'flat' => PrecisionDriveMountOrientation.flat,
+      _ => null,
+    };
+    final gyroBiasX = (json['gyroBiasX'] as num?)?.toDouble();
+    final gyroBiasZ = (json['gyroBiasZ'] as num?)?.toDouble();
+    final gravityX = (json['gravityX'] as num?)?.toDouble();
+    if (orientation == null ||
+        gyroBiasX == null ||
+        gyroBiasZ == null ||
+        gravityX == null ||
+        !gyroBiasX.isFinite ||
+        !gyroBiasZ.isFinite ||
+        !gravityX.isFinite) {
+      return null;
+    }
+    return PrecisionDriveCalibrationProfile(
+      mountOrientation: orientation,
+      gyroBiasX: gyroBiasX,
+      gyroBiasZ: gyroBiasZ,
+      gravityX: gravityX,
+    );
+  }
+}
+
 /// The current result of checking that the phone is mounted flat and forward.
 ///
 /// [arrowRotationRadians] rotates an up-facing UI arrow toward the direction
@@ -35,6 +87,27 @@ class PrecisionDriveOrientationState {
       status == PrecisionDriveOrientationStatus.aligned;
 
   bool get needsCalibration => !isMountedCorrectly;
+}
+
+/// The current local-tangent-plane estimate produced by PrecisionDrive.
+///
+/// This estimate is intentionally available only while the service has been
+/// initialized from a GPS fix. Consumers should use it only when [isAssisting]
+/// is true; otherwise the platform GPS position remains authoritative.
+class PrecisionDriveLocationEstimate {
+  const PrecisionDriveLocationEstimate({
+    required this.latitude,
+    required this.longitude,
+    required this.heading,
+    required this.speed,
+    required this.accuracy,
+  });
+
+  final double latitude;
+  final double longitude;
+  final double heading;
+  final double speed;
+  final double accuracy;
 }
 
 /// A small, bounded extended Kalman filter for short GPS-quality outages.
@@ -207,8 +280,55 @@ class SensorFusionService {
     return _wasAssisting;
   }
 
+  /// Returns a reusable profile only after the phone mount and forward course
+  /// have both been calibrated.
+  PrecisionDriveCalibrationProfile? get calibrationProfile {
+    if (!orientation.value.isMountedCorrectly) return null;
+    return PrecisionDriveCalibrationProfile(
+      mountOrientation: _mountOrientation,
+      gyroBiasX: _gyroBiasX,
+      gyroBiasZ: _gyroBiasZ,
+      gravityX: _gravityX ?? 1.0,
+    );
+  }
+
+  /// Restores a calibration created for this phone in its current vehicle
+  /// mount. Call [requestCalibration] when the mount is changed.
+  void restoreCalibrationProfile(PrecisionDriveCalibrationProfile profile) {
+    _mountOrientation = profile.mountOrientation;
+    _gyroBiasX = profile.gyroBiasX;
+    _gyroBiasZ = profile.gyroBiasZ;
+    _gravityX = profile.gravityX;
+    if (_enabled) {
+      _setOrientation(const PrecisionDriveOrientationState(
+        status: PrecisionDriveOrientationStatus.aligned,
+      ));
+    }
+    _refreshAssistance();
+  }
+
   double get speedMetersPerSecond => math
       .sqrt(_velocityEast * _velocityEast + _velocityNorth * _velocityNorth);
+
+  /// Returns the current predicted position in WGS-84 coordinates.
+  ///
+  /// The estimate is a short-lived aid for a degraded GPS fix, not a durable
+  /// replacement for GPS. Callers must check [isAssisting] before using it.
+  PrecisionDriveLocationEstimate? get locationEstimate {
+    _predict(DateTime.now());
+    if (!_hasState) return null;
+    final latitude = _north / 111132.92;
+    final longitude =
+        _east / (111319.49 * math.cos(latitude * math.pi / 180.0));
+    if (!latitude.isFinite || !longitude.isFinite) return null;
+    return PrecisionDriveLocationEstimate(
+      latitude: latitude,
+      longitude: longitude,
+      heading: _normaliseAngle(_headingRadians) * 180.0 / math.pi,
+      speed: speedMetersPerSecond,
+      accuracy: math.sqrt(math.max(0.0, _positionVariance)),
+    );
+  }
 
   /// Supplies the GPS measurement for the EKF correction step.
   void updateGps(Position position, {DateTime? now}) {
@@ -230,6 +350,8 @@ class SensorFusionService {
 
     if (!_hasState) {
       _hasState = true;
+      _east = _longitudeToEast(position.longitude, position.latitude);
+      _north = _latitudeToNorth(position.latitude);
       _headingRadians = gpsHeading ?? _magneticHeadingRadians ?? 0.0;
       _velocityEast = position.speed * math.sin(_headingRadians);
       _velocityNorth = position.speed * math.cos(_headingRadians);

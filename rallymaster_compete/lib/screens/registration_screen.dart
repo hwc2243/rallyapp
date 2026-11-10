@@ -1,10 +1,10 @@
-import 'dart:math';
-
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/discovered_rally.dart';
 import '../services/competition_api_client.dart';
+import '../services/competition_device_identity.dart';
+import 'downloaded_checkpoints_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({
@@ -21,7 +21,6 @@ class RegistrationScreen extends StatefulWidget {
 }
 
 class _RegistrationScreenState extends State<RegistrationScreen> {
-  static const _deviceIdKey = 'competition_primary_device_id';
   static const _entryIdKey = 'competition_entry_id';
   static const _rallyIdKey = 'competition_rally_id';
   static const _routeIdKey = 'competition_route_id';
@@ -49,19 +48,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     super.dispose();
   }
 
-  Future<String> _deviceId() async {
-    final preferences = await SharedPreferences.getInstance();
-    final existing = preferences.getString(_deviceIdKey);
-    if (existing != null && existing.isNotEmpty) return existing;
-    final random = Random.secure();
-    final created = List.generate(
-      4,
-      (_) => random.nextInt(0x100000000).toRadixString(16).padLeft(8, '0'),
-    ).join();
-    await preferences.setString(_deviceIdKey, created);
-    return created;
-  }
-
   Future<void> _register() async {
     if (!_formKey.currentState!.validate() || _submitting) return;
     setState(() {
@@ -82,7 +68,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         navigatorFirstName: _navigatorFirstName.text.trim(),
         navigatorLastName: _navigatorLastName.text.trim(),
         carNumber: int.parse(_carNumber.text),
-        deviceId: await _deviceId(),
+        deviceId: await CompetitionDeviceIdentity.getOrCreate(),
       );
       await _saveRegistration(registration);
       if (!mounted) return;
@@ -101,7 +87,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           ],
         ),
       );
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => DownloadedCheckpointsScreen(
+              rally: widget.rally,
+              route: widget.route,
+            ),
+          ),
+        );
+      }
     } on CompetitionApiException catch (error) {
       if (mounted) {
         setState(() {

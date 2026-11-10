@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../models/competition_checkpoint.dart';
+import '../models/checkpoint_crossing.dart';
 import '../models/discovered_rally.dart';
 
 class CompetitionApiClient {
@@ -113,6 +115,92 @@ class CompetitionApiClient {
     );
   }
 
+  Future<CompetitionRegistration?> existingRegistration({
+    required int routeId,
+    required String deviceId,
+  }) async {
+    final response = await _client.get(
+      Uri.parse(defaultBaseUrl)
+          .resolve('/api/compete/registrations/routes/$routeId'),
+      headers: {
+        'Accept': 'application/json',
+        'X-Competition-Device-Id': deviceId,
+      },
+    );
+    if (response.statusCode == 404 || response.statusCode == 401) return null;
+    if (response.statusCode != 200) {
+      throw CompetitionApiException(response.statusCode);
+    }
+    return CompetitionRegistration.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
+  Future<List<CompetitionCheckpoint>> downloadCheckpoints({
+    required int routeId,
+    required String deviceId,
+  }) async {
+    final response = await _client.get(
+      Uri.parse(defaultBaseUrl)
+          .resolve('/api/compete/routes/$routeId/checkpoints'),
+      headers: {
+        'Accept': 'application/json',
+        'X-Competition-Device-Id': deviceId,
+      },
+    );
+    if (response.statusCode != 200) {
+      throw CompetitionApiException(response.statusCode);
+    }
+    final payload = jsonDecode(response.body) as List<dynamic>;
+    return payload
+        .map(
+          (value) =>
+              CompetitionCheckpoint.fromJson(value as Map<String, dynamic>),
+        )
+        .toList(growable: false);
+  }
+
+  Future<CompetitionTelemetryUploadResult> uploadTelemetry({
+    required int routeId,
+    required String deviceId,
+    required Iterable<CheckpointCrossing> crossings,
+  }) async {
+    final response = await _client.post(
+      Uri.parse(defaultBaseUrl)
+          .resolve('/api/compete/routes/$routeId/telemetry'),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-Competition-Device-Id': deviceId,
+      },
+      body: jsonEncode({
+        'checkpoints': crossings
+            .map(
+              (crossing) => {
+                'checkpointId': crossing.checkpointId,
+                'occurredAt': crossing.occurredAt.toUtc().toIso8601String(),
+                'interceptLatitude': crossing.interceptLatitude,
+                'interceptLongitude': crossing.interceptLongitude,
+                'interceptHeading': crossing.heading,
+                'interceptSpeed': crossing.speed,
+                'interceptAccuracy': crossing.accuracyMeters,
+                'closestDistanceMeters': crossing.closestDistanceMeters,
+                'samples': crossing.samples
+                    .map((sample) => sample.toJson())
+                    .toList(growable: false),
+              },
+            )
+            .toList(growable: false),
+      }),
+    );
+    if (response.statusCode != 201) {
+      throw CompetitionApiException(response.statusCode);
+    }
+    return CompetitionTelemetryUploadResult.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  }
+
   void dispose() => _client.close();
 }
 
@@ -150,4 +238,21 @@ class CompetitionRegistration {
 
   final int entryId;
   final int carNumber;
+}
+
+class CompetitionTelemetryUploadResult {
+  const CompetitionTelemetryUploadResult({
+    required this.accepted,
+    required this.alreadyUploaded,
+  });
+
+  factory CompetitionTelemetryUploadResult.fromJson(
+    Map<String, dynamic> json,
+  ) => CompetitionTelemetryUploadResult(
+    accepted: (json['accepted'] as num).toInt(),
+    alreadyUploaded: (json['alreadyUploaded'] as num).toInt(),
+  );
+
+  final int accepted;
+  final int alreadyUploaded;
 }

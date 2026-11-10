@@ -3,16 +3,22 @@ package com.rallyapp.rallymaster.api.external;
 import com.rallyapp.rallymaster.dto.RoutePlanDTO;
 import com.rallyapp.rallymaster.dto.RouteDTO;
 import com.rallyapp.rallymaster.competition.CompetitionAuthenticationService;
+import com.rallyapp.rallymaster.competition.RallyEntryManagementService;
 import com.rallyapp.rallymaster.service.ServiceException;
+import java.util.List;
+import java.util.NoSuchElementException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.security.access.AccessDeniedException;
 
 import com.rallyapp.rallymaster.api.external.base.BaseExternalRouteRestImpl;
 
@@ -25,9 +31,41 @@ public class ExternalRouteRestImpl
   private static final Logger logger = LoggerFactory.getLogger(ExternalRouteRestImpl.class);
 
   private final CompetitionAuthenticationService competitionAuthenticationService;
+  private final RallyEntryManagementService rallyEntryManagementService;
 
-  public ExternalRouteRestImpl(CompetitionAuthenticationService competitionAuthenticationService) {
+  public ExternalRouteRestImpl(
+      CompetitionAuthenticationService competitionAuthenticationService,
+      RallyEntryManagementService rallyEntryManagementService) {
     this.competitionAuthenticationService = competitionAuthenticationService;
+    this.rallyEntryManagementService = rallyEntryManagementService;
+  }
+
+  @GetMapping("/{routeId}/competitors")
+  @Override
+  public ResponseEntity<List<CompetitorEntryResponse>> listCompetitors(
+      @PathVariable Long routeId) {
+    try {
+      return ResponseEntity.ok(rallyEntryManagementService.listForRoute(routeId));
+    } catch (AccessDeniedException ex) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    } catch (NoSuchElementException ex) {
+      return ResponseEntity.notFound().build();
+    }
+  }
+
+  @DeleteMapping("/{routeId}/competitors/{entryId}")
+  @Override
+  public ResponseEntity<Void> deleteCompetitor(
+      @PathVariable Long routeId,
+      @PathVariable Long entryId) {
+    try {
+      rallyEntryManagementService.deleteForRoute(routeId, entryId);
+      return ResponseEntity.noContent().build();
+    } catch (AccessDeniedException ex) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    } catch (NoSuchElementException ex) {
+      return ResponseEntity.notFound().build();
+    }
   }
 
   @PutMapping("/{routeId}/publish")

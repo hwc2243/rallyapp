@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en" xmlns:th="https://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Route Items · RallyMaster</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+</head>
+<body class="bg-body-tertiary">
+  <div th:replace="~{fragments/layout :: navbar}"></div>
+  <main class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div><a class="small text-decoration-none" th:href="@{/rally/{rallyId}/routes(rallyId=${rally.id})}"><i class="bi bi-arrow-left"></i> Routes</a>
+        <h1 class="h2 mb-1 mt-2" th:text="${route.name}">Route</h1><p class="text-body-secondary mb-0" th:text="${rally.name}">Rally</p></div>
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" th:href="@{/rally/{rallyId}/routes/{routeId}/competitors(rallyId=${rally.id},routeId=${route.id})}"><i class="bi bi-people me-1"></i>Competitors</a>
+        <a class="btn btn-primary" th:href="@{/rally/{rallyId}/routes/{routeId}/items/new(rallyId=${rally.id},routeId=${route.id})}"><i class="bi bi-plus-lg me-1"></i>Add item</a>
+      </div>
+    </div>
+    <section class="card border-0 shadow-sm"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Position</th><th>Type</th><th>NRI / Checkpoint</th><th>Mileage</th><th>Coordinates</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        <tr th:each="item : ${items}">
+          <td th:text="${item.position}">1</td><td th:text="${item.itemType}">NRI</td>
+          <td>
+            <span th:if="${item.itemType.name() == 'NRI' and #strings.isEmpty(item.instructionText)}" th:text="|NRI ${item.instructionNumber}|">NRI</span>
+            <span th:if="${item.itemType.name() == 'NRI' and !#strings.isEmpty(item.instructionText)}" th:text="|NRI ${item.instructionNumber}: ${item.instructionText}|">NRI</span>
+            <span th:if="${item.itemType.name() == 'CHECKPOINT' and #strings.isEmpty(item.name)}" th:text="|Checkpoint ${item.checkpointNumber} - ${item.checkpointType}|">Checkpoint</span>
+            <span th:if="${item.itemType.name() == 'CHECKPOINT' and !#strings.isEmpty(item.name)}" th:text="|Checkpoint ${item.checkpointNumber}: ${item.name} - ${item.checkpointType}|">Checkpoint</span>
+          </td>
+          <td th:text="${item.distance}">0.000</td>
+          <td th:text="${item.latitude != null and item.longitude != null ? item.latitude + ', ' + item.longitude : '—'}">—</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-primary" th:if="${item.itemType.name() == 'NRI'}" th:href="@{/rally/{rallyId}/routes/{routeId}/items/nri/{itemId}/edit(rallyId=${rally.id},routeId=${route.id},itemId=${item.id})}"><i class="bi bi-pencil"></i><span class="visually-hidden">Edit NRI</span></a>
+            <a class="btn btn-sm btn-outline-primary" th:if="${item.itemType.name() == 'CHECKPOINT'}" th:href="@{/rally/{rallyId}/routes/{routeId}/items/checkpoint/{itemId}/edit(rallyId=${rally.id},routeId=${route.id},itemId=${item.id})}"><i class="bi bi-pencil"></i><span class="visually-hidden">Edit checkpoint</span></a>
+          </td>
+        </tr>
+        <tr th:if="${items.isEmpty()}"><td colspan="6" class="text-center text-body-secondary py-5">No route instructions or checkpoints have been added.</td></tr>
+      </tbody>
+    </table></div></section>
+  </main>
+</body>
+</html>

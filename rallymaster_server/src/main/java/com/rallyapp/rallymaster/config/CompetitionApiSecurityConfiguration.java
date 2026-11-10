@@ -24,8 +24,11 @@ public class CompetitionApiSecurityConfiguration {
         .authorizeHttpRequests(authorize -> authorize
             .requestMatchers(HttpMethod.GET, "/api/compete/events/discover").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/compete/events/*/routes").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/compete/routes/*/checkpoints").permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/compete/registrations/routes/*").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/compete/authenticate").permitAll()
             .requestMatchers(HttpMethod.POST, "/api/compete/registrations").permitAll()
+            .requestMatchers(HttpMethod.POST, "/api/compete/routes/*/telemetry").permitAll()
             .anyRequest().denyAll())
         .build();
   }

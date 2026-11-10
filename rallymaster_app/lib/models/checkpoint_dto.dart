@@ -1,5 +1,3 @@
-
-
 class CheckpointDto {
   const CheckpointDto({
     this.id,
@@ -49,6 +47,19 @@ class CheckpointDto {
   final int? organizationId;
   final int? checkpointNumber;
   final String? checkpointType;
+
+  /// The compact label used when a checkpoint is listed with route items.
+  String get routeItemDetail {
+    final checkpointName = name?.trim();
+    final fallback = 'Checkpoint ${checkpointNumber ?? ''}'.trim();
+    final type = checkpointType?.trim();
+    return type == null || type.isEmpty
+        ? (checkpointName == null || checkpointName.isEmpty
+              ? fallback
+              : checkpointName)
+        : '${checkpointName == null || checkpointName.isEmpty ? fallback : checkpointName} - $type';
+  }
+
   final String? name;
   final int? routeId;
 
@@ -69,7 +80,6 @@ class CheckpointDto {
     organizationId: selectedOrganizationId,
     routeId: routeId,
   );
-
 
   Map<String, dynamic> toJson() => {
     if (serverId != null) 'id': serverId,
