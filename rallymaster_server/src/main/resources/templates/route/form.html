@@ -2,25 +2,42 @@
 <html lang="en" xmlns:th="https://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>New Route · RallyMaster</title>
+  <title th:text="${editing} ? 'Edit Route · RallyMaster' : 'New Route · RallyMaster'">New Route · RallyMaster</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link th:href="@{/css/rallymaster-theme.css}" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 </head>
 <body class="bg-body-tertiary">
   <div th:replace="~{fragments/layout :: navbar}"></div>
   <main class="container py-4"><div class="row justify-content-center"><div class="col-lg-8 col-xl-7">
     <a class="small text-decoration-none" th:href="@{/rally/{rallyId}/routes(rallyId=${rally.id})}"><i class="bi bi-arrow-left"></i> Routes</a>
-    <h1 class="h2 mt-2 mb-1">Create route</h1>
+    <h1 class="h2 mt-2 mb-1" th:text="${editing} ? 'Edit route' : 'Create route'">Create route</h1>
     <p class="text-body-secondary mb-4" th:text="${rally.name}">Rally</p>
     <section class="card border-0 shadow-sm"><div class="card-body p-4">
-      <form th:action="@{/rally/{rallyId}/routes(rallyId=${rally.id})}" th:object="${route}" method="post" novalidate>
+      <form th:action="${editing} ? @{/rally/{rallyId}/routes/{routeId}(rallyId=${rally.id},routeId=${route.id})} : @{/rally/{rallyId}/routes(rallyId=${rally.id})}" th:object="${route}" method="post" novalidate>
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
         <div class="mb-3"><label class="form-label" for="name">Name</label>
           <input id="name" class="form-control" th:field="*{name}" required autofocus th:classappend="${#fields.hasErrors('name')} ? ' is-invalid'">
           <div class="invalid-feedback" th:errors="*{name}">Name error</div></div>
         <div class="mb-4"><label class="form-label" for="description">Description</label>
           <textarea id="description" class="form-control" th:field="*{description}" rows="4" placeholder="Optional route details"></textarea></div>
-        <div class="d-flex gap-2 justify-content-end"><a class="btn btn-outline-secondary" th:href="@{/rally/{rallyId}/routes(rallyId=${rally.id})}">Cancel</a><button class="btn btn-primary" type="submit">Create route</button></div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6"><label class="form-label" for="timeZone">Time zone</label>
+            <input id="timeZone" class="form-control" th:field="*{timeZone}" required placeholder="America/New_York"></div>
+          <div class="col-md-6"><label class="form-label" for="carZeroStartLocal">Car-zero start</label>
+            <input id="carZeroStartLocal" name="carZeroStartLocal" class="form-control" type="datetime-local" th:value="${carZeroStartLocal}" required></div>
+          <div class="col-md-6"><label class="form-label" for="maximumCheckpointScore">Maximum checkpoint score</label>
+            <input id="maximumCheckpointScore" class="form-control" th:field="*{maximumCheckpointScore}" type="number" min="0" required></div>
+          <div class="col-md-6"><label class="form-label" for="defaultSpeed">Default speed</label>
+            <input id="defaultSpeed" class="form-control" th:field="*{defaultSpeed}" type="number" step="0.1" min="0"></div>
+          <div class="col-md-6"><label class="form-label" for="restartInterval">Restart interval</label>
+            <input id="restartInterval" name="restartInterval" class="form-control" th:value="${restartInterval}" inputmode="numeric" placeholder="mm:ss">
+            <div class="form-text">Optional; enter minutes and seconds (for example, 2:00).</div></div>
+          <div class="col-md-6"><label class="form-label" for="defaultPauseDuration">Default pause</label>
+            <input id="defaultPauseDuration" name="defaultPauseDuration" class="form-control" th:value="${defaultPauseDuration}" inputmode="numeric" placeholder="mm:ss">
+            <div class="form-text">Optional; enter minutes and seconds (for example, 0:30).</div></div>
+        </div>
+        <div class="d-flex gap-2 justify-content-end"><a class="btn btn-outline-secondary" th:href="@{/rally/{rallyId}/routes(rallyId=${rally.id})}">Cancel</a><button class="btn btn-primary" type="submit" th:text="${editing} ? 'Save route' : 'Create route'">Create route</button></div>
       </form>
     </div></section>
   </div></div></main>

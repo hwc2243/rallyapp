@@ -40,11 +40,10 @@ class RouteItemsTable extends StatelessWidget {
         child: DataTable(
           showCheckboxColumn: false,
           columns: const [
-            DataColumn(label: Text('NRI'), numeric: true),
+            DataColumn(label: Text('ITEM')),
             DataColumn(label: Text('DISTANCE'), numeric: true),
             DataColumn(label: Text('TYPE')),
             DataColumn(label: Text('INSTRUCTION / CHECKPOINT')),
-            DataColumn(label: SizedBox.shrink()),
           ],
           rows: sortedItems
               .map(
@@ -55,10 +54,51 @@ class RouteItemsTable extends StatelessWidget {
                       : (_) => onItemTap!(routeItem),
                   cells: [
                     DataCell(
-                      Text(
-                        routeItem.item.itemType == 'NRI'
-                            ? '${routeItem.instructionNumber ?? ''}'
-                            : '',
+                      SizedBox(
+                        width: 180,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                routeItem.item.itemType == 'NRI'
+                                    ? 'NRI ${routeItem.instructionNumber ?? ''}'
+                                : 'CHKPT ${routeItem.checkpoint?.checkpointNumber ?? ''}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            PopupMenuButton<_RouteItemAction>(
+                              tooltip: 'Route item actions',
+                              icon: const Icon(Icons.more_vert),
+                              onSelected: (action) {
+                                switch (action) {
+                                  case _RouteItemAction.edit:
+                                    onItemEdit?.call(routeItem);
+                                    break;
+                                  case _RouteItemAction.delete:
+                                    onItemDelete?.call(routeItem);
+                                    break;
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: _RouteItemAction.edit,
+                                  child: Text('Edit'),
+                                ),
+                                PopupMenuItem(
+                                  value: _RouteItemAction.delete,
+                                  child: Text(
+                                    'Delete',
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .error,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     DataCell(
@@ -70,30 +110,6 @@ class RouteItemsTable extends StatelessWidget {
                     ),
                     DataCell(Text(routeItem.item.itemType ?? 'Route item')),
                     DataCell(Text(routeItem.detail ?? '-')),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            tooltip: 'Edit route item',
-                            icon: const Icon(Icons.edit_outlined),
-                            onPressed: onItemEdit == null
-                                ? null
-                                : () => onItemEdit!(routeItem),
-                          ),
-                          IconButton(
-                            tooltip: 'Delete route item',
-                            icon: Icon(
-                              Icons.delete_outline,
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                            onPressed: onItemDelete == null
-                                ? null
-                                : () => onItemDelete!(routeItem),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               )
@@ -103,3 +119,5 @@ class RouteItemsTable extends StatelessWidget {
     );
   }
 }
+
+enum _RouteItemAction { edit, delete }

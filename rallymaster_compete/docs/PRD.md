@@ -101,11 +101,17 @@ evidence, or exclude the checkpoint from final scoring.
 The phone clock is the competitor app's official time source. Times are stored
 and submitted as UTC instants; the UI uses the rally's local time zone.
 
-The downloaded plan supplies an official scheduled start and checkpoint planned
-durations. Each team's start is the scheduled start plus its car number in
-minutes (for example, car 5 starts five minutes after the scheduled start). A
-checkpoint duration is an offset from its segment start. The app derives ideal
-arrival from the active segment's team start basis plus that offset.
+The server downloads a calculated **car-zero timing plan** in milliseconds.
+Car zero begins at the official scheduled start. Each compete client derives
+its own team timing by adding its car number multiplied by the rally-wide car
+start interval (one minute by default; car 5 ordinarily adds five minutes).
+A checkpoint duration is an offset from its segment start. The server
+calculates each car-zero ideal arrival using the most recent restart time; the
+app adds only the team offset and any valid, forward-only time allowances.
+
+The client must not independently calculate restart or segment timing from
+planner data. The downloaded plan contains the car-zero segment start and
+ideal time for each checkpoint so scoring remains deterministic offline.
 
 The RallyMaster configures score units:
 
@@ -136,13 +142,22 @@ support is implemented.
 | `TIMED_CONTROL` | Scored against its ideal arrival. |
 | `TIME_CHECK` | Crossing is recorded but does not score. |
 | `OFFCOURSE_CONTROL` | Team receives maximum score for every remaining `TIMED_CONTROL` in the segment. |
-| `RESTART` | Ends a segment, resets mileage, applies its delay, and establishes the next segment time basis. |
+| `RESTART` | Ends a segment, resets mileage, applies the configured restart pause, and establishes the next car-zero segment start on the first whole minute after that pause. |
 | `FINISH` | Records completion and notifies RallyMaster. |
 
 A segment is the portion of a route between `RESTART` controls.
 
 Once RallyMaster publishes a route as `ACTIVE`, its competition plan is
 immutable. A registered team cannot change to another route.
+
+## Units
+
+The RallyMaster selects the rally-wide distance unit when creating the rally:
+**miles** or **kilometers**. It applies to every route's distance and speed
+values; speed is MPH for miles and KPH for kilometers. The RallyMaster also
+selects the rally-wide scoring unit: **seconds** or **cents**. Scoring-unit
+selection affects score conversion only. Both selections are included in the
+downloaded competition plan and cannot vary by route.
 
 ## Offline and sync behavior
 

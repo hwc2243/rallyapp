@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'base/base_rally_provider.dart';
 import '../models/route_dto.dart';
+import '../models/rally_settings.dart';
 
 /// Application extension point for Rally API operations.
 ///
@@ -34,4 +35,27 @@ class RallyProvider extends BaseRallyProvider {
     final value = jsonDecode(response.body) as Map<String, dynamic>;
     return value['eventPasswordConfigured'] == true;
   });
+
+  /// Saves organizer-only rally defaults. The server deliberately never returns
+  /// the event password or any other secret through this endpoint.
+  Future<RallySettings> getSettings(int rallyId) => execute(() async {
+    final response = await httpClient.get(
+      '$resourcePath/$rallyId/settings',
+      headers: requestHeaders,
+    );
+    httpClient.ensureSuccess(response);
+    return RallySettings.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  });
+
+  Future<void> saveSettings(int rallyId, RallySettings settings) =>
+      execute(() async {
+        final response = await httpClient.put(
+          '$resourcePath/$rallyId/settings',
+          headers: requestHeaders,
+          body: settings.toJson(),
+        );
+        httpClient.ensureSuccess(response);
+      });
 }

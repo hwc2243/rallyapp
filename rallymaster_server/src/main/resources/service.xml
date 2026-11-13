@@ -62,12 +62,22 @@
 		<attribute name="name" type="string" />
 		<attribute name="description" type="string" />
 		<attribute name="status" type="enum" enum-values="PLANNING,ACTIVE,COMPLETED" />
+		<!-- Editable copies of the rally defaults used while this route is planned. -->
+		<attribute name="defaultSpeed" type="double" />
+		<attribute name="restartIntervalMillis" type="long" />
+		<attribute name="defaultPauseDurationMillis" type="long" />
+		<!-- Route-specific competition schedule values. -->
+		<attribute name="timeZone" type="string" />
+		<attribute name="carZeroStartEpochMillis" type="long" />
+		<attribute name="maximumCheckpointScore" type="long" />
 
 		<related name="rally" entity="rally" relationship="many_to_one"
 			api-reference="id" />
 
 		<related name="items" entity="routeItem" relationship="one_to_many"
 			collection="list" mapped-by="route" api-reference="none" />
+		<related name="timingPlan" entity="routeTimingPlan" relationship="one_to_one"
+			mapped-by="route" api-reference="none" />
 
 		<api>
 			<external operations="CREATE READ UPDATE DELETE" />
@@ -80,19 +90,59 @@
 	-->
 	<entity name="rallyConfiguration" db-name="rally_configuration"
 		multitenant="true">
+		<attribute name="distanceUnit" type="enum" enum-values="MILES,KILOMETERS" />
 		<attribute name="scoringUnit" type="enum" enum-values="SECONDS,CENTS" />
 		<attribute name="eventPasswordHash" type="string" />
 		<attribute name="timeZone" type="string" />
-		<attribute name="officialStartTime" type="datetime" />
+		<!-- UTC instant retained in milliseconds for precise car-zero calculations. -->
+		<attribute name="officialStartEpochMillis" type="long" />
 		<attribute name="checkpointAcquisitionRadiusMeters" type="double" />
 		<attribute name="maximumCheckpointScore" type="long" />
-		<attribute name="startIntervalSeconds" type="long" />
+		<!-- Rally-wide only; routes may not override the car start interval. -->
+		<attribute name="carStartIntervalMillis" type="long" />
+		<attribute name="defaultSpeed" type="double" />
+		<attribute name="defaultRestartIntervalMillis" type="long" />
+		<attribute name="defaultPauseDurationMillis" type="long" />
 
 		<related name="rally" entity="rally" relationship="one_to_one"
 			api-reference="id" />
 
 		<finder unique="true">
 			<finder-attribute name="rally" />
+		</finder>
+	</entity>
+
+	<!-- Immutable server-calculated car-zero plan created when a route is published. -->
+	<entity name="routeTimingPlan" db-name="route_timing_plan" multitenant="true">
+		<attribute name="version" type="long" />
+		<attribute name="carZeroStartEpochMillis" type="long" />
+		<attribute name="distanceUnit" type="enum" enum-values="MILES,KILOMETERS" />
+		<attribute name="scoringUnit" type="enum" enum-values="SECONDS,CENTS" />
+
+		<related name="route" entity="route" relationship="one_to_one" api-reference="none" />
+		<related name="points" entity="routeTimingPoint" relationship="one_to_many"
+			collection="list" mapped-by="routeTimingPlan" api-reference="none" />
+
+		<finder unique="true">
+			<finder-attribute name="route" />
+		</finder>
+	</entity>
+
+	<!-- Calculated timing evidence for each route item in a published plan. -->
+	<entity name="routeTimingPoint" db-name="route_timing_point" multitenant="true">
+		<attribute name="segmentNumber" type="long" />
+		<attribute name="segmentOffsetMillis" type="long" />
+		<attribute name="carZeroSegmentStartEpochMillis" type="long" />
+		<attribute name="carZeroIdealArrivalEpochMillis" type="long" />
+
+		<related name="routeTimingPlan" entity="routeTimingPlan" relationship="many_to_one"
+			api-reference="none" />
+		<related name="routeItem" entity="routeItem" relationship="many_to_one"
+			api-reference="none" />
+
+		<finder unique="true">
+			<finder-attribute name="routeTimingPlan" />
+			<finder-attribute name="routeItem" />
 		</finder>
 	</entity>
 
@@ -193,6 +243,11 @@
 	<entity name="routeInstruction" db-name="route_instruction"	parent="routeItem" discriminator-value="NRI">
 	    <attribute name="instructionNumber" type="long" />
 		<attribute name="instructionText" type="string" />
+		<attribute name="instructionType" type="enum"
+			enum-values="STANDARD,BEGIN_FREE_ZONE,END_FREE_ZONE,BEGIN_TRANSIT,END_TRANSIT" />
+		<attribute name="speed" type="double" />
+		<attribute name="pauseDurationMillis" type="long" />
+		<attribute name="transitDurationMillis" type="long" />
 
 		<api>
 			<external operations="CREATE READ UPDATE DELETE" />
@@ -201,7 +256,7 @@
 
 	<entity name="checkpoint" db-name="checkpoint" parent="routeItem" discriminator-value="CHECKPOINT">
 		<attribute name="checkpointNumber" type="long" />
-		<attribute name="checkpointType" type="enum" enum-values="PASSAGE_CONTROL,TIMED_CONTROL,TIME_CHECK,RESTART,START,FINISH" />
+		<attribute name="checkpointType" type="enum" enum-values="OFFCOURSE_CONTROL,TIMED_CONTROL,TIME_CHECK,RESTART,START,FINISH" />
 		<attribute name="name" type="string" />
 
 		<api>

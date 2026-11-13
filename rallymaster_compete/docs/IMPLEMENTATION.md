@@ -31,7 +31,7 @@ active routes are selectable; base-36 and radius calculations are unit tested.
 
 **Deliverables:** event/team/device server model, hashed password validation,
 driver/navigator/car form, unique car-number validation, scheduled-start
-calculation as car number × one minute, scoped primary credential, and
+calculation as car number × the rally-wide start interval, scoped primary credential, and
 primary-generated QR backup-device enrollment.
 
 **Verify:** Correct password and unique car register; duplicate car and invalid
@@ -42,12 +42,17 @@ expired or reused pairing QR is rejected.
 
 **Deliverables:** checkpoint/rally competition metadata (using existing
 route-item location and heading), 150-metre default configurable acquisition
-radius, segment-relative duration offset, renamed checkpoint type, versioned
-plan endpoint/configuration download, transactional local plan storage,
-read-only competition screen, and active-mode wakelock.
+radius, segment-relative duration offset, millisecond timing fields,
+server-calculated car-zero segment starts and ideal arrivals, renamed
+checkpoint type, rally-wide miles/kilometers and seconds/cents configuration,
+versioned plan endpoint/configuration download,
+transactional local plan storage, read-only competition screen, and
+active-mode wakelock.
 
 **Verify:** Competition screen works after network loss; ordered plan metadata
-survives restart; a running plan is not silently replaced.
+survives restart; car 5 receives car-zero timing plus exactly five minutes; a
+running plan is not silently replaced; miles/kilometers and seconds/cents are
+displayed and applied consistently across every route in the rally.
 
 ## Phase 4 — Deterministic score engine
 

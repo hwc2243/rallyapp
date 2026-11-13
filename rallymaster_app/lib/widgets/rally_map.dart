@@ -157,7 +157,7 @@ class RallyMapState extends State<RallyMap> {
                               _RouteItemLabel(
                                 text: item.item.itemType == 'NRI'
                                     ? 'NRI ${item.routeInstruction?.instructionNumber ?? ''}'
-                                    : 'CHECKPOINT ${item.checkpoint?.checkpointNumber ?? ''}',
+                                    : 'CHKPT ${item.checkpoint?.checkpointNumber ?? ''}',
                               ),
                             ],
                           ),
@@ -189,16 +189,18 @@ class RallyMapState extends State<RallyMap> {
         child: Material(
           color: Theme.of(context).colorScheme.surface,
           elevation: 4,
-          shape: const CircleBorder(),
-          child: IconButton(
-            tooltip: 'Recenter on current location',
-            onPressed: _position == null ? null : _recenterOnCurrentLocation,
-            icon: Icon(
-              Icons.my_location,
-              color: _followCurrentLocation
+          borderRadius: BorderRadius.circular(24),
+          child: TextButton.icon(
+            style: TextButton.styleFrom(
+              foregroundColor: _followCurrentLocation
                   ? Theme.of(context).colorScheme.primary
                   : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
+            onPressed: _position == null ? null : _recenterOnCurrentLocation,
+            icon: Icon(
+              _followCurrentLocation ? Icons.gps_fixed : Icons.gps_not_fixed,
+            ),
+            label: const Text('Follow'),
           ),
         ),
       ),
@@ -289,6 +291,37 @@ class RallyMapState extends State<RallyMap> {
     if (latitude == null || longitude == null) return;
     setState(() => _followCurrentLocation = false);
     _mapController.move(LatLng(latitude, longitude), 16);
+  }
+
+  /// Fits every valid route-item coordinate into view for initial planning.
+  void fitRouteBounds(Iterable<RouteItemDisplay> routeItems) {
+    final points = routeItems
+        .map(
+          (item) =>
+              (latitude: item.item.latitude, longitude: item.item.longitude),
+        )
+        .where(
+          (point) =>
+              point.latitude != null &&
+              point.longitude != null &&
+              point.latitude!.isFinite &&
+              point.longitude!.isFinite,
+        )
+        .map((point) => LatLng(point.latitude!, point.longitude!))
+        .toList();
+    if (points.isEmpty) return;
+    setState(() => _followCurrentLocation = false);
+    if (points.length == 1) {
+      _mapController.move(points.single, 16);
+      return;
+    }
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: LatLngBounds.fromPoints(points),
+        padding: const EdgeInsets.all(48),
+        maxZoom: 16,
+      ),
+    );
   }
 }
 

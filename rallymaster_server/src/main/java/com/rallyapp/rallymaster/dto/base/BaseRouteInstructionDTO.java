@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.rallyapp.rallymaster.dto.RouteInstructionDTO;
 import com.rallyapp.rallymaster.dto.RouteItemDTO;
 import com.rallyapp.rallymaster.model.base.BaseRouteInstruction;
+import com.rallyapp.rallymaster.model.RouteInstructionInstructionType;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
@@ -18,6 +19,14 @@ implements  Serializable
   
   protected String instructionText = null;
   
+  protected RouteInstructionInstructionType instructionType = null;
+  
+  protected Double speed = null;
+  
+  protected Long pauseDurationMillis = null;
+  
+  protected Long transitDurationMillis = null;
+  
 
   protected BaseRouteInstructionDTO () {
   }
@@ -27,6 +36,10 @@ implements  Serializable
   {
     this.instructionNumber = builder.instructionNumber;
     this.instructionText = builder.instructionText;
+    this.instructionType = builder.instructionType;
+    this.speed = builder.speed;
+    this.pauseDurationMillis = builder.pauseDurationMillis;
+    this.transitDurationMillis = builder.transitDurationMillis;
   }
 
   public Long getId ()
@@ -62,6 +75,49 @@ implements  Serializable
   }
   
 
+  public RouteInstructionInstructionType getInstructionType ()
+  {
+    return this.instructionType;
+  }
+  
+  public void setInstructionType (RouteInstructionInstructionType instructionType)
+  {
+    this.instructionType = instructionType;
+  }
+
+  public Double getSpeed ()
+  {
+    return this.speed;
+  }
+  
+  public void setSpeed (Double speed)
+  {
+    this.speed = speed;
+  }
+  
+
+  public Long getPauseDurationMillis ()
+  {
+    return this.pauseDurationMillis;
+  }
+  
+  public void setPauseDurationMillis (Long pauseDurationMillis)
+  {
+    this.pauseDurationMillis = pauseDurationMillis;
+  }
+  
+
+  public Long getTransitDurationMillis ()
+  {
+    return this.transitDurationMillis;
+  }
+  
+  public void setTransitDurationMillis (Long transitDurationMillis)
+  {
+    this.transitDurationMillis = transitDurationMillis;
+  }
+  
+
 
     @Override
 	public int hashCode() {
@@ -88,6 +144,14 @@ implements  Serializable
   
   private String instructionText = null;
   
+  private RouteInstructionInstructionType instructionType = null;
+  
+  private Double speed = null;
+  
+  private Long pauseDurationMillis = null;
+  
+  private Long transitDurationMillis = null;
+  
 
 
     
@@ -98,6 +162,26 @@ implements  Serializable
 
     public Builder instructionText(String instructionText) {
       this.instructionText = instructionText;
+      return this;
+    }
+
+    public Builder instructionType(RouteInstructionInstructionType instructionType) {
+      this.instructionType = instructionType;
+      return this;
+    }
+
+    public Builder speed(Double speed) {
+      this.speed = speed;
+      return this;
+    }
+
+    public Builder pauseDurationMillis(Long pauseDurationMillis) {
+      this.pauseDurationMillis = pauseDurationMillis;
+      return this;
+    }
+
+    public Builder transitDurationMillis(Long transitDurationMillis) {
+      this.transitDurationMillis = transitDurationMillis;
       return this;
     }
 

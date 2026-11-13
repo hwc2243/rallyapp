@@ -2,6 +2,7 @@ package com.rallyapp.rallymaster.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.rallyapp.rallymaster.dto.CheckpointDTO;
 import com.rallyapp.rallymaster.dto.OrganizationDTO;
@@ -14,6 +15,7 @@ import com.rallyapp.rallymaster.model.RouteItemItemType;
 import com.rallyapp.rallymaster.model.RouteStatus;
 import com.rallyapp.rallymaster.persistence.CheckpointPersistence;
 import com.rallyapp.rallymaster.persistence.RouteInstructionPersistence;
+import com.rallyapp.rallymaster.persistence.RoutePersistence;
 import com.rallyapp.rallymaster.spring.SessionContext;
 import java.time.LocalDate;
 import org.junit.jupiter.api.AfterEach;
@@ -38,6 +40,8 @@ class RoutePlanDeletionIntegrationTest {
   private RouteInstructionPersistence routeInstructionPersistence;
   @Autowired
   private CheckpointPersistence checkpointPersistence;
+  @Autowired
+  private RoutePersistence routePersistence;
 
   @AfterEach
   void clearSessionContext() {
@@ -89,5 +93,48 @@ class RoutePlanDeletionIntegrationTest {
 
     assertNull(routeInstructionService.get(instruction.getId()));
     assertNull(checkpointService.get(checkpoint.getId()));
+
+    // Route deletion must also remove the inherited route_item row that backs
+    // a concrete checkpoint before the route itself is deleted.
+    CheckpointDTO remainingCheckpoint = new CheckpointDTO();
+    remainingCheckpoint.setItemType(RouteItemItemType.CHECKPOINT);
+    remainingCheckpoint.setPosition(1L);
+    remainingCheckpoint.setCheckpointNumber(1L);
+    remainingCheckpoint.setCheckpointType(CheckpointCheckpointType.START);
+    remainingCheckpoint.setOrganizationId(organization.getId());
+    remainingCheckpoint.setRouteId(route.getId());
+    checkpointService.create(remainingCheckpoint);
+
+    routeService.delete(route.getId());
+
+    assertEquals(0, routePersistence.findByRally_IdAndOrganizationId(rally.getId(), organization.getId()).size());
+  }
+
+  @Test
+  void savePlanRejectsAnActiveRoute() throws Exception {
+    OrganizationDTO organization = new OrganizationDTO();
+    organization.setName("Active-route test organization");
+    organization = organizationService.create(organization);
+    SessionContext.setCurrentOrganization(organization);
+
+    RallyDTO rally = new RallyDTO();
+    rally.setName("Active-route test rally");
+    rally.setDate(LocalDate.now());
+    rally.setOrganizationId(organization.getId());
+    rally = rallyService.create(rally);
+
+    RouteDTO route = new RouteDTO();
+    route.setName("Active-route test route");
+    route.setOrganizationId(organization.getId());
+    route.setRallyId(rally.getId());
+    route.setStatus(RouteStatus.ACTIVE);
+    route = routeService.create(route);
+    Long activeRouteId = route.getId();
+
+    ServiceException exception = assertThrows(
+        ServiceException.class,
+        () -> routeService.savePlan(activeRouteId, new RoutePlanDTO()));
+
+    assertEquals("Only planning routes can be changed.", exception.getMessage());
   }
 }

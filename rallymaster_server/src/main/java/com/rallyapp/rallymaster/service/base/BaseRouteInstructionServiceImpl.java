@@ -4,6 +4,7 @@ import com.rallyapp.rallymaster.dto.base.BaseRouteInstructionDTO;
 import com.rallyapp.rallymaster.dto.RouteInstructionDTO;
 import com.rallyapp.rallymaster.entity.base.BaseRouteInstructionEntity;
 import com.rallyapp.rallymaster.entity.RouteInstructionEntity;
+import com.rallyapp.rallymaster.model.RouteInstructionInstructionType;
 import com.rallyapp.rallymaster.persistence.base.BaseRouteInstructionPersistence;
 import com.rallyapp.rallymaster.persistence.RouteInstructionPersistence;
 import com.rallyapp.rallymaster.service.event.CrudOperation;

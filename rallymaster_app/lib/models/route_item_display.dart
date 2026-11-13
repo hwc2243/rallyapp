@@ -27,7 +27,7 @@ class RouteItemDisplay {
       item: item,
       detail: switch (item.itemType) {
         'NRI' => RouteInstructionDto.fromJson(json).instructionText,
-        'CHECKPOINT' => checkpoint?.routeItemDetail,
+        'CHECKPOINT' => checkpoint?.name,
         _ => null,
       },
       routeInstruction: item.itemType == 'NRI'

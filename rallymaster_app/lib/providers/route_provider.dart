@@ -5,6 +5,8 @@ import 'dart:convert';
 import '../models/competitor_entry.dart';
 import '../models/route_item_display.dart';
 import '../models/route_plan_dto.dart';
+import '../models/route_timing_plan_dto.dart';
+import '../models/route_timing_plan_view.dart';
 import '../models/route_dto.dart';
 
 /// Application extension point for Route API operations.
@@ -45,6 +47,31 @@ class RouteProvider extends BaseRouteProvider {
           jsonDecode(response.body) as Map<String, dynamic>,
         );
       });
+
+  /// Calculates and persists the server-authoritative car-zero timing plan.
+  Future<RouteTimingPlanDto> calculateTimingPlan(int routeId) =>
+      execute(() async {
+        final response = await httpClient.post(
+          '$resourcePath/$routeId/timing-plan',
+          headers: requestHeaders,
+        );
+        httpClient.ensureSuccess(response);
+        return RouteTimingPlanDto.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>,
+        );
+      });
+
+  Future<RouteTimingPlanView?> getTimingPlan(int routeId) => execute(() async {
+    final response = await httpClient.get(
+      '$resourcePath/$routeId/timing-plan',
+      headers: requestHeaders,
+    );
+    if (response.statusCode == 404) return null;
+    httpClient.ensureSuccess(response);
+    return RouteTimingPlanView.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
+  });
 
   /// Publishes a route and records the shared password used by competitors
   /// later during registration. The password is never retained by the app.

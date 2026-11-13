@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-public interface Route<RALLY, ROUTEITEM> extends BaseRoute<RALLY, ROUTEITEM>
+public interface Route<RALLY, ROUTEITEM, ROUTETIMINGPLAN>
+    extends BaseRoute<RALLY, ROUTEITEM, ROUTETIMINGPLAN>
 { 
 }

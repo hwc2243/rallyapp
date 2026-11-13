@@ -28,7 +28,8 @@ public class LocalSecurityConfiguration {
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers(
 								"/", "/signup", "/privacy", "/error", "/actuator/health",
-								"/oauth2/**", "/login/**")
+								"/oauth2/**", "/login/**",
+								"/css/**", "/js/**", "/images/**", "/webjars/**", "/favicon.ico")
 						.permitAll()
 						.anyRequest().authenticated())
 				.oauth2Login(oauth2 -> oauth2

@@ -4,6 +4,7 @@ package com.rallyapp.rallymaster.persistence.base;
 
 
 import com.rallyapp.rallymaster.entity.RallyConfigurationEntity;
+import com.rallyapp.rallymaster.model.RallyConfigurationDistanceUnit;
 import com.rallyapp.rallymaster.model.RallyConfigurationScoringUnit;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -5,6 +5,7 @@ import com.rallyapp.rallymaster.entity.RallyEntity;
 import com.rallyapp.rallymaster.model.base.BaseRallyConfiguration;
 import com.rallyapp.rallymaster.model.base.Multitenant;
 import com.rallyapp.rallymaster.model.RallyConfiguration;
+import com.rallyapp.rallymaster.model.RallyConfigurationDistanceUnit;
 import com.rallyapp.rallymaster.model.RallyConfigurationScoringUnit;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -27,7 +28,6 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.io.Serializable;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -43,6 +43,10 @@ public abstract class BaseRallyConfigurationEntity extends AbstractBaseEntity
 
   @Column
   @Enumerated(EnumType.STRING)
+  protected RallyConfigurationDistanceUnit distanceUnit = null;
+  
+  @Column
+  @Enumerated(EnumType.STRING)
   protected RallyConfigurationScoringUnit scoringUnit = null;
   
   @Column
@@ -52,7 +56,7 @@ public abstract class BaseRallyConfigurationEntity extends AbstractBaseEntity
   protected String timeZone = null;
   
   @Column
-  protected LocalDateTime officialStartTime = null;
+  protected Long officialStartEpochMillis = null;
   
   @Column
   protected Double checkpointAcquisitionRadiusMeters = null;
@@ -61,7 +65,16 @@ public abstract class BaseRallyConfigurationEntity extends AbstractBaseEntity
   protected Long maximumCheckpointScore = null;
   
   @Column
-  protected Long startIntervalSeconds = null;
+  protected Long carStartIntervalMillis = null;
+  
+  @Column
+  protected Double defaultSpeed = null;
+  
+  @Column
+  protected Long defaultRestartIntervalMillis = null;
+  
+  @Column
+  protected Long defaultPauseDurationMillis = null;
   
   @Column
   protected Long organizationId = null;
@@ -87,6 +100,16 @@ public abstract class BaseRallyConfigurationEntity extends AbstractBaseEntity
     return this.id;
   }
   
+
+  public RallyConfigurationDistanceUnit getDistanceUnit ()
+  {
+    return this.distanceUnit;
+  }
+  
+  public void setDistanceUnit (RallyConfigurationDistanceUnit distanceUnit)
+  {
+    this.distanceUnit = distanceUnit;
+  }
 
   public RallyConfigurationScoringUnit getScoringUnit ()
   {
@@ -120,14 +143,14 @@ public abstract class BaseRallyConfigurationEntity extends AbstractBaseEntity
   }
   
 
-  public LocalDateTime getOfficialStartTime ()
+  public Long getOfficialStartEpochMillis ()
   {
-    return this.officialStartTime;
+    return this.officialStartEpochMillis;
   }
   
-  public void setOfficialStartTime (LocalDateTime officialStartTime)
+  public void setOfficialStartEpochMillis (Long officialStartEpochMillis)
   {
-    this.officialStartTime = officialStartTime;
+    this.officialStartEpochMillis = officialStartEpochMillis;
   }
   
 
@@ -153,14 +176,47 @@ public abstract class BaseRallyConfigurationEntity extends AbstractBaseEntity
   }
   
 
-  public Long getStartIntervalSeconds ()
+  public Long getCarStartIntervalMillis ()
   {
-    return this.startIntervalSeconds;
+    return this.carStartIntervalMillis;
   }
   
-  public void setStartIntervalSeconds (Long startIntervalSeconds)
+  public void setCarStartIntervalMillis (Long carStartIntervalMillis)
   {
-    this.startIntervalSeconds = startIntervalSeconds;
+    this.carStartIntervalMillis = carStartIntervalMillis;
+  }
+  
+
+  public Double getDefaultSpeed ()
+  {
+    return this.defaultSpeed;
+  }
+  
+  public void setDefaultSpeed (Double defaultSpeed)
+  {
+    this.defaultSpeed = defaultSpeed;
+  }
+  
+
+  public Long getDefaultRestartIntervalMillis ()
+  {
+    return this.defaultRestartIntervalMillis;
+  }
+  
+  public void setDefaultRestartIntervalMillis (Long defaultRestartIntervalMillis)
+  {
+    this.defaultRestartIntervalMillis = defaultRestartIntervalMillis;
+  }
+  
+
+  public Long getDefaultPauseDurationMillis ()
+  {
+    return this.defaultPauseDurationMillis;
+  }
+  
+  public void setDefaultPauseDurationMillis (Long defaultPauseDurationMillis)
+  {
+    this.defaultPauseDurationMillis = defaultPauseDurationMillis;
   }
   
 

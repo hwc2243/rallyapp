@@ -56,6 +56,7 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
   final _tableScrollController = ScrollController();
   List<RouteItemDisplay> _routeItems = const [];
   RouteItemDisplay? _selectedRouteItem;
+  _RouteItemFilter _itemFilter = _RouteItemFilter.all;
 
   @override
   void initState() {
@@ -84,11 +85,35 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
   );
 
   void _notifyRouteItemsChanged() =>
-      widget.onRouteItemsChanged?.call(List.unmodifiable(_routeItems));
+      widget.onRouteItemsChanged?.call(List.unmodifiable(_filteredRouteItems));
+
+  List<RouteItemDisplay> get _filteredRouteItems => _routeItems.where((item) {
+    return switch (_itemFilter) {
+      _RouteItemFilter.all => true,
+      _RouteItemFilter.nris => item.item.itemType == 'NRI',
+      _RouteItemFilter.checkpoints => item.item.itemType == 'CHECKPOINT',
+    };
+  }).toList();
+
+  int get _nriCount =>
+      _routeItems.where((item) => item.item.itemType == 'NRI').length;
+  int get _checkpointCount =>
+      _routeItems.where((item) => item.item.itemType == 'CHECKPOINT').length;
+
+  void _setItemFilter(_RouteItemFilter filter) {
+    setState(() {
+      _itemFilter = filter;
+      if (_selectedRouteItem != null &&
+          !_filteredRouteItems.contains(_selectedRouteItem)) {
+        _selectedRouteItem = null;
+      }
+    });
+    _notifyRouteItemsChanged();
+  }
 
   /// Scrolls the route-item table to a marker selected on the map.
   void scrollToRouteItem(RouteItemDisplay item) {
-    final ordered = [..._routeItems]
+    final ordered = [..._filteredRouteItems]
       ..sort(
         (left, right) =>
             (left.item.position ?? 0).compareTo(right.item.position ?? 0),
@@ -246,7 +271,7 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
           organizationId: checkpoint.organizationId,
           routeId: checkpoint.routeId,
         ),
-        detail: checkpoint.routeItemDetail,
+        detail: checkpoint.name,
         checkpoint: checkpoint,
       );
 
@@ -261,13 +286,40 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: RouteItemsTable(
-              items: _routeItems,
-              controller: _tableScrollController,
-              selectedItem: _selectedRouteItem,
-              onItemTap: _selectRouteItem,
-              onItemEdit: _editRouteItem,
-              onItemDelete: _confirmDeleteRouteItem,
+            child: Column(
+              children: [
+                SegmentedButton<_RouteItemFilter>(
+                  segments: [
+                    ButtonSegment(
+                      value: _RouteItemFilter.all,
+                      label: _filterLabel('All', _routeItems.length),
+                    ),
+                    ButtonSegment(
+                      value: _RouteItemFilter.nris,
+                      label: _filterLabel('NRIs', _nriCount),
+                    ),
+                    ButtonSegment(
+                      value: _RouteItemFilter.checkpoints,
+                      label: _filterLabel('CHKPTs', _checkpointCount),
+                    ),
+                  ],
+                  selected: {_itemFilter},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (selection) =>
+                      _setItemFilter(selection.first),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: RouteItemsTable(
+                    items: _filteredRouteItems,
+                    controller: _tableScrollController,
+                    selectedItem: _selectedRouteItem,
+                    onItemTap: _selectRouteItem,
+                    onItemEdit: _editRouteItem,
+                    onItemDelete: _confirmDeleteRouteItem,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 12),
@@ -339,6 +391,14 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
     );
   }
 
+  Widget _filterLabel(String text, int count) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(text),
+      Text('$count', style: const TextStyle(fontSize: 11)),
+    ],
+  );
+
   Future<void> _addRouteItem(OdometerState odometer) async {
     final itemType = await showDialog<_RouteItemType>(
       context: context,
@@ -355,14 +415,26 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
             child: const Text('NRI'),
           ),
           FilledButton(
-            onPressed: () =>
-                Navigator.of(context).pop(_RouteItemType.checkpoint),
+            onPressed: _checkpointAllowed()
+                ? () => Navigator.of(context).pop(_RouteItemType.checkpoint)
+                : null,
             child: const Text('Checkpoint'),
           ),
         ],
       ),
     );
     if (itemType == null || !mounted) return;
+
+    if (itemType == _RouteItemType.checkpoint && !_checkpointAllowed()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Add the matching End Free Zone or End Transit NRI before adding a checkpoint.',
+          ),
+        ),
+      );
+      return;
+    }
 
     setState(() => _creating = true);
     try {
@@ -377,13 +449,16 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
       if (mounted) {
         setState(() {
           final visibleItems = _routeItems.isEmpty
-              ? widget.session.routeItems
+              ? List<RouteItemDisplay>.of(widget.session.routeItems)
               : _routeItems;
-          widget.session.routeItems.add(created);
+          final updatedItems = [...visibleItems, created];
+          _routeItems = updatedItems;
+          widget.session.routeItems
+            ..clear()
+            ..addAll(updatedItems);
           if (created.checkpoint != null) {
             widget.session.checkpointDrafts.add(created.checkpoint!);
           }
-          _routeItems = [...visibleItems, created];
           _isDirty = true;
         });
         _notifySaveState();
@@ -460,6 +535,11 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
         instructionNumber: instructionNumber,
         organizationId: widget.session.organizationId,
         routeId: widget.session.route?.serverId,
+        allowedInstructionTypes: _allowedInstructionTypes(),
+        suggestedSpeed: _suggestedSpeed(),
+        rallyDefaultSpeed: widget.session.route?.defaultSpeed,
+        defaultPauseDurationMillis:
+            widget.session.route?.defaultPauseDurationMillis,
       ),
     );
     if (instruction == null) return null;
@@ -505,6 +585,11 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
           organizationId: item.organizationId ?? widget.session.organizationId,
           routeId: item.routeId ?? widget.session.route?.serverId,
           initialValue: instruction,
+          allowedInstructionTypes: _allowedInstructionTypes(excluding: display),
+          suggestedSpeed: _suggestedSpeed(excluding: display),
+          rallyDefaultSpeed: widget.session.route?.defaultSpeed,
+          defaultPauseDurationMillis:
+              widget.session.route?.defaultPauseDurationMillis,
         ),
       );
       if (edited == null) return;
@@ -679,6 +764,10 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
           routeId: instruction.routeId,
           instructionNumber: instructionNumber,
           instructionText: instruction.instructionText,
+          instructionType: instruction.instructionType,
+          speed: instruction.speed,
+          pauseDurationMillis: instruction.pauseDurationMillis,
+          transitDurationMillis: instruction.transitDurationMillis,
         ),
       );
     }
@@ -738,7 +827,7 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
         organizationId: checkpoint.organizationId,
         routeId: checkpoint.routeId,
       ),
-      detail: checkpoint.routeItemDetail,
+      detail: checkpoint.name,
       checkpoint: checkpoint,
     );
   }
@@ -751,6 +840,40 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
             .map((item) => item.position ?? 0)
             .fold(0, (highest, value) => value > highest ? value : highest) +
         1;
+  }
+
+  List<RouteItemDisplay> _planningItems({RouteItemDisplay? excluding}) {
+    final items = _routeItems.isEmpty ? widget.session.routeItems : _routeItems;
+    return items.where((item) => !identical(item, excluding)).toList()..sort(
+      (left, right) =>
+          (left.item.position ?? 0).compareTo(right.item.position ?? 0),
+    );
+  }
+
+  List<String> _allowedInstructionTypes({RouteItemDisplay? excluding}) {
+    String? open;
+    for (final display in _planningItems(excluding: excluding)) {
+      final type = display.routeInstruction?.instructionType;
+      if (type == 'BEGIN_FREE_ZONE') open = 'FREE';
+      if (type == 'BEGIN_TRANSIT') open = 'TRANSIT';
+      if (type == 'END_FREE_ZONE' && open == 'FREE') open = null;
+      if (type == 'END_TRANSIT' && open == 'TRANSIT') open = null;
+    }
+    if (open == 'FREE') return const ['STANDARD', 'END_FREE_ZONE'];
+    if (open == 'TRANSIT') return const ['STANDARD', 'END_TRANSIT'];
+    return const ['STANDARD', 'BEGIN_FREE_ZONE', 'BEGIN_TRANSIT'];
+  }
+
+  bool _checkpointAllowed() => _allowedInstructionTypes().length == 3;
+
+  double? _suggestedSpeed({RouteItemDisplay? excluding}) {
+    final instructions = _planningItems(excluding: excluding)
+        .map((item) => item.routeInstruction)
+        .whereType<RouteInstructionDto>();
+    for (final instruction in instructions.toList().reversed) {
+      if (instruction.speed != null) return instruction.speed;
+    }
+    return widget.session.route?.defaultSpeed;
   }
 
   int _nextCheckpointNumber() {
@@ -808,3 +931,5 @@ class PlanComponentState extends ConsumerState<PlanComponent> {
 }
 
 enum _RouteItemType { nri, checkpoint }
+
+enum _RouteItemFilter { all, nris, checkpoints }

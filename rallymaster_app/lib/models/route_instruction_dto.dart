@@ -15,6 +15,10 @@ class RouteInstructionDto {
     this.organizationId,
     this.instructionNumber,
     this.instructionText,
+    this.instructionType,
+    this.speed,
+    this.pauseDurationMillis,
+    this.transitDurationMillis,
     this.routeId,
   });
 
@@ -31,6 +35,10 @@ class RouteInstructionDto {
     organizationId: json['organizationId'] as int?,
     instructionNumber: json['instructionNumber'] as int?,
     instructionText: json['instructionText'] as String?,
+    instructionType: json['instructionType'] as String?,
+    speed: json['speed'] as double?,
+    pauseDurationMillis: json['pauseDurationMillis'] as int?,
+    transitDurationMillis: json['transitDurationMillis'] as int?,
     routeId: json['routeId'] as int?,
   );
 
@@ -47,6 +55,10 @@ class RouteInstructionDto {
   final int? organizationId;
   final int? instructionNumber;
   final String? instructionText;
+  final String? instructionType;
+  final double? speed;
+  final int? pauseDurationMillis;
+  final int? transitDurationMillis;
   final int? routeId;
 
   RouteInstructionDto forOrganizationId(int selectedOrganizationId) => RouteInstructionDto(
@@ -62,6 +74,10 @@ class RouteInstructionDto {
     deleted: deleted,
     instructionNumber: instructionNumber,
     instructionText: instructionText,
+    instructionType: instructionType,
+    speed: speed,
+    pauseDurationMillis: pauseDurationMillis,
+    transitDurationMillis: transitDurationMillis,
     organizationId: selectedOrganizationId,
     routeId: routeId,
   );
@@ -80,6 +96,10 @@ class RouteInstructionDto {
     if (organizationId != null) 'organizationId': organizationId,
     if (instructionNumber != null) 'instructionNumber': instructionNumber,
     if (instructionText != null) 'instructionText': instructionText,
+    if (instructionType != null) 'instructionType': instructionType,
+    if (speed != null) 'speed': speed,
+    if (pauseDurationMillis != null) 'pauseDurationMillis': pauseDurationMillis,
+    if (transitDurationMillis != null) 'transitDurationMillis': transitDurationMillis,
     if (routeId != null) 'routeId': routeId,
   };
 }

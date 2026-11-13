@@ -3,6 +3,7 @@ package com.rallyapp.rallymaster.entity.base;
 
 import com.rallyapp.rallymaster.entity.RallyEntity;
 import com.rallyapp.rallymaster.entity.RouteItemEntity;
+import com.rallyapp.rallymaster.entity.RouteTimingPlanEntity;
 import com.rallyapp.rallymaster.model.base.BaseRoute;
 import com.rallyapp.rallymaster.model.base.Multitenant;
 import com.rallyapp.rallymaster.model.Route;
@@ -34,7 +35,7 @@ import java.util.Set;
 
 @MappedSuperclass
 public abstract class BaseRouteEntity extends AbstractBaseEntity
-    implements BaseRoute<RallyEntity, RouteItemEntity>, Multitenant, Serializable
+    implements BaseRoute<RallyEntity, RouteItemEntity, RouteTimingPlanEntity>, Multitenant, Serializable
 {
   @Id
   @Column
@@ -52,6 +53,24 @@ public abstract class BaseRouteEntity extends AbstractBaseEntity
   protected RouteStatus status = null;
   
   @Column
+  protected Double defaultSpeed = null;
+  
+  @Column
+  protected Long restartIntervalMillis = null;
+  
+  @Column
+  protected Long defaultPauseDurationMillis = null;
+  
+  @Column
+  protected String timeZone = null;
+  
+  @Column
+  protected Long carZeroStartEpochMillis = null;
+  
+  @Column
+  protected Long maximumCheckpointScore = null;
+  
+  @Column
   protected Long organizationId = null;
   
 
@@ -62,6 +81,10 @@ public abstract class BaseRouteEntity extends AbstractBaseEntity
   @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
   @OrderBy("position ASC")
   protected List<RouteItemEntity> items;
+  
+  @OneToOne(cascade=CascadeType.ALL)
+  @JoinColumn(name= "timingPlan_id", nullable=true)
+  protected RouteTimingPlanEntity timingPlan;
   
   
   public Long getId ()
@@ -112,6 +135,72 @@ public abstract class BaseRouteEntity extends AbstractBaseEntity
     this.status = status;
   }
 
+  public Double getDefaultSpeed ()
+  {
+    return this.defaultSpeed;
+  }
+  
+  public void setDefaultSpeed (Double defaultSpeed)
+  {
+    this.defaultSpeed = defaultSpeed;
+  }
+  
+
+  public Long getRestartIntervalMillis ()
+  {
+    return this.restartIntervalMillis;
+  }
+  
+  public void setRestartIntervalMillis (Long restartIntervalMillis)
+  {
+    this.restartIntervalMillis = restartIntervalMillis;
+  }
+  
+
+  public Long getDefaultPauseDurationMillis ()
+  {
+    return this.defaultPauseDurationMillis;
+  }
+  
+  public void setDefaultPauseDurationMillis (Long defaultPauseDurationMillis)
+  {
+    this.defaultPauseDurationMillis = defaultPauseDurationMillis;
+  }
+  
+
+  public String getTimeZone ()
+  {
+    return this.timeZone;
+  }
+  
+  public void setTimeZone (String timeZone)
+  {
+    this.timeZone = timeZone;
+  }
+  
+
+  public Long getCarZeroStartEpochMillis ()
+  {
+    return this.carZeroStartEpochMillis;
+  }
+  
+  public void setCarZeroStartEpochMillis (Long carZeroStartEpochMillis)
+  {
+    this.carZeroStartEpochMillis = carZeroStartEpochMillis;
+  }
+  
+
+  public Long getMaximumCheckpointScore ()
+  {
+    return this.maximumCheckpointScore;
+  }
+  
+  public void setMaximumCheckpointScore (Long maximumCheckpointScore)
+  {
+    this.maximumCheckpointScore = maximumCheckpointScore;
+  }
+  
+
   public Long getOrganizationId ()
   {
     return this.organizationId;
@@ -142,6 +231,17 @@ public abstract class BaseRouteEntity extends AbstractBaseEntity
   public void setItems (List<RouteItemEntity> items)
   {
     this.items = items;
+  }
+
+
+  public RouteTimingPlanEntity getTimingPlan ()
+  {
+    return this.timingPlan;
+  }
+  
+  public void setTimingPlan (RouteTimingPlanEntity timingPlan)
+  {
+    this.timingPlan = timingPlan;
   }
 
 

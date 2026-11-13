@@ -35,11 +35,10 @@ class CheckpointDetailsDialog extends StatefulWidget {
 
 class _CheckpointDetailsDialogState extends State<CheckpointDetailsDialog> {
   static const _checkpointTypes = [
-    'PASSAGE_CONTROL',
+    'OFFCOURSE_CONTROL',
     'TIMED_CONTROL',
     'TIME_CHECK',
     'RESTART',
-    'START',
     'FINISH',
   ];
 
@@ -100,15 +99,20 @@ class _CheckpointDetailsDialogState extends State<CheckpointDetailsDialog> {
               DropdownButtonFormField<String>(
                 initialValue: _checkpointType,
                 decoration: const InputDecoration(labelText: 'Checkpoint type'),
-                items: _checkpointTypes
-                    .map(
-                      (type) => DropdownMenuItem(
-                        value: type,
-                        child: Text(_formatCheckpointType(type)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) => setState(() => _checkpointType = value!),
+                items:
+                    (_checkpointType == 'START'
+                            ? const ['START']
+                            : _checkpointTypes)
+                        .map(
+                          (type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(_formatCheckpointType(type)),
+                          ),
+                        )
+                        .toList(),
+                onChanged: _checkpointType == 'START'
+                    ? null
+                    : (value) => setState(() => _checkpointType = value!),
               ),
               _textField(_nameController, 'Name'),
               _textField(_notesController, 'Notes', maxLines: 3),

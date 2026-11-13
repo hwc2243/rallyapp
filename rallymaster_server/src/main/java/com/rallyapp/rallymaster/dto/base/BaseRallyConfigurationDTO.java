@@ -5,9 +5,9 @@ import com.rallyapp.rallymaster.dto.RallyConfigurationDTO;
 import com.rallyapp.rallymaster.dto.RallyDTO;
 import com.rallyapp.rallymaster.model.base.BaseRallyConfiguration;
 import com.rallyapp.rallymaster.model.base.Multitenant;
+import com.rallyapp.rallymaster.model.RallyConfigurationDistanceUnit;
 import com.rallyapp.rallymaster.model.RallyConfigurationScoringUnit;
 import java.io.Serializable;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -17,20 +17,27 @@ implements Multitenant,  Serializable
 {
   protected Long id = null;
 
+  protected RallyConfigurationDistanceUnit distanceUnit = null;
+  
   protected RallyConfigurationScoringUnit scoringUnit = null;
   
   protected String eventPasswordHash = null;
   
   protected String timeZone = null;
   
-@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS")
-  protected LocalDateTime officialStartTime = null;
+  protected Long officialStartEpochMillis = null;
   
   protected Double checkpointAcquisitionRadiusMeters = null;
   
   protected Long maximumCheckpointScore = null;
   
-  protected Long startIntervalSeconds = null;
+  protected Long carStartIntervalMillis = null;
+  
+  protected Double defaultSpeed = null;
+  
+  protected Long defaultRestartIntervalMillis = null;
+  
+  protected Long defaultPauseDurationMillis = null;
   
   protected Long organizationId = null;
   
@@ -44,13 +51,17 @@ implements Multitenant,  Serializable
   protected BaseRallyConfigurationDTO (Builder builder)
   {
     this.id = builder.id;
+    this.distanceUnit = builder.distanceUnit;
     this.scoringUnit = builder.scoringUnit;
     this.eventPasswordHash = builder.eventPasswordHash;
     this.timeZone = builder.timeZone;
-    this.officialStartTime = builder.officialStartTime;
+    this.officialStartEpochMillis = builder.officialStartEpochMillis;
     this.checkpointAcquisitionRadiusMeters = builder.checkpointAcquisitionRadiusMeters;
     this.maximumCheckpointScore = builder.maximumCheckpointScore;
-    this.startIntervalSeconds = builder.startIntervalSeconds;
+    this.carStartIntervalMillis = builder.carStartIntervalMillis;
+    this.defaultSpeed = builder.defaultSpeed;
+    this.defaultRestartIntervalMillis = builder.defaultRestartIntervalMillis;
+    this.defaultPauseDurationMillis = builder.defaultPauseDurationMillis;
     this.organizationId = builder.organizationId;
     this.rallyId = builder.rallyId;
   }
@@ -65,6 +76,16 @@ implements Multitenant,  Serializable
     this.id = id;
   }
 
+
+  public RallyConfigurationDistanceUnit getDistanceUnit ()
+  {
+    return this.distanceUnit;
+  }
+  
+  public void setDistanceUnit (RallyConfigurationDistanceUnit distanceUnit)
+  {
+    this.distanceUnit = distanceUnit;
+  }
 
   public RallyConfigurationScoringUnit getScoringUnit ()
   {
@@ -98,14 +119,14 @@ implements Multitenant,  Serializable
   }
   
 
-  public LocalDateTime getOfficialStartTime ()
+  public Long getOfficialStartEpochMillis ()
   {
-    return this.officialStartTime;
+    return this.officialStartEpochMillis;
   }
   
-  public void setOfficialStartTime (LocalDateTime officialStartTime)
+  public void setOfficialStartEpochMillis (Long officialStartEpochMillis)
   {
-    this.officialStartTime = officialStartTime;
+    this.officialStartEpochMillis = officialStartEpochMillis;
   }
   
 
@@ -131,14 +152,47 @@ implements Multitenant,  Serializable
   }
   
 
-  public Long getStartIntervalSeconds ()
+  public Long getCarStartIntervalMillis ()
   {
-    return this.startIntervalSeconds;
+    return this.carStartIntervalMillis;
   }
   
-  public void setStartIntervalSeconds (Long startIntervalSeconds)
+  public void setCarStartIntervalMillis (Long carStartIntervalMillis)
   {
-    this.startIntervalSeconds = startIntervalSeconds;
+    this.carStartIntervalMillis = carStartIntervalMillis;
+  }
+  
+
+  public Double getDefaultSpeed ()
+  {
+    return this.defaultSpeed;
+  }
+  
+  public void setDefaultSpeed (Double defaultSpeed)
+  {
+    this.defaultSpeed = defaultSpeed;
+  }
+  
+
+  public Long getDefaultRestartIntervalMillis ()
+  {
+    return this.defaultRestartIntervalMillis;
+  }
+  
+  public void setDefaultRestartIntervalMillis (Long defaultRestartIntervalMillis)
+  {
+    this.defaultRestartIntervalMillis = defaultRestartIntervalMillis;
+  }
+  
+
+  public Long getDefaultPauseDurationMillis ()
+  {
+    return this.defaultPauseDurationMillis;
+  }
+  
+  public void setDefaultPauseDurationMillis (Long defaultPauseDurationMillis)
+  {
+    this.defaultPauseDurationMillis = defaultPauseDurationMillis;
   }
   
 
@@ -186,19 +240,27 @@ implements Multitenant,  Serializable
 
   private Long id = null;
 
+  private RallyConfigurationDistanceUnit distanceUnit = null;
+  
   private RallyConfigurationScoringUnit scoringUnit = null;
   
   private String eventPasswordHash = null;
   
   private String timeZone = null;
   
-  private LocalDateTime officialStartTime = null;
+  private Long officialStartEpochMillis = null;
   
   private Double checkpointAcquisitionRadiusMeters = null;
   
   private Long maximumCheckpointScore = null;
   
-  private Long startIntervalSeconds = null;
+  private Long carStartIntervalMillis = null;
+  
+  private Double defaultSpeed = null;
+  
+  private Long defaultRestartIntervalMillis = null;
+  
+  private Long defaultPauseDurationMillis = null;
   
   private Long organizationId = null;
   
@@ -210,6 +272,11 @@ implements Multitenant,  Serializable
       return this;
     }
     
+    public Builder distanceUnit(RallyConfigurationDistanceUnit distanceUnit) {
+      this.distanceUnit = distanceUnit;
+      return this;
+    }
+
     public Builder scoringUnit(RallyConfigurationScoringUnit scoringUnit) {
       this.scoringUnit = scoringUnit;
       return this;
@@ -225,8 +292,8 @@ implements Multitenant,  Serializable
       return this;
     }
 
-    public Builder officialStartTime(LocalDateTime officialStartTime) {
-      this.officialStartTime = officialStartTime;
+    public Builder officialStartEpochMillis(Long officialStartEpochMillis) {
+      this.officialStartEpochMillis = officialStartEpochMillis;
       return this;
     }
 
@@ -240,8 +307,23 @@ implements Multitenant,  Serializable
       return this;
     }
 
-    public Builder startIntervalSeconds(Long startIntervalSeconds) {
-      this.startIntervalSeconds = startIntervalSeconds;
+    public Builder carStartIntervalMillis(Long carStartIntervalMillis) {
+      this.carStartIntervalMillis = carStartIntervalMillis;
+      return this;
+    }
+
+    public Builder defaultSpeed(Double defaultSpeed) {
+      this.defaultSpeed = defaultSpeed;
+      return this;
+    }
+
+    public Builder defaultRestartIntervalMillis(Long defaultRestartIntervalMillis) {
+      this.defaultRestartIntervalMillis = defaultRestartIntervalMillis;
+      return this;
+    }
+
+    public Builder defaultPauseDurationMillis(Long defaultPauseDurationMillis) {
+      this.defaultPauseDurationMillis = defaultPauseDurationMillis;
       return this;
     }
 

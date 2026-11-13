@@ -11,6 +11,7 @@ import com.rallyapp.rallymaster.persistence.RallyConfigurationPersistence;
 import com.rallyapp.rallymaster.persistence.RallyPersistence;
 import com.rallyapp.rallymaster.persistence.RoutePersistence;
 import com.rallyapp.rallymaster.service.RouteService;
+import com.rallyapp.rallymaster.service.RouteTimingPlanCalculationService;
 import com.rallyapp.rallymaster.service.ServiceException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -34,6 +35,7 @@ public class CompetitionAuthenticationService {
   private final CompetitionAuthenticationTokenRepository tokenRepository;
   private final RoutePersistence routePersistence;
   private final RouteService routeService;
+  private final RouteTimingPlanCalculationService routeTimingPlanCalculationService;
   private final PasswordEncoder passwordEncoder;
   private final SecureRandom secureRandom = new SecureRandom();
 
@@ -44,6 +46,7 @@ public class CompetitionAuthenticationService {
       CompetitionAuthenticationTokenRepository tokenRepository,
       RoutePersistence routePersistence,
       RouteService routeService,
+      RouteTimingPlanCalculationService routeTimingPlanCalculationService,
       PasswordEncoder passwordEncoder) {
     this.rallyConfigurationPersistence = rallyConfigurationPersistence;
     this.checkpointPersistence = checkpointPersistence;
@@ -51,6 +54,7 @@ public class CompetitionAuthenticationService {
     this.tokenRepository = tokenRepository;
     this.routePersistence = routePersistence;
     this.routeService = routeService;
+    this.routeTimingPlanCalculationService = routeTimingPlanCalculationService;
     this.passwordEncoder = passwordEncoder;
   }
 
@@ -65,6 +69,7 @@ public class CompetitionAuthenticationService {
       throw new ServiceException("A completed route cannot be published.");
     }
     requireSingleValidStartCheckpoint(routeId);
+    routeTimingPlanCalculationService.calculateForRoute(routeId);
 
     route.setStatus(RouteStatus.ACTIVE);
     RouteDTO publishedRoute = routeService.update(route);
@@ -153,7 +158,7 @@ public class CompetitionAuthenticationService {
     configuration.setScoringUnit(RallyConfigurationScoringUnit.SECONDS);
     configuration.setTimeZone("America/New_York");
     configuration.setCheckpointAcquisitionRadiusMeters(150.0);
-    configuration.setStartIntervalSeconds(60L);
+    configuration.setCarStartIntervalMillis(60_000L);
   }
 
   private static String digest(String token) {

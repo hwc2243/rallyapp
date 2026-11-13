@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.rallyapp.rallymaster.dto.RallyDTO;
 import com.rallyapp.rallymaster.dto.RouteDTO;
 import com.rallyapp.rallymaster.dto.RouteItemDTO;
+import com.rallyapp.rallymaster.dto.RouteTimingPlanDTO;
 import com.rallyapp.rallymaster.model.base.BaseRoute;
 import com.rallyapp.rallymaster.model.base.Multitenant;
 import com.rallyapp.rallymaster.model.RouteStatus;
@@ -23,9 +24,22 @@ implements Multitenant,  Serializable
   
   protected RouteStatus status = null;
   
+  protected Double defaultSpeed = null;
+  
+  protected Long restartIntervalMillis = null;
+  
+  protected Long defaultPauseDurationMillis = null;
+  
+  protected String timeZone = null;
+  
+  protected Long carZeroStartEpochMillis = null;
+  
+  protected Long maximumCheckpointScore = null;
+  
   protected Long organizationId = null;
   
   protected Long rallyId;
+
 
 
 
@@ -39,6 +53,12 @@ implements Multitenant,  Serializable
     this.name = builder.name;
     this.description = builder.description;
     this.status = builder.status;
+    this.defaultSpeed = builder.defaultSpeed;
+    this.restartIntervalMillis = builder.restartIntervalMillis;
+    this.defaultPauseDurationMillis = builder.defaultPauseDurationMillis;
+    this.timeZone = builder.timeZone;
+    this.carZeroStartEpochMillis = builder.carZeroStartEpochMillis;
+    this.maximumCheckpointScore = builder.maximumCheckpointScore;
     this.organizationId = builder.organizationId;
     this.rallyId = builder.rallyId;
   }
@@ -86,6 +106,72 @@ implements Multitenant,  Serializable
     this.status = status;
   }
 
+  public Double getDefaultSpeed ()
+  {
+    return this.defaultSpeed;
+  }
+  
+  public void setDefaultSpeed (Double defaultSpeed)
+  {
+    this.defaultSpeed = defaultSpeed;
+  }
+  
+
+  public Long getRestartIntervalMillis ()
+  {
+    return this.restartIntervalMillis;
+  }
+  
+  public void setRestartIntervalMillis (Long restartIntervalMillis)
+  {
+    this.restartIntervalMillis = restartIntervalMillis;
+  }
+  
+
+  public Long getDefaultPauseDurationMillis ()
+  {
+    return this.defaultPauseDurationMillis;
+  }
+  
+  public void setDefaultPauseDurationMillis (Long defaultPauseDurationMillis)
+  {
+    this.defaultPauseDurationMillis = defaultPauseDurationMillis;
+  }
+  
+
+  public String getTimeZone ()
+  {
+    return this.timeZone;
+  }
+  
+  public void setTimeZone (String timeZone)
+  {
+    this.timeZone = timeZone;
+  }
+  
+
+  public Long getCarZeroStartEpochMillis ()
+  {
+    return this.carZeroStartEpochMillis;
+  }
+  
+  public void setCarZeroStartEpochMillis (Long carZeroStartEpochMillis)
+  {
+    this.carZeroStartEpochMillis = carZeroStartEpochMillis;
+  }
+  
+
+  public Long getMaximumCheckpointScore ()
+  {
+    return this.maximumCheckpointScore;
+  }
+  
+  public void setMaximumCheckpointScore (Long maximumCheckpointScore)
+  {
+    this.maximumCheckpointScore = maximumCheckpointScore;
+  }
+  
+
   public Long getOrganizationId ()
   {
     return this.organizationId;
@@ -106,6 +192,7 @@ implements Multitenant,  Serializable
   {
     this.rallyId = rallyId;
   }
+
 
 
 
@@ -137,6 +224,18 @@ implements Multitenant,  Serializable
   
   private RouteStatus status = null;
   
+  private Double defaultSpeed = null;
+  
+  private Long restartIntervalMillis = null;
+  
+  private Long defaultPauseDurationMillis = null;
+  
+  private String timeZone = null;
+  
+  private Long carZeroStartEpochMillis = null;
+  
+  private Long maximumCheckpointScore = null;
+  
   private Long organizationId = null;
   
 
@@ -159,6 +258,36 @@ implements Multitenant,  Serializable
 
     public Builder status(RouteStatus status) {
       this.status = status;
+      return this;
+    }
+
+    public Builder defaultSpeed(Double defaultSpeed) {
+      this.defaultSpeed = defaultSpeed;
+      return this;
+    }
+
+    public Builder restartIntervalMillis(Long restartIntervalMillis) {
+      this.restartIntervalMillis = restartIntervalMillis;
+      return this;
+    }
+
+    public Builder defaultPauseDurationMillis(Long defaultPauseDurationMillis) {
+      this.defaultPauseDurationMillis = defaultPauseDurationMillis;
+      return this;
+    }
+
+    public Builder timeZone(String timeZone) {
+      this.timeZone = timeZone;
+      return this;
+    }
+
+    public Builder carZeroStartEpochMillis(Long carZeroStartEpochMillis) {
+      this.carZeroStartEpochMillis = carZeroStartEpochMillis;
+      return this;
+    }
+
+    public Builder maximumCheckpointScore(Long maximumCheckpointScore) {
+      this.maximumCheckpointScore = maximumCheckpointScore;
       return this;
     }
 

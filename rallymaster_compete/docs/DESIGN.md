@@ -13,9 +13,9 @@ These are proposed additions; this document does not implement them.
 
 | Model | Responsibility |
 | --- | --- |
-| `CompetitionEvent` | Per-rally competition settings: hashed event password, score unit, maximum score, discovery settings, status. |
+| `CompetitionEvent` | Per-rally competition settings: hashed event password, distance unit (`MILES`/`KILOMETERS`), score unit, maximum score, discovery settings, status. Distance and score units apply to all routes. |
 | Route additions | Lifecycle status: `PLANNING`, `ACTIVE`, or `COMPLETED`, with the existing rally relationship. Route plan data is immutable after transition to `ACTIVE`. Publishing from `PLANNING` to `ACTIVE` captures the shared event password. |
-| Checkpoint additions | Reuse the existing inherited route-item location and heading; add configurable acquisition radius (150 m default), planned-duration offset from segment start, restart delay, and optional per-control maximum score. Rename `PASSAGE_CONTROL` to `OFFCOURSE_CONTROL`. |
+| Checkpoint additions | Reuse the existing inherited route-item location and heading; add configurable acquisition radius (150 m default), planned-duration offset from segment start, restart delay, and optional per-control maximum score. Rename `PASSAGE_CONTROL` to `OFFCOURSE_CONTROL`. Timing values are stored as milliseconds. |
 | `CompetitionTeam` | Driver/navigator, car number, selected route, calculated scheduled start, and competition state. Enforce `(rally_id, car_number)` uniqueness. |
 | `CompetitionDevice` | Team installation identifier and `PRIMARY`/`BACKUP` role; exactly one primary device. Backup enrollment uses a one-time pairing QR. |
 | `CheckpointCrossing` | Immutable crossing evidence, ideal/actual time, score, plan version, device role, review-required flag/reason, and idempotency key. |
@@ -54,12 +54,14 @@ primary device's QR code.
 ## Versioned competition plan
 
 The downloaded plan contains rally/route identity, event time zone, plan
-version, official scheduled start, fixed one-minute-per-car-number start
-offset, score unit, maximum-score policy, and ordered
-checkpoints. Each checkpoint includes type, location, heading, radius,
-intercept tolerance, duration offset from segment start, restart delay, and
-score override. The route-selected configuration download includes the
-150-metre default acquisition radius and any event/control overrides.
+version, official scheduled start, the server-calculated car-zero segment start
+and ideal arrival for each checkpoint, rally-wide car-start interval, score
+unit, maximum-score policy, and ordered checkpoints. Each
+checkpoint includes type, location, heading, radius, intercept tolerance,
+duration offset from segment start, restart delay, and score override. All
+timing data is expressed in milliseconds. The route-selected configuration
+download includes the 150-metre default acquisition radius and any
+event/control overrides.
 
 The plan is persisted atomically. A running team's plan must not change
 silently; server policy must define plan replacement/version behavior.
@@ -101,16 +103,18 @@ accuracy, heading, intercept distance, plan version, and detector version.
 ## Scoring model
 
 ```text
-team start = scheduled start + car number × 1 minute
-ideal arrival = active segment team start + planned duration
+team start = car-zero scheduled start + car number × car-start interval
+ideal arrival = server car-zero ideal arrival + car number × car-start interval
 adjusted ideal = ideal arrival + cumulative TA for future controls
 variance = actual intercept - adjusted ideal
 score = min(maximum score, floor(abs(variance in configured score units)))
 ```
 
-`RESTART` establishes the next segment time basis after its delay. A TA cannot
-modify a previously finalized control; an appeal requires a RallyMaster manual
-override.
+`RESTART` establishes the next server-calculated car-zero segment time basis:
+the first whole minute at or after the restart's car-zero ideal time plus its
+configured restart pause.
+A TA cannot modify a previously finalized control; an appeal requires a
+RallyMaster manual override.
 `OFFCOURSE_CONTROL` applies maximum score to every remaining `TIMED_CONTROL`
 in its segment. `START`, `TIME_CHECK`,
 and `FINISH` record events but do not add direct score.
@@ -148,7 +152,8 @@ only the scoped information required for backup operation.
    controls; forgotten TA uses manual override.
 8. `OFFCOURSE_CONTROL` applies maximum score to all remaining timed controls
    in its segment; define whether another off-course event changes anything.
-9. Define restart mileage and delay semantics.
+9. Rally-wide distance unit is miles or kilometers and controls both distance
+   and speed entry; scoring unit is seconds or cents and controls scoring only.
 10. Backup enrollment uses a primary-generated one-time QR pairing code;
     define its expiry and recovery behavior.
 11. A route is immutable after `ACTIVE`; teams cannot change route after

@@ -15,6 +15,11 @@ class RouteInstructionDetailsDialog extends StatefulWidget {
     required this.instructionNumber,
     required this.organizationId,
     required this.routeId,
+    required this.allowedInstructionTypes,
+    this.suggestedSpeed,
+    this.rallyDefaultSpeed,
+    this.defaultPauseDurationMillis,
+    this.suggestedTransitDurationMillis,
     this.initialValue,
   });
 
@@ -26,6 +31,11 @@ class RouteInstructionDetailsDialog extends StatefulWidget {
   final int instructionNumber;
   final int organizationId;
   final int? routeId;
+  final List<String> allowedInstructionTypes;
+  final double? suggestedSpeed;
+  final double? rallyDefaultSpeed;
+  final int? defaultPauseDurationMillis;
+  final int? suggestedTransitDurationMillis;
   final RouteInstructionDto? initialValue;
 
   @override
@@ -42,6 +52,10 @@ class _RouteInstructionDetailsDialogState
   late final TextEditingController _longitudeController;
   late final TextEditingController _headingController;
   late final TextEditingController _distanceController;
+  late final TextEditingController _speedController;
+  late final TextEditingController _pauseController;
+  late final TextEditingController _transitDurationController;
+  late String _instructionType;
 
   bool get _isEditing => widget.initialValue != null;
 
@@ -65,6 +79,19 @@ class _RouteInstructionDetailsDialogState
     _distanceController = TextEditingController(
       text: (initial?.distance ?? widget.distance).toStringAsFixed(3),
     );
+    _instructionType =
+        initial?.instructionType ?? widget.allowedInstructionTypes.first;
+    _speedController = TextEditingController(
+      text: (initial?.speed ?? widget.suggestedSpeed)?.toString() ?? '',
+    );
+    _pauseController = TextEditingController(
+      text: _formatDuration(initial?.pauseDurationMillis),
+    );
+    _transitDurationController = TextEditingController(
+      text: _formatDuration(
+        initial?.transitDurationMillis ?? widget.suggestedTransitDurationMillis,
+      ),
+    );
   }
 
   @override
@@ -75,6 +102,9 @@ class _RouteInstructionDetailsDialogState
     _longitudeController.dispose();
     _headingController.dispose();
     _distanceController.dispose();
+    _speedController.dispose();
+    _pauseController.dispose();
+    _transitDurationController.dispose();
     super.dispose();
   }
 
@@ -93,6 +123,76 @@ class _RouteInstructionDetailsDialogState
             children: [
               _textField(_instructionsController, 'Instructions', maxLines: 3),
               _textField(_notesController, 'Notes', maxLines: 3),
+              DropdownButtonFormField<String>(
+                initialValue: _instructionType,
+                decoration: const InputDecoration(labelText: 'NRI type'),
+                items: widget.allowedInstructionTypes
+                    .map(
+                      (type) => DropdownMenuItem(
+                        value: type,
+                        child: Text(_formatType(type)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) => setState(() => _instructionType = value!),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _numberField(
+                      _speedController,
+                      'Speed for next leg',
+                      validator: _validateOptionalNonNegative,
+                    ),
+                  ),
+                  if (widget.rallyDefaultSpeed != null)
+                    TextButton(
+                      onPressed: () => setState(
+                        () => _speedController.text = widget.rallyDefaultSpeed
+                            .toString(),
+                      ),
+                      child: const Text('Rally Speed'),
+                    ),
+                ],
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _textField(
+                      _pauseController,
+                      'Pause (mm:ss)',
+                      validator: _validateDuration,
+                    ),
+                  ),
+                  if (widget.defaultPauseDurationMillis != null)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove),
+                          tooltip: 'Subtract default pause',
+                          onPressed: () => _adjustPause(-1),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add),
+                          tooltip: 'Add default pause',
+                          onPressed: () => _adjustPause(1),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+              if (_instructionType == 'END_TRANSIT')
+                _textField(
+                  _transitDurationController,
+                  'Transit duration (mm:ss)',
+                  validator: _validateRequiredDuration,
+                ),
+              _numberField(
+                _distanceController,
+                'Mileage (mi)',
+                validator: (value) => _validateRange(value, 0, double.infinity),
+              ),
               _numberField(
                 _latitudeController,
                 'Latitude',
@@ -108,11 +208,6 @@ class _RouteInstructionDetailsDialogState
                 'Heading (degrees)',
                 decimal: false,
                 validator: (value) => _validateRange(value, 0, 359),
-              ),
-              _numberField(
-                _distanceController,
-                'Distance (mi)',
-                validator: (value) => _validateRange(value, 0, double.infinity),
               ),
             ],
           ),
@@ -187,6 +282,12 @@ class _RouteInstructionDetailsDialogState
         organizationId: widget.organizationId,
         instructionNumber: widget.instructionNumber,
         instructionText: _nullable(_instructionsController.text),
+        instructionType: _instructionType,
+        speed: _optionalDouble(_speedController.text),
+        pauseDurationMillis: _parseDuration(_pauseController.text),
+        transitDurationMillis: _instructionType == 'END_TRANSIT'
+            ? _parseDuration(_transitDurationController.text)
+            : null,
         routeId: widget.routeId,
         deleted: widget.initialValue?.deleted,
       ),
@@ -197,4 +298,54 @@ class _RouteInstructionDetailsDialogState
     final trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
   }
+
+  double? _optionalDouble(String value) =>
+      value.trim().isEmpty ? null : double.tryParse(value.trim());
+
+  int? _parseDuration(String value) {
+    if (value.trim().isEmpty) return null;
+    final parts = value.trim().split(':');
+    if (parts.length != 2) return null;
+    final minutes = int.tryParse(parts[0]);
+    final seconds = int.tryParse(parts[1]);
+    if (minutes == null ||
+        seconds == null ||
+        minutes < 0 ||
+        seconds < 0 ||
+        seconds >= 60)
+      return null;
+    return Duration(minutes: minutes, seconds: seconds).inMilliseconds;
+  }
+
+  String _formatDuration(int? value) {
+    if (value == null) return '';
+    final seconds = value ~/ 1000;
+    return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
+  }
+
+  String? _validateDuration(String? value) =>
+      value == null || value.trim().isEmpty || _parseDuration(value) != null
+      ? null
+      : 'Use mm:ss';
+  String? _validateRequiredDuration(String? value) =>
+      _parseDuration(value ?? '') == null ? 'Enter mm:ss' : null;
+  String? _validateOptionalNonNegative(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final number = double.tryParse(value);
+    return number == null || number < 0 ? 'Enter a non-negative speed' : null;
+  }
+
+  void _adjustPause(int multiplier) {
+    final current = _parseDuration(_pauseController.text) ?? 0;
+    final adjusted = (current + multiplier * widget.defaultPauseDurationMillis!)
+        .clamp(0, 1 << 62)
+        .toInt();
+    setState(() => _pauseController.text = _formatDuration(adjusted));
+  }
+
+  static String _formatType(String value) => value
+      .toLowerCase()
+      .split('_')
+      .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
+      .join(' ');
 }

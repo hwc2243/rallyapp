@@ -5,6 +5,7 @@ import com.rallyapp.rallymaster.entity.RouteEntity;
 import com.rallyapp.rallymaster.entity.RouteItemEntity;
 import com.rallyapp.rallymaster.model.base.BaseRouteInstruction;
 import com.rallyapp.rallymaster.model.RouteInstruction;
+import com.rallyapp.rallymaster.model.RouteInstructionInstructionType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -42,6 +43,19 @@ public abstract class BaseRouteInstructionEntity
   @Column
   protected String instructionText = null;
   
+  @Column
+  @Enumerated(EnumType.STRING)
+  protected RouteInstructionInstructionType instructionType = null;
+  
+  @Column
+  protected Double speed = null;
+  
+  @Column
+  protected Long pauseDurationMillis = null;
+  
+  @Column
+  protected Long transitDurationMillis = null;
+  
 
   
 
@@ -64,6 +78,49 @@ public abstract class BaseRouteInstructionEntity
   public void setInstructionText (String instructionText)
   {
     this.instructionText = instructionText;
+  }
+  
+
+  public RouteInstructionInstructionType getInstructionType ()
+  {
+    return this.instructionType;
+  }
+  
+  public void setInstructionType (RouteInstructionInstructionType instructionType)
+  {
+    this.instructionType = instructionType;
+  }
+
+  public Double getSpeed ()
+  {
+    return this.speed;
+  }
+  
+  public void setSpeed (Double speed)
+  {
+    this.speed = speed;
+  }
+  
+
+  public Long getPauseDurationMillis ()
+  {
+    return this.pauseDurationMillis;
+  }
+  
+  public void setPauseDurationMillis (Long pauseDurationMillis)
+  {
+    this.pauseDurationMillis = pauseDurationMillis;
+  }
+  
+
+  public Long getTransitDurationMillis ()
+  {
+    return this.transitDurationMillis;
+  }
+  
+  public void setTransitDurationMillis (Long transitDurationMillis)
+  {
+    this.transitDurationMillis = transitDurationMillis;
   }
   
 

@@ -16,6 +16,7 @@ import com.rallyapp.rallymaster.persistence.RallyPersistence;
 import com.rallyapp.rallymaster.persistence.RoutePersistence;
 import com.rallyapp.rallymaster.persistence.CheckpointPersistence;
 import com.rallyapp.rallymaster.service.RouteService;
+import com.rallyapp.rallymaster.service.RouteTimingPlanCalculationService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -33,8 +34,11 @@ class CompetitionAuthenticationServiceTest {
     CompetitionAuthenticationTokenRepository tokenRepository = mock(CompetitionAuthenticationTokenRepository.class);
     RoutePersistence routePersistence = mock(RoutePersistence.class);
     RouteService routeService = mock(RouteService.class);
+    RouteTimingPlanCalculationService timingPlanCalculationService =
+        mock(RouteTimingPlanCalculationService.class);
     CompetitionAuthenticationService service = new CompetitionAuthenticationService(
-        configurationPersistence, checkpointPersistence, rallyPersistence, tokenRepository, routePersistence, routeService, passwordEncoder);
+        configurationPersistence, checkpointPersistence, rallyPersistence, tokenRepository,
+        routePersistence, routeService, timingPlanCalculationService, passwordEncoder);
     long rallyId = 42L;
     RallyConfigurationEntity configuration = new RallyConfigurationEntity();
     configuration.setEventPasswordHash(passwordEncoder.encode("event-secret"));
@@ -58,8 +62,11 @@ class CompetitionAuthenticationServiceTest {
     CompetitionAuthenticationTokenRepository tokenRepository = mock(CompetitionAuthenticationTokenRepository.class);
     RoutePersistence routePersistence = mock(RoutePersistence.class);
     RouteService routeService = mock(RouteService.class);
+    RouteTimingPlanCalculationService timingPlanCalculationService =
+        mock(RouteTimingPlanCalculationService.class);
     CompetitionAuthenticationService service = new CompetitionAuthenticationService(
-        configurationPersistence, checkpointPersistence, rallyPersistence, tokenRepository, routePersistence, routeService, passwordEncoder);
+        configurationPersistence, checkpointPersistence, rallyPersistence, tokenRepository,
+        routePersistence, routeService, timingPlanCalculationService, passwordEncoder);
     RallyConfigurationEntity configuration = new RallyConfigurationEntity();
     configuration.setEventPasswordHash(passwordEncoder.encode("event-secret"));
     when(configurationPersistence.findFirstByRally_Id(42L)).thenReturn(configuration);

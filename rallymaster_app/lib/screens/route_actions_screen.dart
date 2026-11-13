@@ -11,8 +11,9 @@ import '../providers/route_provider.dart';
 import '../providers/tenant_discriminator_provider.dart';
 import 'competitors_screen.dart';
 import 'plan_screen.dart';
+import 'route_view_screen.dart';
 
-enum RouteActionResult { plan, deleted }
+enum RouteActionResult { plan, chooseRoute }
 
 /// The actions available after a route and its items have been selected.
 class RouteActionsScreen extends StatefulWidget {
@@ -36,8 +37,8 @@ class RouteActionsScreen extends StatefulWidget {
 }
 
 class _RouteActionsScreenState extends State<RouteActionsScreen> {
-  bool _deleting = false;
   bool _publishing = false;
+  bool _calculatingTimingPlan = false;
   late RouteDto _route;
 
   @override
@@ -86,66 +87,22 @@ class _RouteActionsScreenState extends State<RouteActionsScreen> {
     ),
   );
 
-  Future<void> _deleteRoute() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete route?'),
-        content: Text(
-          'Delete “${widget.route.name ?? 'this route'}” and its '
-          '${widget.routeItems.length} route item${widget.routeItems.length == 1 ? '' : 's'}? '
-          'This cannot be undone.',
+  Future<void> _openView() => Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (_) => RouteViewScreen(
+        session: AppSession(
+          user: widget.session.user,
+          organization: widget.session.organization,
+          organizationMembership: widget.session.organizationMembership,
+          rally: widget.rally,
+          route: _route,
+          routeItems: widget.routeItems,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
+        items: widget.routeItems,
+        accessToken: widget.accessToken,
       ),
-    );
-    if (confirmed != true || !mounted) return;
-
-    final routeId = widget.route.serverId;
-    if (routeId == null) {
-      _showError('The selected route has no server id.');
-      return;
-    }
-    setState(() => _deleting = true);
-    final tenantProvider = TenantDiscriminatorProvider()
-      ..setOrganizationId(widget.session.organizationId);
-    final httpClient = ServiceBuilderHttpClient(
-      baseUrl: ExternalApiClient.defaultApiBaseUrl,
-      headersProvider: () async => {
-        'Authorization': 'Bearer ${await widget.accessToken()}',
-      },
-    );
-    final provider = RouteProvider(
-      httpClient: httpClient,
-      tenantProvider: tenantProvider,
-    );
-    try {
-      // Route.items has ALL/orphan-removal on the server, so this also deletes
-      // every persisted route item in the same operation.
-      await provider.delete(routeId);
-      if (mounted) Navigator.of(context).pop(RouteActionResult.deleted);
-    } catch (error) {
-      _showError('Unable to delete route: $error');
-    } finally {
-      provider.dispose();
-      tenantProvider.dispose();
-      httpClient.client.close();
-      if (mounted) setState(() => _deleting = false);
-    }
-  }
+    ),
+  );
 
   Future<void> _publishRoute() async {
     final routeId = _route.serverId;
@@ -195,6 +152,43 @@ class _RouteActionsScreenState extends State<RouteActionsScreen> {
       tenantProvider.dispose();
       httpClient.client.close();
       if (mounted) setState(() => _publishing = false);
+    }
+  }
+
+  Future<void> _calculateTimingPlan() async {
+    final routeId = _route.serverId;
+    if (routeId == null) {
+      _showError('The selected route has no server id.');
+      return;
+    }
+    setState(() => _calculatingTimingPlan = true);
+    final tenantProvider = TenantDiscriminatorProvider()
+      ..setOrganizationId(widget.session.organizationId);
+    final httpClient = ServiceBuilderHttpClient(
+      baseUrl: ExternalApiClient.defaultApiBaseUrl,
+      headersProvider: () async => {
+        'Authorization': 'Bearer ${await widget.accessToken()}',
+      },
+    );
+    final provider = RouteProvider(
+      httpClient: httpClient,
+      tenantProvider: tenantProvider,
+    );
+    try {
+      final plan = await provider.calculateTimingPlan(routeId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Timing plan calculated (version ${plan.version}).'),
+        ),
+      );
+    } catch (error) {
+      _showError('Unable to calculate timing plan: $error');
+    } finally {
+      provider.dispose();
+      tenantProvider.dispose();
+      httpClient.client.close();
+      if (mounted) setState(() => _calculatingTimingPlan = false);
     }
   }
 
@@ -259,6 +253,9 @@ class _RouteActionsScreenState extends State<RouteActionsScreen> {
   @override
   Widget build(BuildContext context) {
     final hasRouteItems = widget.routeItems.isNotEmpty;
+    final isActive = _route.status == 'ACTIVE';
+    final canCalculateTimingPlan =
+        _route.status == 'PLAN' || _route.status == 'PLANNING';
     final labelStyle = Theme.of(context).textTheme.labelMedium?.copyWith(
       fontWeight: FontWeight.w700,
       letterSpacing: 0.6,
@@ -267,9 +264,17 @@ class _RouteActionsScreenState extends State<RouteActionsScreen> {
     final valueStyle = Theme.of(context).textTheme.titleMedium
         ?.copyWith(fontWeight: FontWeight.w600);
     return Scaffold(
-      appBar: AppBar(title: const Text('Route actions')),
+      appBar: AppBar(
+        title: const Text('Route actions'),
+        leading: IconButton(
+          tooltip: 'Back to routes',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () =>
+              Navigator.of(context).pop(RouteActionResult.chooseRoute),
+        ),
+      ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -291,34 +296,56 @@ class _RouteActionsScreenState extends State<RouteActionsScreen> {
                     ? '${widget.routeItems.length} route item${widget.routeItems.length == 1 ? '' : 's'} ready to use.'
                     : 'This route has no route items yet.',
               ),
-              const Spacer(),
+              const SizedBox(height: 24),
               FilledButton.icon(
-                onPressed: _deleting || _publishing ? null : _openPlan,
+                onPressed: _publishing || _calculatingTimingPlan
+                    ? null
+                    : _openPlan,
                 icon: const Icon(Icons.edit_road),
                 label: const Text('Plan'),
               ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _deleting || _publishing ? null : _openCompetitors,
-                icon: const Icon(Icons.groups_outlined),
-                label: const Text('Competitors'),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _deleting || _publishing ? null : _deleteRoute,
-                icon: _deleting
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.delete_outline),
-                label: Text(_deleting ? 'Deleting…' : 'Delete'),
-              ),
+              if (hasRouteItems && canCalculateTimingPlan) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _publishing || _calculatingTimingPlan
+                      ? null
+                      : _calculateTimingPlan,
+                  icon: _calculatingTimingPlan
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.schedule),
+                  label: Text(
+                    _calculatingTimingPlan
+                        ? 'Calculating…'
+                        : 'Calculate timing plan',
+                  ),
+                ),
+              ],
               if (hasRouteItems) ...[
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
-                  onPressed: _deleting || _publishing
+                  onPressed: _publishing || _calculatingTimingPlan
+                      ? null
+                      : _openView,
+                  icon: const Icon(Icons.visibility_outlined),
+                  label: const Text('View timing plan'),
+                ),
+              ],
+              if (isActive) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _publishing ? null : _openCompetitors,
+                  icon: const Icon(Icons.groups_outlined),
+                  label: const Text('Competitors'),
+                ),
+              ],
+              if (hasRouteItems) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _publishing
                       ? null
                       : () => _showNotImplemented('Drive'),
                   icon: const Icon(Icons.drive_eta),
@@ -326,10 +353,7 @@ class _RouteActionsScreenState extends State<RouteActionsScreen> {
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
-                  onPressed:
-                      _deleting || _publishing || _route.status == 'ACTIVE'
-                      ? null
-                      : _publishRoute,
+                  onPressed: _publishing || isActive ? null : _publishRoute,
                   icon: _publishing
                       ? const SizedBox(
                           height: 18,
@@ -337,25 +361,15 @@ class _RouteActionsScreenState extends State<RouteActionsScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : Icon(
-                          _route.status == 'ACTIVE'
-                              ? Icons.check_circle_outline
-                              : Icons.publish,
+                          isActive ? Icons.check_circle_outline : Icons.publish,
                         ),
                   label: Text(
                     _publishing
                         ? 'Publishing…'
-                        : _route.status == 'ACTIVE'
+                        : isActive
                         ? 'Published'
                         : 'Publish',
                   ),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: _deleting || _publishing
-                      ? null
-                      : () => _showNotImplemented('View'),
-                  icon: const Icon(Icons.visibility_outlined),
-                  label: const Text('View'),
                 ),
               ],
             ],

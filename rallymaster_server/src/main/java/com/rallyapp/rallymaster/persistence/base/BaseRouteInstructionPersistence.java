@@ -4,6 +4,7 @@ package com.rallyapp.rallymaster.persistence.base;
 
 
 import com.rallyapp.rallymaster.entity.RouteInstructionEntity;
+import com.rallyapp.rallymaster.model.RouteInstructionInstructionType;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.NoRepositoryBean;

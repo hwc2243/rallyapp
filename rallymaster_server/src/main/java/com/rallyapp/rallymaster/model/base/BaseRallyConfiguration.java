@@ -1,9 +1,9 @@
 package com.rallyapp.rallymaster.model.base;
 
 import com.rallyapp.rallymaster.model.Rally;
+import com.rallyapp.rallymaster.model.RallyConfigurationDistanceUnit;
 import com.rallyapp.rallymaster.model.RallyConfigurationScoringUnit;
 import java.io.Serializable;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -14,6 +14,10 @@ public interface BaseRallyConfiguration<RALLY>
   public Long getId ();
   public void setId (Long id);
 
+
+  public RallyConfigurationDistanceUnit getDistanceUnit ();
+  public void setDistanceUnit (RallyConfigurationDistanceUnit distanceUnit);
+  
 
   public RallyConfigurationScoringUnit getScoringUnit ();
   public void setScoringUnit (RallyConfigurationScoringUnit scoringUnit);
@@ -27,8 +31,8 @@ public interface BaseRallyConfiguration<RALLY>
   public void setTimeZone (String timeZone);
   
 
-  public LocalDateTime getOfficialStartTime ();
-  public void setOfficialStartTime (LocalDateTime officialStartTime);
+  public Long getOfficialStartEpochMillis ();
+  public void setOfficialStartEpochMillis (Long officialStartEpochMillis);
   
 
   public Double getCheckpointAcquisitionRadiusMeters ();
@@ -39,8 +43,20 @@ public interface BaseRallyConfiguration<RALLY>
   public void setMaximumCheckpointScore (Long maximumCheckpointScore);
   
 
-  public Long getStartIntervalSeconds ();
-  public void setStartIntervalSeconds (Long startIntervalSeconds);
+  public Long getCarStartIntervalMillis ();
+  public void setCarStartIntervalMillis (Long carStartIntervalMillis);
+  
+
+  public Double getDefaultSpeed ();
+  public void setDefaultSpeed (Double defaultSpeed);
+  
+
+  public Long getDefaultRestartIntervalMillis ();
+  public void setDefaultRestartIntervalMillis (Long defaultRestartIntervalMillis);
+  
+
+  public Long getDefaultPauseDurationMillis ();
+  public void setDefaultPauseDurationMillis (Long defaultPauseDurationMillis);
   
 
   public Long getOrganizationId ();

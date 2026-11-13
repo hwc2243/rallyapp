@@ -92,6 +92,100 @@ class _SelectRouteScreenState extends State<SelectRouteScreen> {
     if (route != null && mounted) await _selectRoute(route);
   }
 
+  Future<void> _editRoute(RouteDto route) async {
+    if (route.status != null &&
+        route.status != 'PLAN' &&
+        route.status != 'PLANNING') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only planning routes can be edited.')),
+      );
+      return;
+    }
+    final updated = await Navigator.of(context).push<RouteDto>(
+      MaterialPageRoute<RouteDto>(
+        builder: (_) => CreateRouteScreen(
+          session: widget.session,
+          rally: widget.rally,
+          accessToken: widget.accessToken,
+          initialRoute: route,
+        ),
+      ),
+    );
+    if (updated != null && mounted) await _loadRoutes();
+  }
+
+  Future<void> _deleteRoute(RouteDto route) async {
+    final routeId = route.serverId;
+    if (routeId == null) return;
+    if (route.status != null &&
+        route.status != 'PLAN' &&
+        route.status != 'PLANNING') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only planning routes can be deleted.')),
+      );
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete route?'),
+        content: Text(
+          'Delete “${route.name ?? 'this route'}” and all of its instructions and checkpoints? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    ServiceBuilderHttpClient? httpClient;
+    TenantDiscriminatorProvider? tenantProvider;
+    RouteProvider? provider;
+    try {
+      tenantProvider = TenantDiscriminatorProvider()
+        ..setOrganizationId(widget.session.organizationId);
+      httpClient = ServiceBuilderHttpClient(
+        baseUrl: ExternalApiClient.defaultApiBaseUrl,
+        headersProvider: () async => {
+          'Authorization': 'Bearer ${await widget.accessToken()}',
+        },
+      );
+      provider = RouteProvider(
+        httpClient: httpClient,
+        tenantProvider: tenantProvider,
+      );
+      await provider.delete(routeId);
+      if (mounted) {
+        await _loadRoutes();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Route deleted.')));
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = 'Unable to delete route: $error');
+    } finally {
+      provider?.dispose();
+      tenantProvider?.dispose();
+      httpClient?.client.close();
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   Future<void> _selectRoute(RouteDto route) async {
     final routeId = route.serverId;
     if (routeId == null) {
@@ -180,14 +274,72 @@ class _SelectRouteScreenState extends State<SelectRouteScreen> {
       itemBuilder: (context, index) {
         final route = _routes[index];
         return Card(
-          child: ListTile(
-            leading: const Icon(Icons.alt_route),
-            title: Text(route.name ?? 'Unnamed route'),
-            subtitle: route.description == null || route.description!.isEmpty
-                ? null
-                : Text(route.description!),
-            trailing: const Icon(Icons.chevron_right),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
             onTap: _loading ? null : () => _selectRoute(route),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          route.name ?? 'Unnamed route',
+                          style: Theme.of(context).textTheme.titleMedium,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (route.description != null &&
+                            route.description!.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            route.description!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            IconButton(
+                              tooltip: 'Edit route',
+                              icon: const Icon(Icons.edit_outlined),
+                              onPressed: _loading
+                                  ? null
+                                  : () => _editRoute(route),
+                            ),
+                            IconButton(
+                              tooltip: 'Delete route',
+                              icon: Icon(
+                                Icons.delete_outline,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                              onPressed: _loading
+                                  ? null
+                                  : () => _deleteRoute(route),
+                            ),
+                            if (route.status != null) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                route.status!,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                            const Spacer(),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(
+                    width: 24,
+                    child: Center(child: Icon(Icons.chevron_right)),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },
