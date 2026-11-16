@@ -9,6 +9,7 @@ class CompetitionCheckpoint {
     required this.heading,
     required this.distance,
     required this.notes,
+    required this.carZeroIdealArrivalEpochMillis,
   });
 
   factory CompetitionCheckpoint.fromJson(Map<String, dynamic> json) =>
@@ -22,6 +23,8 @@ class CompetitionCheckpoint {
         heading: (json['heading'] as num?)?.toInt(),
         distance: (json['distance'] as num?)?.toDouble(),
         notes: json['notes'] as String?,
+        carZeroIdealArrivalEpochMillis:
+            (json['carZeroIdealArrivalEpochMillis'] as num?)?.toInt(),
       );
 
   final int id;
@@ -33,4 +36,5 @@ class CompetitionCheckpoint {
   final int? heading;
   final double? distance;
   final String? notes;
+  final int? carZeroIdealArrivalEpochMillis;
 }

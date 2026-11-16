@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../models/competition_checkpoint.dart';
 import '../models/checkpoint_crossing.dart';
 import '../models/discovered_rally.dart';
+import '../models/competition_route_package.dart';
 
 class CompetitionApiClient {
   CompetitionApiClient({http.Client? client})
@@ -158,6 +159,25 @@ class CompetitionApiClient {
               CompetitionCheckpoint.fromJson(value as Map<String, dynamic>),
         )
         .toList(growable: false);
+  }
+
+  Future<CompetitionRoutePackage> downloadRoutePackage({
+    required int routeId,
+    required String deviceId,
+  }) async {
+    final response = await _client.get(
+      Uri.parse(defaultBaseUrl).resolve('/api/compete/routes/$routeId/package'),
+      headers: {
+        'Accept': 'application/json',
+        'X-Competition-Device-Id': deviceId,
+      },
+    );
+    if (response.statusCode != 200) {
+      throw CompetitionApiException(response.statusCode);
+    }
+    return CompetitionRoutePackage.fromJson(
+      jsonDecode(response.body) as Map<String, dynamic>,
+    );
   }
 
   Future<CompetitionTelemetryUploadResult> uploadTelemetry({

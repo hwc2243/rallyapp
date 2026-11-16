@@ -10,5 +10,6 @@ public record CompetitionCheckpointResponse(
     Double longitude,
     Integer heading,
     Double distance,
-    String notes) {
+    String notes,
+    Long carZeroIdealArrivalEpochMillis) {
 }

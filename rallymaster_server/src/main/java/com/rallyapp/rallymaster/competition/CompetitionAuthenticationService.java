@@ -3,8 +3,12 @@ package com.rallyapp.rallymaster.competition;
 import com.rallyapp.rallymaster.dto.RouteDTO;
 import com.rallyapp.rallymaster.entity.RallyConfigurationEntity;
 import com.rallyapp.rallymaster.entity.CheckpointEntity;
+import com.rallyapp.rallymaster.entity.RouteEntity;
+import com.rallyapp.rallymaster.entity.RouteInstructionEntity;
+import com.rallyapp.rallymaster.entity.RouteItemEntity;
 import com.rallyapp.rallymaster.model.RallyConfigurationScoringUnit;
 import com.rallyapp.rallymaster.model.CheckpointCheckpointType;
+import com.rallyapp.rallymaster.model.RouteInstructionInstructionType;
 import com.rallyapp.rallymaster.model.RouteStatus;
 import com.rallyapp.rallymaster.persistence.CheckpointPersistence;
 import com.rallyapp.rallymaster.persistence.RallyConfigurationPersistence;
@@ -20,6 +24,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Comparator;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,7 +73,9 @@ public class CompetitionAuthenticationService {
     if (route.getStatus() == RouteStatus.COMPLETED) {
       throw new ServiceException("A completed route cannot be published.");
     }
-    requireSingleValidStartCheckpoint(routeId);
+    RouteEntity routeEntity = routePersistence.findById(routeId)
+        .orElseThrow(() -> new ServiceException("Route not found"));
+    validatePublishableRoute(routeEntity);
     routeTimingPlanCalculationService.calculateForRoute(routeId);
 
     route.setStatus(RouteStatus.ACTIVE);
@@ -136,15 +143,75 @@ public class CompetitionAuthenticationService {
     return !routePersistence.findByRally_IdAndStatus(rallyId, RouteStatus.ACTIVE).isEmpty();
   }
 
-  private void requireSingleValidStartCheckpoint(Long routeId) throws ServiceException {
-    var startCheckpoints = checkpointPersistence.findAllForRouteAndCheckpointType(
-        routeId, CheckpointCheckpointType.START);
+  private void validatePublishableRoute(RouteEntity route) throws ServiceException {
+    var items = route.getItems().stream()
+        .filter(item -> !Boolean.TRUE.equals(item.getDeleted()))
+        .sorted(Comparator.comparing(RouteItemEntity::getPosition,
+            Comparator.nullsLast(Comparator.naturalOrder())))
+        .toList();
+
+    var startCheckpoints = items.stream()
+        .filter(CheckpointEntity.class::isInstance)
+        .map(CheckpointEntity.class::cast)
+        .filter(checkpoint -> checkpoint.getCheckpointType() == CheckpointCheckpointType.START)
+        .toList();
     if (startCheckpoints.size() != 1) {
       throw new ServiceException("A route must have exactly one START checkpoint before it can be published.");
     }
     CheckpointEntity start = startCheckpoints.getFirst();
     if (start.getLatitude() == null || start.getLongitude() == null) {
       throw new ServiceException("The START checkpoint must have a latitude and longitude before publishing.");
+    }
+
+    boolean freeZoneOpen = false;
+    boolean transitOpen = false;
+    for (RouteItemEntity item : items) {
+      if (item.getDistance() == null) {
+        throw new ServiceException("Every route item needs a distance before publishing.");
+      }
+      if (item instanceof CheckpointEntity checkpoint) {
+        if (checkpoint.getLatitude() == null || checkpoint.getLongitude() == null) {
+          throw new ServiceException("Every checkpoint needs a latitude and longitude before publishing.");
+        }
+        if (freeZoneOpen || transitOpen) {
+          throw new ServiceException("Checkpoints cannot appear inside a free zone or transit section.");
+        }
+        continue;
+      }
+      if (!(item instanceof RouteInstructionEntity instruction)) continue;
+
+      RouteInstructionInstructionType type = instruction.getInstructionType();
+      if (type == RouteInstructionInstructionType.BEGIN_FREE_ZONE) {
+        if (freeZoneOpen || transitOpen) {
+          throw new ServiceException("A free zone cannot begin inside another restricted section.");
+        }
+        freeZoneOpen = true;
+      } else if (type == RouteInstructionInstructionType.END_FREE_ZONE) {
+        if (!freeZoneOpen) {
+          throw new ServiceException("END FREE ZONE requires a preceding BEGIN FREE ZONE.");
+        }
+        freeZoneOpen = false;
+      } else if (type == RouteInstructionInstructionType.BEGIN_TRANSIT) {
+        if (freeZoneOpen || transitOpen) {
+          throw new ServiceException("A transit section cannot begin inside another restricted section.");
+        }
+        transitOpen = true;
+      } else if (type == RouteInstructionInstructionType.END_TRANSIT) {
+        if (!transitOpen) {
+          throw new ServiceException("END TRANSIT requires a preceding BEGIN TRANSIT.");
+        }
+        if (instruction.getTransitDurationMillis() == null
+            || instruction.getTransitDurationMillis() < 0) {
+          throw new ServiceException("END TRANSIT requires a transit duration before publishing.");
+        }
+        transitOpen = false;
+      }
+    }
+    if (freeZoneOpen) {
+      throw new ServiceException("Every BEGIN FREE ZONE requires an END FREE ZONE before publishing.");
+    }
+    if (transitOpen) {
+      throw new ServiceException("Every BEGIN TRANSIT requires an END TRANSIT before publishing.");
     }
   }
 

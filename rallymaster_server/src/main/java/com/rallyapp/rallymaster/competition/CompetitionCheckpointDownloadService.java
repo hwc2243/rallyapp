@@ -1,14 +1,21 @@
 package com.rallyapp.rallymaster.competition;
 
 import com.rallyapp.rallymaster.api.compete.CompetitionCheckpointResponse;
+import com.rallyapp.rallymaster.api.compete.CompetitionRoutePackageResponse;
 import com.rallyapp.rallymaster.entity.CheckpointEntity;
+import com.rallyapp.rallymaster.entity.RallyConfigurationEntity;
 import com.rallyapp.rallymaster.entity.RouteEntity;
+import com.rallyapp.rallymaster.entity.RouteTimingPlanEntity;
+import com.rallyapp.rallymaster.entity.RouteTimingPointEntity;
 import com.rallyapp.rallymaster.model.RouteStatus;
 import com.rallyapp.rallymaster.persistence.CheckpointPersistence;
+import com.rallyapp.rallymaster.persistence.RallyConfigurationPersistence;
 import com.rallyapp.rallymaster.persistence.RallyEntryPersistence;
 import com.rallyapp.rallymaster.persistence.RoutePersistence;
+import com.rallyapp.rallymaster.persistence.RouteTimingPlanPersistence;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,14 +25,20 @@ public class CompetitionCheckpointDownloadService {
   private final CheckpointPersistence checkpointPersistence;
   private final RallyEntryPersistence rallyEntryPersistence;
   private final RoutePersistence routePersistence;
+  private final RallyConfigurationPersistence rallyConfigurationPersistence;
+  private final RouteTimingPlanPersistence routeTimingPlanPersistence;
 
   public CompetitionCheckpointDownloadService(
       CheckpointPersistence checkpointPersistence,
       RallyEntryPersistence rallyEntryPersistence,
-      RoutePersistence routePersistence) {
+      RoutePersistence routePersistence,
+      RallyConfigurationPersistence rallyConfigurationPersistence,
+      RouteTimingPlanPersistence routeTimingPlanPersistence) {
     this.checkpointPersistence = checkpointPersistence;
     this.rallyEntryPersistence = rallyEntryPersistence;
     this.routePersistence = routePersistence;
+    this.rallyConfigurationPersistence = rallyConfigurationPersistence;
+    this.routeTimingPlanPersistence = routeTimingPlanPersistence;
   }
 
   @Transactional(readOnly = true)
@@ -42,11 +55,64 @@ public class CompetitionCheckpointDownloadService {
     return checkpointPersistence.findAllForRoute(routeId).stream()
         .sorted(Comparator.comparing(CheckpointEntity::getPosition,
             Comparator.nullsLast(Comparator.naturalOrder())))
-        .map(this::toResponse)
+        .map(checkpoint -> toResponse(checkpoint, Map.of()))
         .toList();
   }
 
-  private CompetitionCheckpointResponse toResponse(CheckpointEntity checkpoint) {
+  /** Supplies the complete offline scoring configuration for a route. */
+  @Transactional(readOnly = true)
+  public CompetitionRoutePackageResponse downloadPackage(Long routeId, String deviceId) {
+    RouteEntity route = authorizedActiveRoute(routeId, deviceId);
+    RallyConfigurationEntity configuration = rallyConfigurationPersistence
+        .findFirstByRally_Id(route.getRally().getId());
+    RouteTimingPlanEntity plan = routeTimingPlanPersistence
+        .findFirstByOrganizationIdAndRouteId(route.getOrganizationId(), routeId);
+    if (configuration == null || plan == null) {
+      throw new CompetitionAuthenticationException();
+    }
+
+    Map<Long, Long> arrivals = plan.getPoints().stream()
+        .filter(point -> point.getRouteItem() != null && point.getRouteItem().getId() != null)
+        .collect(java.util.stream.Collectors.toMap(
+            point -> point.getRouteItem().getId(),
+            RouteTimingPointEntity::getCarZeroIdealArrivalEpochMillis));
+    List<CompetitionCheckpointResponse> checkpoints = checkpointPersistence.findAllForRoute(routeId)
+        .stream()
+        .sorted(Comparator.comparing(CheckpointEntity::getPosition,
+            Comparator.nullsLast(Comparator.naturalOrder())))
+        .map(checkpoint -> toResponse(checkpoint, arrivals))
+        .toList();
+
+    return new CompetitionRoutePackageResponse(
+        route.getId(),
+        route.getRally().getId(),
+        plan.getVersion(),
+        plan.getCarZeroStartEpochMillis(),
+        route.getTimeZone(),
+        plan.getDistanceUnit() == null ? null : plan.getDistanceUnit().getName(),
+        plan.getScoringUnit() == null ? null : plan.getScoringUnit().getName(),
+        configuration.getCarStartIntervalMillis(),
+        route.getMaximumCheckpointScore() == null
+            ? configuration.getMaximumCheckpointScore() : route.getMaximumCheckpointScore(),
+        configuration.getCheckpointAcquisitionRadiusMeters(),
+        checkpoints);
+  }
+
+  private RouteEntity authorizedActiveRoute(Long routeId, String deviceId) {
+    if (routeId == null || deviceId == null || deviceId.isBlank()) {
+      throw new CompetitionAuthenticationException();
+    }
+    RouteEntity route = routePersistence.findById(routeId)
+        .orElseThrow(CompetitionAuthenticationException::new);
+    if (route.getStatus() != RouteStatus.ACTIVE
+        || rallyEntryPersistence.findFirstByRouteAndPrimaryDeviceId(routeId, deviceId) == null) {
+      throw new CompetitionAuthenticationException();
+    }
+    return route;
+  }
+
+  private CompetitionCheckpointResponse toResponse(
+      CheckpointEntity checkpoint, Map<Long, Long> arrivals) {
     return new CompetitionCheckpointResponse(
         checkpoint.getId(),
         checkpoint.getCheckpointNumber(),
@@ -56,6 +122,7 @@ public class CompetitionCheckpointDownloadService {
         checkpoint.getLongitude(),
         checkpoint.getHeading(),
         checkpoint.getDistance(),
-        checkpoint.getNotes());
+        checkpoint.getNotes(),
+        arrivals.get(checkpoint.getId()));
   }
 }

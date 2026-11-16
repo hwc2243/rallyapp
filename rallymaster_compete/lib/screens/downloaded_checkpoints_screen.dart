@@ -76,10 +76,11 @@ class _DownloadedCheckpointsScreenState
     try {
       final deviceId = await CompetitionDeviceIdentity.read();
       if (deviceId == null) throw const _CheckpointDownloadException();
-      final checkpoints = await _apiClient.downloadCheckpoints(
+      final routePackage = await _apiClient.downloadRoutePackage(
         routeId: widget.route.id,
         deviceId: deviceId,
       );
+      final checkpoints = routePackage.checkpoints;
       final crossings = await _crossingStore.load(widget.route.id);
       if (mounted) {
         setState(() {
@@ -88,7 +89,11 @@ class _DownloadedCheckpointsScreenState
           _detectionStatus = 'Starting checkpoint detection…';
         });
       }
-      await _startDetection(checkpoints, crossings.values);
+      await _startDetection(
+        checkpoints,
+        crossings.values,
+        routePackage.acquisitionRadiusMeters,
+      );
       // During testing, calibration begins as soon as the selected route has
       // been downloaded. The future Start Competition action will invoke this
       // at the actual event start instead.
@@ -115,12 +120,14 @@ class _DownloadedCheckpointsScreenState
   Future<void> _startDetection(
     List<CompetitionCheckpoint> checkpoints,
     Iterable<CheckpointCrossing> crossings,
+    double acquisitionRadiusMeters,
   ) async {
     final detector = CheckpointDetectionService(
       checkpoints: checkpoints,
       existingCrossings: crossings,
       onCrossing: _recordCrossing,
       sensorFusion: _sensorFusion,
+      acquisitionRadiusMeters: acquisitionRadiusMeters,
     );
     _detector = detector;
     try {

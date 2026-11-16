@@ -31,4 +31,15 @@ public class CompetitionCheckpointRest {
       return ResponseEntity.status(401).build();
     }
   }
+
+  @GetMapping("/{routeId}/package")
+  public ResponseEntity<CompetitionRoutePackageResponse> downloadPackage(
+      @PathVariable Long routeId,
+      @RequestHeader(name = DEVICE_ID_HEADER, required = false) String deviceId) {
+    try {
+      return ResponseEntity.ok(competitionCheckpointDownloadService.downloadPackage(routeId, deviceId));
+    } catch (CompetitionAuthenticationException ex) {
+      return ResponseEntity.status(401).build();
+    }
+  }
 }

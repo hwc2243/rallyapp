@@ -73,28 +73,35 @@ void main() {
     api.dispose();
   });
 
-  test('downloads checkpoints for the registered primary device', () async {
-    final client = MockClient((request) async {
-      expect(request.url.path, '/api/compete/routes/12/checkpoints');
-      expect(request.headers['x-competition-device-id'], 'device-1');
-      return http.Response(
-        '[{"checkpointId":31,"checkpointNumber":2,"checkpointType":"TIMED_CONTROL",'
-        '"name":"Control 2","latitude":40.1,"longitude":-75.2,'
-        '"heading":90,"distance":1.5,"notes":"Test"}]',
-        200,
+  test(
+    'downloads the configured route package for the registered device',
+    () async {
+      final client = MockClient((request) async {
+        expect(request.url.path, '/api/compete/routes/12/package');
+        expect(request.headers['x-competition-device-id'], 'device-1');
+        return http.Response(
+          '{"routeId":12,"rallyId":7,"timingPlanVersion":3,'
+          '"checkpointAcquisitionRadiusMeters":175.0,"checkpoints":['
+          '{"checkpointId":31,"checkpointNumber":2,"checkpointType":"TIMED_CONTROL",'
+          '"name":"Control 2","latitude":40.1,"longitude":-75.2,'
+          '"heading":90,"distance":1.5,"notes":"Test",'
+          '"carZeroIdealArrivalEpochMillis":123456789}]}',
+          200,
+        );
+      });
+      final api = CompetitionApiClient(client: client);
+
+      final routePackage = await api.downloadRoutePackage(
+        routeId: 12,
+        deviceId: 'device-1',
       );
-    });
-    final api = CompetitionApiClient(client: client);
 
-    final checkpoints = await api.downloadCheckpoints(
-      routeId: 12,
-      deviceId: 'device-1',
-    );
-
-    expect(checkpoints.single.number, 2);
-    expect(checkpoints.single.type, 'TIMED_CONTROL');
-    api.dispose();
-  });
+      expect(routePackage.acquisitionRadiusMeters, 175.0);
+      expect(routePackage.checkpoints.single.number, 2);
+      expect(routePackage.checkpoints.single.type, 'TIMED_CONTROL');
+      api.dispose();
+    },
+  );
 
   test('finds an existing registration for the primary device', () async {
     final client = MockClient((request) async {

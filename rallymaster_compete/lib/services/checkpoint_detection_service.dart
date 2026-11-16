@@ -14,6 +14,7 @@ class CheckpointDetectionService {
     required List<CompetitionCheckpoint> checkpoints,
     required this.onCrossing,
     required Iterable<CheckpointCrossing> existingCrossings,
+    required this.acquisitionRadiusMeters,
     this.sensorFusion,
   }) : _checkpoints = checkpoints
            .where(
@@ -25,7 +26,6 @@ class CheckpointDetectionService {
          for (final crossing in existingCrossings) crossing.checkpointId,
        };
 
-  static const acquisitionRadiusMeters = 150.0;
   static const finalInterceptToleranceMeters = 40.0;
   static const headingHalfConeDegrees = 60.0;
 
@@ -33,6 +33,7 @@ class CheckpointDetectionService {
   final void Function(CheckpointCrossing crossing) onCrossing;
   final Set<int> _crossedCheckpointIds;
   final SensorFusionService? sensorFusion;
+  final double acquisitionRadiusMeters;
   final Map<int, _CheckpointCandidate> _candidates = {};
   StreamSubscription<Position>? _subscription;
 
