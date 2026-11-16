@@ -5,12 +5,17 @@ import 'package:rally_lib/rally_lib.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/checkpoint_crossing.dart';
+import '../models/checkpoint_score.dart';
 import '../models/competition_checkpoint.dart';
+import '../models/competition_route_package.dart';
 import '../models/discovered_rally.dart';
+import '../models/time_allowance.dart';
 import '../services/competition_api_client.dart';
 import '../services/checkpoint_crossing_store.dart';
 import '../services/checkpoint_detection_service.dart';
+import '../services/checkpoint_scoring_service.dart';
 import '../services/competition_device_identity.dart';
+import '../services/time_allowance_store.dart';
 import '../widgets/rallymaster_compete_about_dialog.dart';
 import '../widgets/precision_drive_calibration_gate.dart';
 
@@ -21,10 +26,12 @@ class DownloadedCheckpointsScreen extends StatefulWidget {
     super.key,
     required this.rally,
     required this.route,
+    required this.carNumber,
   });
 
   final DiscoveredRally rally;
   final DiscoveredRoute route;
+  final int carNumber;
 
   @override
   State<DownloadedCheckpointsScreen> createState() =>
@@ -35,14 +42,20 @@ class _DownloadedCheckpointsScreenState
     extends State<DownloadedCheckpointsScreen> {
   final _apiClient = CompetitionApiClient();
   final _crossingStore = CheckpointCrossingStore();
+  final _timeAllowanceStore = TimeAllowanceStore();
+  final _scoringService = const CheckpointScoringService();
   late final SensorFusionService _sensorFusion;
   List<CompetitionCheckpoint>? _checkpoints;
+  CompetitionRoutePackage? _routePackage;
   CheckpointDetectionService? _detector;
   Map<int, CheckpointCrossing> _crossings = {};
+  List<TimeAllowance> _allowances = const [];
+  Map<int, CheckpointScore> _scores = const {};
   String? _error;
   String? _detectionStatus;
   var _loading = true;
   var _uploadingTelemetry = false;
+  var _calibrationRequestedAfterStart = false;
 
   @override
   void initState() {
@@ -69,6 +82,7 @@ class _DownloadedCheckpointsScreenState
   Future<void> _download() async {
     await _detector?.dispose();
     _detector = null;
+    _calibrationRequestedAfterStart = false;
     setState(() {
       _loading = true;
       _error = null;
@@ -82,10 +96,14 @@ class _DownloadedCheckpointsScreenState
       );
       final checkpoints = routePackage.checkpoints;
       final crossings = await _crossingStore.load(widget.route.id);
+      final allowances = await _timeAllowanceStore.load(widget.route.id);
       if (mounted) {
         setState(() {
+          _routePackage = routePackage;
           _checkpoints = checkpoints;
           _crossings = crossings;
+          _allowances = allowances;
+          _scores = _calculateScores(routePackage, crossings, allowances);
           _detectionStatus = 'Starting checkpoint detection…';
         });
       }
@@ -94,10 +112,12 @@ class _DownloadedCheckpointsScreenState
         crossings.values,
         routePackage.acquisitionRadiusMeters,
       );
-      // During testing, calibration begins as soon as the selected route has
-      // been downloaded. The future Start Competition action will invoke this
-      // at the actual event start instead.
-      if (mounted) _sensorFusion.requestCalibration();
+      // START can be recorded on a previous app run. In that case, this new
+      // SensorFusionService still needs calibration, but only after the
+      // confirmed START crossing—not while a person is walking to it.
+      if (_hasRegisteredStart(checkpoints, crossings)) {
+        _requestCalibrationAfterStart();
+      }
     } on CompetitionApiException catch (error) {
       if (mounted) {
         setState(() {
@@ -150,10 +170,81 @@ class _DownloadedCheckpointsScreenState
 
   void _recordCrossing(CheckpointCrossing crossing) {
     if (!mounted) return;
-    setState(
-      () => _crossings = {..._crossings, crossing.checkpointId: crossing},
-    );
+    final crossings = {..._crossings, crossing.checkpointId: crossing};
+    setState(() {
+      _crossings = crossings;
+      final routePackage = _routePackage;
+      if (routePackage != null) {
+        _scores = _calculateScores(routePackage, crossings, _allowances);
+      }
+    });
     unawaited(_crossingStore.save(widget.route.id, _crossings.values));
+    if (_isStartCheckpoint(crossing.checkpointId)) {
+      _requestCalibrationAfterStart();
+    }
+  }
+
+  bool _hasRegisteredStart(
+    Iterable<CompetitionCheckpoint> checkpoints,
+    Map<int, CheckpointCrossing> crossings,
+  ) => checkpoints.any(
+    (checkpoint) =>
+        checkpoint.type == 'START' && crossings.containsKey(checkpoint.id),
+  );
+
+  bool _isStartCheckpoint(int checkpointId) =>
+      _checkpoints?.any(
+        (checkpoint) =>
+            checkpoint.id == checkpointId && checkpoint.type == 'START',
+      ) ??
+      false;
+
+  void _requestCalibrationAfterStart() {
+    if (_calibrationRequestedAfterStart || !mounted) return;
+    _calibrationRequestedAfterStart = true;
+    _sensorFusion.requestCalibration();
+    setState(() {
+      _detectionStatus = 'START registered. Mount the phone and calibrate PrecisionDrive before continuing.';
+    });
+  }
+
+  Map<int, CheckpointScore> _calculateScores(
+    CompetitionRoutePackage routePackage,
+    Map<int, CheckpointCrossing> crossings,
+    List<TimeAllowance> allowances,
+  ) => _scoringService.calculate(
+    routePackage: routePackage,
+    carNumber: widget.carNumber,
+    crossings: crossings.values,
+    allowances: allowances,
+  );
+
+  Future<void> _addTimeAllowance(Duration duration) async {
+    final checkpoints = _checkpoints;
+    final routePackage = _routePackage;
+    if (checkpoints == null || routePackage == null) return;
+    final effectiveAfterPosition = checkpoints
+        .where((checkpoint) => _crossings.containsKey(checkpoint.id))
+        .fold<int>(
+          0,
+          (latest, checkpoint) =>
+              checkpoint.routePosition != null &&
+                  checkpoint.routePosition! > latest
+              ? checkpoint.routePosition!
+              : latest,
+        );
+    final allowances = [
+      ..._allowances,
+      TimeAllowance(
+        millis: duration.inMilliseconds,
+        effectiveAfterRoutePosition: effectiveAfterPosition,
+      ),
+    ];
+    setState(() {
+      _allowances = allowances;
+      _scores = _calculateScores(routePackage, _crossings, allowances);
+    });
+    await _timeAllowanceStore.save(widget.route.id, allowances);
   }
 
   Future<void> _uploadTelemetry() async {
@@ -298,7 +389,39 @@ class _DownloadedCheckpointsScreenState
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Text('${widget.rally.name} — ${widget.route.name}'),
+          child: Text(
+            '${widget.rally.name} — ${widget.route.name}  •  Car ${widget.carNumber}',
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () =>
+                      _addTimeAllowance(const Duration(seconds: 30)),
+                  child: const Text('TA +0.5 min'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () =>
+                      _addTimeAllowance(const Duration(minutes: 1)),
+                  child: const Text('TA +1.0 min'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Text(
+            'Score: ${_scores.values.fold<int>(0, (total, score) => total + score.points)}'
+            '${_allowances.isEmpty ? '' : '  •  TA: ${_formatTaTotal()}'}',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
         ),
         if (_detectionStatus != null)
           Padding(
@@ -327,6 +450,8 @@ class _DownloadedCheckpointsScreenState
                         DataColumn(label: Text('Longitude')),
                         DataColumn(label: Text('Crossed')),
                         DataColumn(label: Text('Crossed at')),
+                        DataColumn(label: Text('Expected')),
+                        DataColumn(label: Text('Score')),
                       ],
                       rows: checkpoints.map(_row).toList(growable: false),
                     ),
@@ -369,8 +494,28 @@ class _DownloadedCheckpointsScreenState
         ),
       ),
       DataCell(Text(_formatCrossingTime(_crossings[checkpoint.id]))),
+      DataCell(Text(_formatExpectedTime(_scores[checkpoint.id]))),
+      DataCell(Text(_scores[checkpoint.id]?.points.toString() ?? '—')),
     ],
   );
+
+  String _formatTaTotal() {
+    final seconds = _allowances.fold<int>(
+      0,
+      (total, allowance) => total + allowance.millis ~/ 1000,
+    );
+    return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
+  }
+
+  String _formatExpectedTime(CheckpointScore? score) {
+    if (score == null) return '—';
+    final time = score.expectedArrival;
+    final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final second = time.second.toString().padLeft(2, '0');
+    final period = time.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute:$second $period';
+  }
 
   String _formatType(String type) => type
       .split('_')

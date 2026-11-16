@@ -9,18 +9,24 @@ import com.rallyapp.rallymaster.model.CheckpointCheckpointType;
 import com.rallyapp.rallymaster.model.RouteItemItemType;
 import com.rallyapp.rallymaster.model.RouteStatus;
 import com.rallyapp.rallymaster.model.RouteInstructionInstructionType;
+import com.rallyapp.rallymaster.competition.CompetitionAuthenticationService;
+import com.rallyapp.rallymaster.entity.RouteTimingPlanEntity;
 import com.rallyapp.rallymaster.persistence.RallyConfigurationPersistence;
+import com.rallyapp.rallymaster.persistence.RouteTimingPlanPersistence;
 import com.rallyapp.rallymaster.service.CheckpointService;
 import com.rallyapp.rallymaster.service.RallyService;
 import com.rallyapp.rallymaster.service.RouteInstructionService;
 import com.rallyapp.rallymaster.service.RouteService;
+import com.rallyapp.rallymaster.service.RouteTimingPlanCalculationService;
 import com.rallyapp.rallymaster.service.ServiceException;
 import com.rallyapp.rallymaster.spring.SessionContext;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.ArrayList;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
@@ -30,6 +36,8 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.server.ResponseStatusException;
 
 /** Browser workflow for planning routes belonging to the selected organization. */
@@ -41,18 +49,27 @@ public class RouteController {
   private final RouteInstructionService routeInstructionService;
   private final CheckpointService checkpointService;
   private final RallyConfigurationPersistence rallyConfigurationPersistence;
+  private final RouteTimingPlanCalculationService routeTimingPlanCalculationService;
+  private final RouteTimingPlanPersistence routeTimingPlanPersistence;
+  private final CompetitionAuthenticationService competitionAuthenticationService;
 
   public RouteController(
       RallyService rallyService,
       RouteService routeService,
       RouteInstructionService routeInstructionService,
       CheckpointService checkpointService,
-      RallyConfigurationPersistence rallyConfigurationPersistence) {
+      RallyConfigurationPersistence rallyConfigurationPersistence,
+      RouteTimingPlanCalculationService routeTimingPlanCalculationService,
+      RouteTimingPlanPersistence routeTimingPlanPersistence,
+      CompetitionAuthenticationService competitionAuthenticationService) {
     this.rallyService = rallyService;
     this.routeService = routeService;
     this.routeInstructionService = routeInstructionService;
     this.checkpointService = checkpointService;
     this.rallyConfigurationPersistence = rallyConfigurationPersistence;
+    this.routeTimingPlanCalculationService = routeTimingPlanCalculationService;
+    this.routeTimingPlanPersistence = routeTimingPlanPersistence;
+    this.competitionAuthenticationService = competitionAuthenticationService;
   }
 
   @GetMapping
@@ -96,7 +113,7 @@ public class RouteController {
     return "redirect:/rally/" + rallyId + "/routes/" + created.getId();
   }
 
-  @GetMapping("/{routeId}/edit")
+  @GetMapping("/{routeId}/settings")
   public String editRoute(@PathVariable Long rallyId, @PathVariable Long routeId, ModelMap model)
       throws ServiceException {
     RallyDTO rally = rally(rallyId);
@@ -107,7 +124,7 @@ public class RouteController {
     return "route/form";
   }
 
-  @PostMapping("/{routeId}")
+  @PostMapping("/{routeId}/settings")
   public String updateRoute(
       @PathVariable Long rallyId,
       @PathVariable Long routeId,
@@ -242,7 +259,23 @@ public class RouteController {
     }
   }
 
+  /** The browser equivalent of the mobile route-actions screen. */
   @GetMapping("/{routeId}")
+  public String actions(
+      @PathVariable Long rallyId,
+      @PathVariable Long routeId,
+      ModelMap model) throws ServiceException {
+    RallyDTO rally = rally(rallyId);
+    RouteDTO route = route(rallyId, routeId);
+    model.put("rally", rally);
+    model.put("route", route);
+    model.put("hasTimingPlan", hasTimingPlan(route));
+    model.put("eventPasswordConfigured", competitionAuthenticationService.hasEventPassword(rallyId));
+    return "route/actions";
+  }
+
+  /** Editable planner table; map planning remains exclusive to the mobile app. */
+  @GetMapping("/{routeId}/items")
   public String listItems(
       @PathVariable Long rallyId,
       @PathVariable Long routeId,
@@ -253,6 +286,65 @@ public class RouteController {
     model.put("route", route);
     model.put("items", orderedItems(routeId));
     return "route/items";
+  }
+
+  @PostMapping("/{routeId}/timing-plan")
+  public String calculateTimingPlan(@PathVariable Long rallyId, @PathVariable Long routeId,
+      RedirectAttributes redirect) throws ServiceException {
+    route(rallyId, routeId);
+    try {
+      routeTimingPlanCalculationService.calculateForRoute(routeId);
+      redirect.addFlashAttribute("success", "Timing plan calculated.");
+    } catch (ServiceException ex) {
+      redirect.addFlashAttribute("error", ex.getMessage());
+    }
+    return redirectToActions(rallyId, routeId);
+  }
+
+  @GetMapping("/{routeId}/timing-plan")
+  public String viewTimingPlan(@PathVariable Long rallyId, @PathVariable Long routeId,
+      ModelMap model) throws ServiceException {
+    RallyDTO rally = rally(rallyId);
+    RouteDTO route = route(rallyId, routeId);
+    RouteTimingPlanEntity plan = routeTimingPlanPersistence
+        .findFirstByOrganizationIdAndRouteId(route.getOrganizationId(), routeId);
+    model.put("rally", rally);
+    model.put("route", route);
+    if (plan != null) {
+      ZoneId zone = ZoneId.of(route.getTimeZone());
+      DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(zone);
+      var configuration = rallyConfigurationPersistence.findFirstByRally_Id(rallyId);
+      Double speed = route.getDefaultSpeed() != null ? route.getDefaultSpeed()
+          : configuration == null ? null : configuration.getDefaultSpeed();
+      var timingPoints = new ArrayList<TimingPointView>();
+      for (var point : plan.getPoints().stream()
+          .sorted(Comparator.comparing(point -> point.getRouteItem().getPosition(),
+              Comparator.nullsLast(Comparator.naturalOrder())))
+          .toList()) {
+        timingPoints.add(timingPointView(point, formatter.format(
+            Instant.ofEpochMilli(point.getCarZeroIdealArrivalEpochMillis())), speed));
+        if (point.getRouteItem() instanceof com.rallyapp.rallymaster.entity.RouteInstructionEntity instruction
+            && instruction.getSpeed() != null) {
+          speed = instruction.getSpeed();
+        }
+      }
+      model.put("timingPoints", timingPoints);
+    }
+    return "route/timing-plan";
+  }
+
+  @PostMapping("/{routeId}/publish")
+  public String publish(@PathVariable Long rallyId, @PathVariable Long routeId,
+      @RequestParam(required = false) String eventPassword, RedirectAttributes redirect)
+      throws ServiceException {
+    route(rallyId, routeId);
+    try {
+      competitionAuthenticationService.publish(routeId, eventPassword);
+      redirect.addFlashAttribute("success", "Route published and available to competitors.");
+    } catch (ServiceException ex) {
+      redirect.addFlashAttribute("error", ex.getMessage());
+    }
+    return redirectToActions(rallyId, routeId);
   }
 
   @GetMapping("/{routeId}/items/new")
@@ -285,7 +377,7 @@ public class RouteController {
       @ModelAttribute("routeInstruction") RouteInstructionDTO instruction,
       BindingResult bindingResult,
       ModelMap model) throws ServiceException {
-    route(rallyId, routeId);
+    ensurePlanning(rallyId, routeId);
     validateInstruction(instruction, bindingResult);
     if (instruction.getId() == null && !allowedInstructionTypes(routeId).contains(instruction.getInstructionType())) {
       bindingResult.rejectValue("instructionType", "invalid", "That NRI type is not available until the matching begin/end state changes.");
@@ -296,11 +388,13 @@ public class RouteController {
       return "route/nri-form";
     }
     if (instruction.getId() == null) {
+      routeService.invalidateTimingPlan(routeId);
       applyNewItemContext(instruction, routeId);
       instruction.setItemType(RouteItemItemType.NRI);
       instruction.setInstructionNumber(nextInstructionNumber(routeId));
       routeInstructionService.create(instruction);
     } else {
+      routeService.invalidateTimingPlan(routeId);
       RouteInstructionDTO existing = instruction(routeId, instruction.getId());
       applyExistingItemContext(instruction, existing, routeId);
       routeInstructionService.update(instruction);
@@ -339,7 +433,7 @@ public class RouteController {
       @ModelAttribute("checkpoint") CheckpointDTO checkpoint,
       BindingResult bindingResult,
       ModelMap model) throws ServiceException {
-    route(rallyId, routeId);
+    ensurePlanning(rallyId, routeId);
     if (checkpoint.getId() == null && !checkpointAllowed(routeId)) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "Checkpoints cannot be added while a free zone or transit is open.");
     }
@@ -349,15 +443,37 @@ public class RouteController {
       return "route/checkpoint-form";
     }
     if (checkpoint.getId() == null) {
+      routeService.invalidateTimingPlan(routeId);
       applyNewItemContext(checkpoint, routeId);
       checkpoint.setItemType(RouteItemItemType.CHECKPOINT);
       checkpoint.setCheckpointNumber(nextCheckpointNumber(routeId));
       checkpointService.create(checkpoint);
     } else {
+      routeService.invalidateTimingPlan(routeId);
       CheckpointDTO existing = checkpoint(routeId, checkpoint.getId());
       applyExistingItemContext(checkpoint, existing, routeId);
       checkpointService.update(checkpoint);
     }
+    return redirectToItems(rallyId, routeId);
+  }
+
+  @PostMapping("/{routeId}/items/{itemId}/delete")
+  public String deleteItem(@PathVariable Long rallyId, @PathVariable Long routeId,
+      @PathVariable Long itemId, RedirectAttributes redirect) throws ServiceException {
+    ensurePlanning(rallyId, routeId);
+    RouteItemDTO item = orderedItems(routeId).stream()
+        .filter(candidate -> itemId.equals(candidate.getId()))
+        .findFirst().orElseThrow(() -> notFound("Route item"));
+    routeService.invalidateTimingPlan(routeId);
+    if (item instanceof RouteInstructionDTO) {
+      routeInstructionService.delete(itemId);
+    } else if (item instanceof CheckpointDTO) {
+      checkpointService.delete(itemId);
+    } else {
+      throw notFound("Route item");
+    }
+    renumberItems(routeId);
+    redirect.addFlashAttribute("success", "Route item deleted. The remaining items were renumbered.");
     return redirectToItems(rallyId, routeId);
   }
 
@@ -387,6 +503,20 @@ public class RouteController {
     RouteDTO route = routeService.get(routeId);
     if (route == null || !rally.getId().equals(route.getRallyId())) throw notFound("Route");
     return route;
+  }
+
+  private RouteDTO ensurePlanning(Long rallyId, Long routeId) throws ServiceException {
+    RouteDTO route = route(rallyId, routeId);
+    if (route.getStatus() != RouteStatus.PLAN) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT,
+          "Published or completed routes cannot be changed.");
+    }
+    return route;
+  }
+
+  private boolean hasTimingPlan(RouteDTO route) {
+    return routeTimingPlanPersistence.findFirstByOrganizationIdAndRouteId(
+        route.getOrganizationId(), route.getId()) != null;
   }
 
   private RouteInstructionDTO instruction(Long routeId, Long itemId) throws ServiceException {
@@ -499,6 +629,23 @@ public class RouteController {
         .orElse(0L) + 1;
   }
 
+  /** Keeps display/order numbers canonical after a planner removes an item. */
+  private void renumberItems(Long routeId) throws ServiceException {
+    long position = 1L;
+    long instructionNumber = 1L;
+    long checkpointNumber = 1L;
+    for (RouteItemDTO item : orderedItems(routeId)) {
+      item.setPosition(position++);
+      if (item instanceof RouteInstructionDTO instruction) {
+        instruction.setInstructionNumber(instructionNumber++);
+        routeInstructionService.update(instruction);
+      } else if (item instanceof CheckpointDTO checkpoint) {
+        checkpoint.setCheckpointNumber(checkpointNumber++);
+        checkpointService.update(checkpoint);
+      }
+    }
+  }
+
   private Long currentOrganizationId() {
     if (SessionContext.getCurrentOrganization() == null) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Select an organization first.");
@@ -507,6 +654,10 @@ public class RouteController {
   }
 
   private static String redirectToItems(Long rallyId, Long routeId) {
+    return "redirect:/rally/" + rallyId + "/routes/" + routeId + "/items";
+  }
+
+  private static String redirectToActions(Long rallyId, Long routeId) {
     return "redirect:/rally/" + rallyId + "/routes/" + routeId;
   }
 
@@ -573,4 +724,25 @@ public class RouteController {
   private static boolean blank(String value) {
     return value == null || value.isBlank();
   }
+
+  private static TimingPointView timingPointView(
+      com.rallyapp.rallymaster.entity.RouteTimingPointEntity point, String arrival, Double speed) {
+    var item = point.getRouteItem();
+    String label;
+    String pause = "—";
+    if (item instanceof com.rallyapp.rallymaster.entity.RouteInstructionEntity instruction) {
+      label = "NRI " + instruction.getInstructionNumber();
+      if (instruction.getPauseDurationMillis() != null) {
+        pause = (instruction.getPauseDurationMillis() / 1000) + " sec";
+      }
+    } else if (item instanceof com.rallyapp.rallymaster.entity.CheckpointEntity checkpoint) {
+      label = "CHKPT " + checkpoint.getCheckpointNumber();
+    } else {
+      label = item.getItemType().name();
+    }
+    return new TimingPointView(label, item.getDistance(), arrival, speed, pause);
+  }
+
+  /** Presentation data deliberately avoids exposing persistence entities to the template. */
+  public record TimingPointView(String item, Double distance, String arrival, Double speed, String pause) {}
 }

@@ -71,16 +71,16 @@ public class CompetitionCheckpointDownloadService {
       throw new CompetitionAuthenticationException();
     }
 
-    Map<Long, Long> arrivals = plan.getPoints().stream()
+    Map<Long, RouteTimingPointEntity> timingPoints = plan.getPoints().stream()
         .filter(point -> point.getRouteItem() != null && point.getRouteItem().getId() != null)
         .collect(java.util.stream.Collectors.toMap(
             point -> point.getRouteItem().getId(),
-            RouteTimingPointEntity::getCarZeroIdealArrivalEpochMillis));
+            point -> point));
     List<CompetitionCheckpointResponse> checkpoints = checkpointPersistence.findAllForRoute(routeId)
         .stream()
         .sorted(Comparator.comparing(CheckpointEntity::getPosition,
             Comparator.nullsLast(Comparator.naturalOrder())))
-        .map(checkpoint -> toResponse(checkpoint, arrivals))
+        .map(checkpoint -> toResponse(checkpoint, timingPoints))
         .toList();
 
     return new CompetitionRoutePackageResponse(
@@ -112,10 +112,13 @@ public class CompetitionCheckpointDownloadService {
   }
 
   private CompetitionCheckpointResponse toResponse(
-      CheckpointEntity checkpoint, Map<Long, Long> arrivals) {
+      CheckpointEntity checkpoint, Map<Long, RouteTimingPointEntity> timingPoints) {
+    RouteTimingPointEntity timingPoint = timingPoints.get(checkpoint.getId());
     return new CompetitionCheckpointResponse(
         checkpoint.getId(),
         checkpoint.getCheckpointNumber(),
+        checkpoint.getPosition(),
+        timingPoint == null ? null : timingPoint.getSegmentNumber(),
         checkpoint.getCheckpointType() == null ? null : checkpoint.getCheckpointType().getName(),
         checkpoint.getName(),
         checkpoint.getLatitude(),
@@ -123,6 +126,6 @@ public class CompetitionCheckpointDownloadService {
         checkpoint.getHeading(),
         checkpoint.getDistance(),
         checkpoint.getNotes(),
-        arrivals.get(checkpoint.getId()));
+        timingPoint == null ? null : timingPoint.getCarZeroIdealArrivalEpochMillis());
   }
 }

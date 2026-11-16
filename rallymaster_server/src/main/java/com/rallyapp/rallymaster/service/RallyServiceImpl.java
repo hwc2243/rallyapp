@@ -55,6 +55,43 @@ public class RallyServiceImpl
     return rallyMapper.routesToDtos(entity.getRoutes());
   }
 
+  /**
+   * Updates rally header data on the managed aggregate.
+   *
+   * <p>Rally owns its routes with orphan removal. Merging a detached rally
+   * created from a header-only web form can therefore treat its route
+   * collection as absent and delete the route items. A timing plan still
+   * references those items, causing the route_timing_point foreign-key error.
+   * Header edits must leave the route graph untouched.</p>
+   */
+  @Override
+  @Transactional
+  public RallyDTO update(RallyDTO dto) throws ServiceException {
+    if (dto == null || dto.getId() == null || !hasAccess(dto)) {
+      throw new ServiceException("Access denied for updating rally");
+    }
+
+    RallyEntity rally = rallyPersistence.findById(dto.getId())
+        .orElseThrow(() -> new ServiceException("Rally " + dto.getId() + " was not found."));
+    if (!hasAccess(rally)) {
+      throw new ServiceException("Access denied for updating rally with id = " + dto.getId());
+    }
+
+    rally.setName(dto.getName());
+    rally.setDescription(dto.getDescription());
+    rally.setDate(dto.getDate());
+    // A normal edit form has no reason to replace its owner. Preserve the
+    // existing relation when userId is omitted rather than merging null into
+    // the cascade-owned association.
+    if (dto.getUserId() != null) {
+      rally.setUser(userPersistence.getReferenceById(dto.getUserId()));
+    }
+
+    RallyDTO saved = toDto(rallyPersistence.save(rally));
+    publishCrudEvent(com.rallyapp.rallymaster.service.event.CrudOperation.UPDATED, saved);
+    return saved;
+  }
+
   /** Deletes an un-published rally and all of its planning routes. */
   @Override
   @Transactional

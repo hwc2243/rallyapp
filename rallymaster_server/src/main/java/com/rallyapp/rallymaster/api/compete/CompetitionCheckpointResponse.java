@@ -4,6 +4,8 @@ package com.rallyapp.rallymaster.api.compete;
 public record CompetitionCheckpointResponse(
     Long checkpointId,
     Long checkpointNumber,
+    Long routePosition,
+    Long segmentNumber,
     String checkpointType,
     String name,
     Double latitude,

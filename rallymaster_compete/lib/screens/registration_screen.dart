@@ -93,6 +93,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             builder: (_) => DownloadedCheckpointsScreen(
               rally: widget.rally,
               route: widget.route,
+              carNumber: registration.carNumber,
             ),
           ),
         );

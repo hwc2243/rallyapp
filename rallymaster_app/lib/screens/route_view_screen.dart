@@ -102,6 +102,7 @@ class _RouteViewScreenState extends State<RouteViewScreen> {
                   DataColumn(label: Text('ITEM')),
                   DataColumn(label: Text('DISTANCE')),
                   DataColumn(label: Text('ARRIVAL')),
+                  DataColumn(label: Text('SPEED')),
                   DataColumn(label: Text('PAUSE')),
                   DataColumn(label: Text('DESCRIPTION')),
                 ],
@@ -123,6 +124,14 @@ class _RouteViewScreenState extends State<RouteViewScreen> {
                               DataCell(
                                 Text(
                                   _plan!.arrivals[item.item.serverId] ?? '—',
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  _plan!.speeds[item.item.serverId] == null
+                                      ? '—'
+                                      : _plan!.speeds[item.item.serverId]!
+                                            .toStringAsFixed(1),
                                 ),
                               ),
                               DataCell(Text(_pause(item))),

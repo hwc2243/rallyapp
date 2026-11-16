@@ -15,6 +15,7 @@ import com.rallyapp.rallymaster.model.RouteTimingPlanScoringUnit;
 import com.rallyapp.rallymaster.persistence.RallyConfigurationPersistence;
 import com.rallyapp.rallymaster.persistence.RoutePersistence;
 import com.rallyapp.rallymaster.persistence.RouteTimingPlanPersistence;
+import com.rallyapp.rallymaster.persistence.RouteTimingPointPersistence;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -31,14 +32,17 @@ public class RouteTimingPlanCalculationServiceImpl
   private final RoutePersistence routePersistence;
   private final RallyConfigurationPersistence rallyConfigurationPersistence;
   private final RouteTimingPlanPersistence routeTimingPlanPersistence;
+  private final RouteTimingPointPersistence routeTimingPointPersistence;
 
   public RouteTimingPlanCalculationServiceImpl(
       RoutePersistence routePersistence,
       RallyConfigurationPersistence rallyConfigurationPersistence,
-      RouteTimingPlanPersistence routeTimingPlanPersistence) {
+      RouteTimingPlanPersistence routeTimingPlanPersistence,
+      RouteTimingPointPersistence routeTimingPointPersistence) {
     this.routePersistence = routePersistence;
     this.rallyConfigurationPersistence = rallyConfigurationPersistence;
     this.routeTimingPlanPersistence = routeTimingPlanPersistence;
+    this.routeTimingPointPersistence = routeTimingPointPersistence;
   }
 
   @Override
@@ -69,7 +73,26 @@ public class RouteTimingPlanCalculationServiceImpl
       plan.setVersion(1L);
       plan.setPoints(new ArrayList<>());
     } else {
+      // Orphan removal alone is not sufficient here. Hibernate can queue the
+      // inserts for the new points before the deletes for the old collection,
+      // which violates the unique (timing plan, route item) key during a
+      // recalculation. Delete and flush the old points first, then reload the
+      // managed aggregate that will own the replacement collection.
+      Long planId = plan.getId();
+      routeTimingPointPersistence.deleteForTimingPlan(planId);
+      route = routePersistence.findById(routeId)
+          .orElseThrow(() -> new ServiceException("Route " + routeId + " was not found."));
+      items = route.getItems().stream()
+          .filter(item -> !Boolean.TRUE.equals(item.getDeleted()))
+          .sorted(Comparator.comparing(RouteItemEntity::getPosition,
+              Comparator.nullsLast(Comparator.naturalOrder())))
+          .toList();
+      plan = routeTimingPlanPersistence.findById(planId)
+          .orElseThrow(() -> new ServiceException("Timing plan " + planId + " was not found."));
       plan.setVersion((plan.getVersion() == null ? 0L : plan.getVersion()) + 1L);
+      // Keep Hibernate's managed orphan-removal collection instance. Replacing
+      // it with a new List causes Hibernate to treat the old collection as an
+      // unreferenced orphan collection at flush time.
       if (plan.getPoints() == null) {
         plan.setPoints(new ArrayList<>());
       } else {

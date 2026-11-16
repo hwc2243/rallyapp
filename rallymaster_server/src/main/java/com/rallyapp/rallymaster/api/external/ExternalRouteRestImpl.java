@@ -4,11 +4,15 @@ import com.rallyapp.rallymaster.dto.RoutePlanDTO;
 import com.rallyapp.rallymaster.dto.RouteDTO;
 import com.rallyapp.rallymaster.dto.RouteTimingPlanDTO;
 import com.rallyapp.rallymaster.entity.RouteTimingPlanEntity;
+import com.rallyapp.rallymaster.entity.RouteInstructionEntity;
+import com.rallyapp.rallymaster.entity.RallyConfigurationEntity;
 import com.rallyapp.rallymaster.competition.CompetitionAuthenticationService;
 import com.rallyapp.rallymaster.competition.RallyEntryManagementService;
 import com.rallyapp.rallymaster.service.ServiceException;
 import com.rallyapp.rallymaster.service.RouteTimingPlanCalculationService;
 import com.rallyapp.rallymaster.persistence.RouteTimingPlanPersistence;
+import com.rallyapp.rallymaster.persistence.RallyConfigurationPersistence;
+import java.util.ArrayList;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -43,16 +47,19 @@ public class ExternalRouteRestImpl
   private final RallyEntryManagementService rallyEntryManagementService;
   private final RouteTimingPlanCalculationService routeTimingPlanCalculationService;
   private final RouteTimingPlanPersistence routeTimingPlanPersistence;
+  private final RallyConfigurationPersistence rallyConfigurationPersistence;
 
   public ExternalRouteRestImpl(
       CompetitionAuthenticationService competitionAuthenticationService,
       RallyEntryManagementService rallyEntryManagementService,
       RouteTimingPlanCalculationService routeTimingPlanCalculationService,
-      RouteTimingPlanPersistence routeTimingPlanPersistence) {
+      RouteTimingPlanPersistence routeTimingPlanPersistence,
+      RallyConfigurationPersistence rallyConfigurationPersistence) {
     this.competitionAuthenticationService = competitionAuthenticationService;
     this.rallyEntryManagementService = rallyEntryManagementService;
     this.routeTimingPlanCalculationService = routeTimingPlanCalculationService;
     this.routeTimingPlanPersistence = routeTimingPlanPersistence;
+    this.rallyConfigurationPersistence = rallyConfigurationPersistence;
   }
 
   @GetMapping("/{routeId}/timing-plan")
@@ -67,12 +74,23 @@ public class ExternalRouteRestImpl
       if (plan == null) return ResponseEntity.notFound().build();
       ZoneId zone = ZoneId.of(route.getTimeZone());
       DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(zone);
-      var points = plan.getPoints().stream()
+      RallyConfigurationEntity configuration = rallyConfigurationPersistence
+          .findFirstByRally_Id(route.getRallyId());
+      Double speed = route.getDefaultSpeed() != null ? route.getDefaultSpeed()
+          : configuration == null ? null : configuration.getDefaultSpeed();
+      var points = new ArrayList<RouteTimingPointViewResponse>();
+      for (var point : plan.getPoints().stream()
           .sorted(Comparator.comparing(point -> point.getRouteItem().getPosition()))
-          .map(point -> new RouteTimingPointViewResponse(
-              point.getRouteItem().getId(),
-              formatter.format(Instant.ofEpochMilli(point.getCarZeroIdealArrivalEpochMillis()))))
-          .toList();
+          .toList()) {
+        points.add(new RouteTimingPointViewResponse(
+            point.getRouteItem().getId(),
+            formatter.format(Instant.ofEpochMilli(point.getCarZeroIdealArrivalEpochMillis())),
+            speed));
+        if (point.getRouteItem() instanceof RouteInstructionEntity instruction
+            && instruction.getSpeed() != null) {
+          speed = instruction.getSpeed();
+        }
+      }
       return ResponseEntity.ok(new RouteTimingPlanViewResponse(plan.getVersion(), points));
     } catch (ServiceException | java.time.DateTimeException ex) {
       logger.warn("Unable to load timing plan for route {}: {}", routeId, ex.getMessage());

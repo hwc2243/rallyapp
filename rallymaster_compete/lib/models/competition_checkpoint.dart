@@ -2,6 +2,8 @@ class CompetitionCheckpoint {
   const CompetitionCheckpoint({
     required this.id,
     required this.number,
+    required this.routePosition,
+    required this.segmentNumber,
     required this.type,
     required this.name,
     required this.latitude,
@@ -16,6 +18,8 @@ class CompetitionCheckpoint {
       CompetitionCheckpoint(
         id: (json['checkpointId'] as num).toInt(),
         number: (json['checkpointNumber'] as num?)?.toInt(),
+        routePosition: (json['routePosition'] as num?)?.toInt(),
+        segmentNumber: (json['segmentNumber'] as num?)?.toInt(),
         type: json['checkpointType'] as String? ?? 'CHECKPOINT',
         name: json['name'] as String?,
         latitude: (json['latitude'] as num?)?.toDouble(),
@@ -29,6 +33,8 @@ class CompetitionCheckpoint {
 
   final int id;
   final int? number;
+  final int? routePosition;
+  final int? segmentNumber;
   final String type;
   final String? name;
   final double? latitude;

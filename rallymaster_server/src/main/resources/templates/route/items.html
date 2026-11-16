@@ -11,10 +11,9 @@
   <div th:replace="~{fragments/layout :: navbar}"></div>
   <main class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <div><a class="small text-decoration-none" th:href="@{/rally/{rallyId}/routes(rallyId=${rally.id})}"><i class="bi bi-arrow-left"></i> Routes</a>
+      <div><a class="small text-decoration-none" th:href="@{/rally/{rallyId}/routes/{routeId}(rallyId=${rally.id},routeId=${route.id})}"><i class="bi bi-arrow-left"></i> Route actions</a>
         <h1 class="h2 mb-1 mt-2" th:text="${route.name}">Route</h1><p class="text-body-secondary mb-0" th:text="${rally.name}">Rally</p></div>
-      <div class="d-flex gap-2">
-        <a class="btn btn-outline-secondary" th:href="@{/rally/{rallyId}/routes/{routeId}/competitors(rallyId=${rally.id},routeId=${route.id})}"><i class="bi bi-people me-1"></i>Competitors</a>
+      <div class="d-flex gap-2" th:if="${route.status.name() == 'PLAN'}">
         <a class="btn btn-primary" th:href="@{/rally/{rallyId}/routes/{routeId}/items/new(rallyId=${rally.id},routeId=${route.id})}"><i class="bi bi-plus-lg me-1"></i>Add item</a>
       </div>
     </div>
@@ -32,13 +31,20 @@
           <td th:text="${item.distance}">0.000</td>
           <td th:text="${item.latitude != null and item.longitude != null ? item.latitude + ', ' + item.longitude : '—'}">—</td>
           <td class="text-end">
-            <a class="btn btn-sm btn-outline-primary" th:if="${item.itemType.name() == 'NRI'}" th:href="@{/rally/{rallyId}/routes/{routeId}/items/nri/{itemId}/edit(rallyId=${rally.id},routeId=${route.id},itemId=${item.id})}"><i class="bi bi-pencil"></i><span class="visually-hidden">Edit NRI</span></a>
-            <a class="btn btn-sm btn-outline-primary" th:if="${item.itemType.name() == 'CHECKPOINT'}" th:href="@{/rally/{rallyId}/routes/{routeId}/items/checkpoint/{itemId}/edit(rallyId=${rally.id},routeId=${route.id},itemId=${item.id})}"><i class="bi bi-pencil"></i><span class="visually-hidden">Edit checkpoint</span></a>
+            <a class="btn btn-sm btn-outline-primary" th:if="${route.status.name() == 'PLAN' and item.itemType.name() == 'NRI'}" th:href="@{/rally/{rallyId}/routes/{routeId}/items/nri/{itemId}/edit(rallyId=${rally.id},routeId=${route.id},itemId=${item.id})}"><i class="bi bi-pencil"></i><span class="visually-hidden">Edit NRI</span></a>
+            <a class="btn btn-sm btn-outline-primary" th:if="${route.status.name() == 'PLAN' and item.itemType.name() == 'CHECKPOINT'}" th:href="@{/rally/{rallyId}/routes/{routeId}/items/checkpoint/{itemId}/edit(rallyId=${rally.id},routeId=${route.id},itemId=${item.id})}"><i class="bi bi-pencil"></i><span class="visually-hidden">Edit checkpoint</span></a>
+            <form class="d-inline" th:if="${route.status.name() == 'PLAN'}" method="post"
+                  th:action="@{/rally/{rallyId}/routes/{routeId}/items/{itemId}/delete(rallyId=${rally.id},routeId=${route.id},itemId=${item.id})}"
+                  th:attr="onsubmit=|return confirm('Delete this route item? Remaining items will be renumbered.');|">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+              <button class="btn btn-sm btn-outline-danger" type="submit" title="Delete item" aria-label="Delete item"><i class="bi bi-trash"></i></button>
+            </form>
           </td>
         </tr>
         <tr th:if="${items.isEmpty()}"><td colspan="6" class="text-center text-body-secondary py-5">No route instructions or checkpoints have been added.</td></tr>
       </tbody>
     </table></div></section>
+    <div class="alert alert-success mt-3" th:if="${success}" th:text="${success}"></div>
   </main>
 </body>
 </html>

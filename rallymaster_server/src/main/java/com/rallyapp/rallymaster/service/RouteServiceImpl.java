@@ -253,6 +253,26 @@ public class RouteServiceImpl
     return savedPlan;
   }
 
+  /**
+   * Timing points are derived from the ordered route items.  They must never
+   * outlive an edit to that list: apart from becoming stale, their foreign key
+   * to a route item prevents a control from being removed.
+   */
+  @Override
+  @Transactional
+  public void invalidateTimingPlan(Long routeId) throws ServiceException {
+    RouteDTO route = get(routeId);
+    if (route == null) {
+      throw new ServiceException("Route " + routeId + " was not found.");
+    }
+    RouteTimingPlanEntity plan = routeTimingPlanPersistence
+        .findFirstByOrganizationIdAndRouteId(route.getOrganizationId(), routeId);
+    if (plan != null) {
+      routeTimingPointPersistence.deleteForTimingPlan(plan.getId());
+      routeTimingPlanPersistence.deleteForId(plan.getId());
+    }
+  }
+
   private static void detachFromRoute(RouteEntity route, RouteItemEntity item) {
     if (route.getItems() != null) {
       route.getItems().removeIf(existing -> item.getId().equals(existing.getId()));

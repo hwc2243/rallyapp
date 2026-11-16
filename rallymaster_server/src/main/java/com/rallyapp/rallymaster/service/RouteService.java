@@ -10,4 +10,7 @@ public interface RouteService extends BaseRouteService<RouteDTO,Long>
 	List<RouteDTO> findByRallyId(Long rallyId);
 
 	RoutePlanDTO savePlan(Long routeId, RoutePlanDTO plan) throws ServiceException;
+
+	/** Removes a derived timing plan before route instructions or controls change. */
+	void invalidateTimingPlan(Long routeId) throws ServiceException;
 }

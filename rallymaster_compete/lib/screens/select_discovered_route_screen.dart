@@ -45,8 +45,13 @@ class _SelectDiscoveredRouteScreenState
       if (existingRegistration != null) {
         Navigator.of(context).push<void>(
           MaterialPageRoute<void>(
-            builder: (_) =>
-                DownloadedCheckpointsScreen(rally: widget.rally, route: route),
+            // The existing server registration is authoritative for the car
+            // number used in all score calculations.
+            builder: (_) => DownloadedCheckpointsScreen(
+              rally: widget.rally,
+              route: route,
+              carNumber: existingRegistration.carNumber,
+            ),
           ),
         );
       } else {

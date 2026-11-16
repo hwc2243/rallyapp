@@ -35,11 +35,11 @@ class CheckpointDetailsDialog extends StatefulWidget {
 
 class _CheckpointDetailsDialogState extends State<CheckpointDetailsDialog> {
   static const _checkpointTypes = [
-    'OFFCOURSE_CONTROL',
     'TIMED_CONTROL',
     'TIME_CHECK',
     'RESTART',
     'FINISH',
+    'OFFCOURSE_CONTROL',
   ];
 
   final _formKey = GlobalKey<FormState>();
